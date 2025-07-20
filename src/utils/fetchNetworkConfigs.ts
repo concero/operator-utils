@@ -1,6 +1,6 @@
 import { ChainDefinition, createViemChain } from "./createViemChain";
 import { HttpClient } from "./HttpClient";
-import { Logger } from "./Logger";
+import { Logger, LoggerInterface } from "./Logger";
 
 export interface V2Network {
     name: string;
@@ -33,11 +33,11 @@ export interface NetworkConfigs {
 }
 
 export async function fetchNetworkConfigs(
+    logger: LoggerInterface,
+    httpClient: HttpClient,
     networkMode: "mainnet" | "testnet" | "localhost" = "testnet",
     urls?: { mainnet: string; testnet: string },
 ): Promise<NetworkConfigs> {
-    const logger = Logger.getInstance().getLogger("NetworkConfig");
-    const httpClient = HttpClient.getInstance();
 
     try {
         let mainnetNetworks: Record<string, ProcessedNetwork> = {};

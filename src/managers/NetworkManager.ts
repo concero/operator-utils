@@ -1,8 +1,7 @@
 import { ConceroNetwork } from "../types/ConceroNetwork";
 import { NetworkManagerConfig } from "../types/ManagerConfigs";
 import { INetworkManager, NetworkUpdateListener } from "../types/managers";
-import { fetchNetworkConfigs } from "../utils";
-import { getEnvVar, localhostViemChain } from "../utils/";
+import { fetchNetworkConfigs, HttpClient , getEnvVar, localhostViemChain} from "../utils";
 import { LoggerInterface } from "../types/LoggerInterface";
 
 import { ManagerBase } from "./ManagerBase";
@@ -19,11 +18,13 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
     private updateListeners: NetworkUpdateListener[] = [];
     private logger: LoggerInterface;
     private config: NetworkManagerConfig;
+    private httpClient: HttpClient;
 
-    private constructor(logger: LoggerInterface, config: NetworkManagerConfig) {
+    private constructor(logger: LoggerInterface, httpClient: HttpClient, config: NetworkManagerConfig) {
         super();
         this.config = config;
         this.logger = logger;
+        this.httpClient = httpClient;
     }
 
     public static getInstance(): NetworkManager {
@@ -32,9 +33,10 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
 
     public static createInstance(
         logger: LoggerInterface,
+        httpClient: HttpClient,
         config: NetworkManagerConfig,
     ): NetworkManager {
-        this.instance = new NetworkManager(logger, config);
+        this.instance = new NetworkManager(logger, httpClient, config);
         return this.instance;
     }
 
@@ -172,7 +174,7 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
             } else {
                 try {
                     const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } =
-                        await fetchNetworkConfigs(this.config.networkMode, {
+                        await fetchNetworkConfigs(this.logger, this.httpClient, this.config.networkMode, {
                             mainnet: this.config.mainnetUrl,
                             testnet: this.config.testnetUrl,
                         });
