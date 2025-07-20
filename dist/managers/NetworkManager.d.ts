@@ -1,0 +1,40 @@
+import { ConceroNetwork } from "../types/ConceroNetwork";
+import { NetworkManagerConfig } from "../types/ManagerConfigs";
+import { INetworkManager, NetworkUpdateListener } from "../types/managers";
+import { LoggerInterface } from "../types/LoggerInterface";
+import { ManagerBase } from "./ManagerBase";
+export declare class NetworkManager extends ManagerBase implements INetworkManager {
+    private static instance;
+    private mainnetNetworks;
+    private testnetNetworks;
+    private allNetworks;
+    private activeNetworks;
+    private updateIntervalId;
+    private updateListeners;
+    private logger;
+    private config;
+    private constructor();
+    static getInstance(): NetworkManager;
+    static createInstance(logger: LoggerInterface, config: NetworkManagerConfig): NetworkManager;
+    initialize(): Promise<void>;
+    registerUpdateListener(listener: NetworkUpdateListener): void;
+    unregisterUpdateListener(listener: NetworkUpdateListener): void;
+    getMainnetNetworks(): Record<string, ConceroNetwork>;
+    getTestnetNetworks(): Record<string, ConceroNetwork>;
+    getAllNetworks(): Record<string, ConceroNetwork>;
+    getActiveNetworks(): ConceroNetwork[];
+    getNetworkById(chainId: number): ConceroNetwork;
+    getNetworkByName(name: string): ConceroNetwork;
+    getNetworkBySelector(selector: string): ConceroNetwork;
+    getVerifierNetwork(): ConceroNetwork;
+    forceUpdate(): Promise<void>;
+    private setupUpdateCycle;
+    private updateNetworks;
+    private notifyListeners;
+    triggerInitialUpdates(): Promise<void>;
+    private createNetworkConfig;
+    private getTestingNetworks;
+    private filterNetworks;
+    dispose(): void;
+}
+//# sourceMappingURL=NetworkManager.d.ts.map

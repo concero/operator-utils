@@ -1,0 +1,1 @@
+{"version":3,"file":"getEnvVar.d.ts","sourceRoot":"","sources":["../../src/utils/getEnvVar.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,KAAK,GAAG,EAAE,MAAM,cAAc,CAAC;AAGxC,wBAAgB,SAAS,CAAC,CAAC,SAAS,MAAM,GAAG,EAAE,GAAG,EAAE,CAAC,GAAG,GAAG,CAAC,CAAC,CAAC,CAI7D"}

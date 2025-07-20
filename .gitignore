@@ -1,0 +1,37 @@
+# dependencies
+node_modules
+#dist
+# yarn
+.yarn/*
+*.lockb
+
+# eslint
+.eslintcache
+
+# misc
+.DS_Store
+
+# IDE
+.vscode
+.idea
+
+# env files
+.env.*
+.env
+!.env.deployments.*
+!.env.clf
+!.env.tokens
+!.env.clccip
+
+!.env.example
+
+*.log
+logs/
+
+
+rpcs.override.json
+rpcs.extension.json
+
+# Prisma/SQLite databases
+prisma/*.db
+prisma/migrations/*

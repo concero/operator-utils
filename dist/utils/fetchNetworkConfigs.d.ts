@@ -1,0 +1,33 @@
+import { createViemChain } from "./createViemChain";
+export interface V2Network {
+    name: string;
+    chainId: number;
+    chainSelector: number;
+    rpcUrls: string[];
+    blockExplorers: {
+        name: string;
+        url: string;
+        apiUrl: string;
+    }[];
+    faucets?: string[];
+    nativeCurrency?: {
+        name: string;
+        symbol: string;
+        decimals: number;
+    };
+}
+export interface ProcessedNetwork {
+    name: string;
+    chainId: number;
+    chainSelector: string;
+    viemChain: ReturnType<typeof createViemChain>;
+}
+export interface NetworkConfigs {
+    mainnetNetworks: Record<string, ProcessedNetwork>;
+    testnetNetworks: Record<string, ProcessedNetwork>;
+}
+export declare function fetchNetworkConfigs(networkMode?: "mainnet" | "testnet" | "localhost", urls?: {
+    mainnet: string;
+    testnet: string;
+}): Promise<NetworkConfigs>;
+//# sourceMappingURL=fetchNetworkConfigs.d.ts.map
