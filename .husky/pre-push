@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔨 Building JS and CJS code before push..."
 
 # Run the build commands
