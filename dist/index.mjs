@@ -47634,9 +47634,7 @@ function createViemChain(chainDefinition) {
 }
 
 // src/utils/fetchNetworkConfigs.ts
-async function fetchNetworkConfigs(networkMode = "testnet", urls) {
-  const logger = Logger.getInstance().getLogger("NetworkConfig");
-  const httpClient = HttpClient.getInstance();
+async function fetchNetworkConfigs(logger, httpClient, networkMode = "testnet", urls) {
   try {
     let mainnetNetworks = {};
     let testnetNetworks = {};
@@ -47701,7 +47699,7 @@ function processNetworkData(networkData, isTestnet, logger) {
 
 // src/managers/NetworkManager.ts
 var NetworkManager = class _NetworkManager extends ManagerBase {
-  constructor(logger, config) {
+  constructor(logger, httpClient, config) {
     super();
     this.mainnetNetworks = {};
     this.testnetNetworks = {};
@@ -47711,12 +47709,13 @@ var NetworkManager = class _NetworkManager extends ManagerBase {
     this.updateListeners = [];
     this.config = config;
     this.logger = logger;
+    this.httpClient = httpClient;
   }
   static getInstance() {
     return _NetworkManager.instance;
   }
-  static createInstance(logger, config) {
-    this.instance = new _NetworkManager(logger, config);
+  static createInstance(logger, httpClient, config) {
+    this.instance = new _NetworkManager(logger, httpClient, config);
     return this.instance;
   }
   async initialize() {
@@ -47831,9 +47830,9 @@ var NetworkManager = class _NetworkManager extends ManagerBase {
         networksFetched = true;
       } else {
         try {
-          const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } = await fetchNetworkConfigs(this.config.networkMode, {
-            mainnet: globalConfig.URLS.V2_NETWORKS.MAINNET,
-            testnet: globalConfig.URLS.V2_NETWORKS.TESTNET
+          const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } = await fetchNetworkConfigs(this.logger, this.httpClient, this.config.networkMode, {
+            mainnet: this.config.mainnetUrl,
+            testnet: this.config.testnetUrl
           });
           const hasMainnetNetworks = Object.keys(fetchedMainnet).length > 0;
           const hasTestnetNetworks = Object.keys(fetchedTestnet).length > 0;
