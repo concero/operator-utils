@@ -8,14 +8,14 @@
   ],
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "prepare": "npm run build",
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist --format=esm",
+    "prepare": "npm run build && npm run build:cjs",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.mjs --format=esm",
+    "build:cjs": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
     "lint": "eslint --config .eslint.config.mjs",
     "format": "prettier --config .prettierrc.json --write **/*.{ts,json}",
