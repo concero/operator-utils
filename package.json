@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "prepare": "npm run build && npm run build:cjs",
+    "prepare": "husky",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.mjs --format=esm",
     "build:cjs": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
@@ -25,9 +25,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "async-mutex": "^0.5.0",
     "axios": "^1.10.0",
     "viem": "^2.33.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.15",
+    "esbuild": "^0.25.8",
+    "husky": "^9.1.7",
+    "typescript": "^5.8.3"
   }
 }
