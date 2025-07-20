@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/node": "^24.0.15",
     "esbuild": "^0.25.8",
+    "eslint": "^9.31.0",
     "husky": "^9.1.7",
     "typescript": "^5.8.3"
   }
