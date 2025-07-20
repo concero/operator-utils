@@ -14,7 +14,6 @@
   },
   "scripts": {
     "prepare": "npm run build && npm run build:cjs",
-    "prepublishOnly": "npm run build && npm run build:cjs",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.mjs --format=esm",
     "build:cjs": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
     "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
