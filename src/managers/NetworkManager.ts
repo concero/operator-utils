@@ -173,8 +173,8 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
                 try {
                     const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } =
                         await fetchNetworkConfigs(this.config.networkMode, {
-                            mainnet: globalConfig.URLS.V2_NETWORKS.MAINNET,
-                            testnet: globalConfig.URLS.V2_NETWORKS.TESTNET,
+                            mainnet: this.config.mainnetUrl,
+                            testnet: this.config.testnetUrl,
                         });
 
                     const hasMainnetNetworks = Object.keys(fetchedMainnet).length > 0;
