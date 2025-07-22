@@ -6,3 +6,4 @@ export { HttpClient } from "./HttpClient";
 export { Logger } from "./Logger";
 export { AppError } from "./AppError";
 export { createViemChain, type ChainDefinition } from "./createViemChain";
+export { callContract } from "./callContract";

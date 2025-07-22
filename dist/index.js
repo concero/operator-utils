@@ -36525,15 +36525,19 @@ __export(index_exports, {
   AppErrorEnum: () => AppErrorEnum,
   BlockManager: () => BlockManager,
   BlockManagerRegistry: () => BlockManagerRegistry,
-  DeploymentManager: () => DeploymentManager,
+  DeploymentFetcher: () => DeploymentFetcher,
   HttpClient: () => HttpClient,
   Logger: () => Logger,
   ManagerBase: () => ManagerBase,
   NetworkManager: () => NetworkManager,
   NonceManager: () => NonceManager,
   RpcManager: () => RpcManager,
+  TxMonitor: () => TxMonitor,
+  TxReader: () => TxReader,
+  TxWriter: () => TxWriter,
   ViemClientManager: () => ViemClientManager,
   appErrors: () => appErrors,
+  callContract: () => callContract,
   createCustomHttpTransport: () => createCustomHttpTransport,
   createViemChain: () => createViemChain,
   fetchNetworkConfigs: () => fetchNetworkConfigs,
@@ -36942,14 +36946,6 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     }
   }
 };
-
-// src/utils/getEnvVar.ts
-var import_process = __toESM(require("process"));
-function getEnvVar(key) {
-  const value = import_process.default.env[key];
-  if (value === void 0 || value === "") throw new Error(`Missing environment variable ${key}`);
-  return value;
-}
 
 // node_modules/axios/lib/helpers/bind.js
 function bind(fn, thisArg) {
@@ -40378,138 +40374,69 @@ var HttpClient = class _HttpClient extends ManagerBase {
   }
 };
 
-// src/managers/DeploymentManager.ts
-var DeploymentManager = class _DeploymentManager extends ManagerBase {
-  constructor(logger, config) {
-    super();
-    this.conceroRoutersMapByChainName = {};
+// src/managers/DeploymentFetcher.ts
+var DeploymentFetcher = class {
+  constructor(logger) {
     this.httpClient = HttpClient.getInstance();
     this.logger = logger;
-    this.config = config;
   }
-  static createInstance(logger, config) {
-    _DeploymentManager.instance = new _DeploymentManager(logger, config);
-    return _DeploymentManager.instance;
-  }
-  static getInstance() {
-    if (!_DeploymentManager.instance) {
-      throw new Error("DeploymentManager is not initialized. Call createInstance() first.");
-    }
-    return _DeploymentManager.instance;
-  }
-  async initialize() {
-    if (this.initialized) return;
+  async getDeployments(url2, patterns) {
     try {
-      await super.initialize();
-      this.logger.debug("Initialized");
-    } catch (error) {
-      this.logger.error("Failed to initialize:", error);
-      throw error;
-    }
-  }
-  async getRouterByChainName(chainName) {
-    if (this.isLocalhostEnv()) {
-      return getEnvVar("CONCERO_ROUTER_PROXY_LOCALHOST");
-    }
-    const router = this.conceroRoutersMapByChainName[chainName];
-    if (!router) {
-      throw new Error(`Router not found for chain: ${chainName}`);
-    }
-    return router;
-  }
-  async getConceroRouters() {
-    if (this.isLocalhostEnv()) {
-      return {
-        [getEnvVar("LOCALHOST_FORK_CHAIN_ID")]: getEnvVar(
-          "CONCERO_ROUTER_PROXY_LOCALHOST"
-        )
-      };
-    }
-    const routers = this.conceroRoutersMapByChainName;
-    return routers;
-  }
-  async getConceroVerifier() {
-    if (this.isLocalhostEnv()) {
-      return getEnvVar("CONCERO_VERIFIER_PROXY_LOCALHOST");
-    }
-    if (this.conceroVerifier !== void 0) return this.conceroVerifier;
-    await this.updateDeployments();
-    if (!this.conceroVerifier) {
-      throw new Error("Concero verifier address not found after update");
-    }
-    return this.conceroVerifier;
-  }
-  async updateDeployments(networks) {
-    const now = Date.now();
-    try {
-      const deployments = await this.httpClient.get(this.config.conceroDeploymentsUrl, {
+      const deploymentsText = await this.httpClient.get(url2, {
         responseType: "text"
-        // Ensure Axios returns raw text
       });
-      const deploymentsEnvArr = deployments.split("\n");
-      const conceroRouterDeploymentsEnv = deploymentsEnvArr.filter(
-        (d) => d.startsWith("CONCERO_ROUTER_PROXY") && !d.startsWith("CONCERO_ROUTER_PROXY_ADMIN")
-      );
-      const routerMap = {};
-      const activeNetworkNames = networks ? new Set(networks.map((n) => n.name)) : null;
-      if (activeNetworkNames) {
-        const currentNetworkNames = Object.keys(this.conceroRoutersMapByChainName);
-        for (const networkName of currentNetworkNames) {
-          if (!activeNetworkNames.has(networkName)) {
-            delete this.conceroRoutersMapByChainName[networkName];
-            this.logger.debug(
-              `Removed deployment for inactive network: ${networkName}`
-            );
-          }
+      const deploymentsEnvArr = deploymentsText.split("\n");
+      const deployments = /* @__PURE__ */ new Map();
+      for (const deploymentEnv of deploymentsEnvArr) {
+        if (!deploymentEnv || !deploymentEnv.includes("=")) continue;
+        const [key, value] = deploymentEnv.split("=");
+        if (key && value) {
+          deployments.set(key, value);
         }
       }
-      for (const deploymentEnv of conceroRouterDeploymentsEnv) {
-        const [name, address] = deploymentEnv.split("=");
-        const networkName = this.extractNetworkName(name);
-        if (networkName) {
-          if (!activeNetworkNames || activeNetworkNames.has(networkName)) {
-            routerMap[networkName] = address;
-          }
-        }
-      }
-      Object.assign(this.conceroRoutersMapByChainName, routerMap);
-      const verifierEntry = deploymentsEnvArr.find((d) => {
-        const networkSuffix = this.config.networkMode === "testnet" ? "ARBITRUM_SEPOLIA" : "ARBITRUM";
-        return d.startsWith(`CONCERO_VERIFIER_PROXY_${networkSuffix}`);
-      });
-      if (verifierEntry) {
-        this.conceroVerifier = verifierEntry.split("=")[1];
-      }
-      this.lastUpdateTime = now;
-      this.logger.debug("Deployments updated");
+      return this.parseDeployments(deployments, patterns);
     } catch (error) {
-      this.logger.error("Failed to update deployments:", error);
+      this.logger.error("Failed to fetch deployments:", error);
       throw new Error(
-        `Failed to update deployments: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
-  async onNetworksUpdated(networks) {
-    try {
-      await this.updateDeployments(networks);
-    } catch (err) {
-      this.logger.error("Failed to update deployments after network update:", err);
-      throw err;
+  parseDeployments(deployments, patterns) {
+    const parsed = [];
+    for (const [key, value] of deployments) {
+      for (const pattern of patterns) {
+        const match = key.match(pattern);
+        if (match) {
+          const networkCapture = match[1];
+          if (networkCapture) {
+            const networkName = this.convertToNetworkName(networkCapture);
+            const deployment = {
+              key,
+              value,
+              networkName
+            };
+            parsed.push(deployment);
+          }
+          break;
+        }
+      }
     }
+    return parsed;
   }
-  extractNetworkName(key) {
-    const prefix = "CONCERO_ROUTER_PROXY_";
-    const parts = key.slice(prefix.length).toLowerCase().split("_");
+  convertToNetworkName(capture) {
+    const parts = capture.toLowerCase().split("_");
     return parts[0] + parts.slice(1).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   }
-  isLocalhostEnv() {
-    return this.config.networkMode === "localhost";
-  }
-  dispose() {
-    super.dispose();
-    this.logger.debug("Disposed");
-  }
 };
+
+// src/utils/getEnvVar.ts
+var import_process = __toESM(require("process"));
+function getEnvVar(key) {
+  const value = import_process.default.env[key];
+  if (value === void 0 || value === "") throw new Error(`Missing environment variable ${key}`);
+  return value;
+}
 
 // node_modules/viem/_esm/utils/getAction.js
 function getAction(client, actionFn, name) {
@@ -47457,6 +47384,11 @@ function createWalletClient(parameters) {
   return client.extend(walletActions);
 }
 
+// node_modules/viem/_esm/index.js
+init_contract();
+init_node();
+init_transaction();
+
 // src/utils/localhostViemChain.ts
 var localhostViemChain = defineChain({
   id: 1,
@@ -47500,6 +47432,18 @@ var Logger = class _Logger extends ManagerBase {
     }
     return _Logger.instance;
   }
+  safeStringify(obj, indent) {
+    return JSON.stringify(
+      obj,
+      (key, value) => {
+        if (typeof value === "bigint") {
+          return `${value}n`;
+        }
+        return value;
+      },
+      indent
+    );
+  }
   createBaseLogger() {
     const logFormat = import_winston.default.format.combine(
       import_winston.default.format.colorize({ level: true }),
@@ -47508,8 +47452,8 @@ var Logger = class _Logger extends ManagerBase {
       }),
       import_winston.default.format.printf(({ level, message, timestamp, consumer, ...meta }) => {
         const prefix = consumer ? `${consumer}` : "";
-        const formattedMessage = typeof message === "object" ? JSON.stringify(message, null, 2) : message;
-        const formattedMeta = meta && Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+        const formattedMessage = typeof message === "object" ? this.safeStringify(message, 2) : message;
+        const formattedMeta = meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : "";
         return `${timestamp} ${level} ${prefix}: ${formattedMessage} ${formattedMeta}`.trim();
       })
     );
@@ -47715,6 +47659,98 @@ function processNetworkData(networkData, isTestnet, logger) {
     }
   }
   return processedNetworks;
+}
+
+// src/constants/confirmations.json
+var confirmations_default = {
+  "1270": 3
+};
+
+// src/utils/sleep.ts
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// src/utils/asyncRetry.ts
+async function asyncRetry(fn, options = {}) {
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError = () => false } = options;
+  const logger = Logger.getInstance().getLogger("AsyncRetry");
+  let attempt = 0;
+  let lastError;
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (await isRetryableError(error) && attempt < maxRetries) {
+        ++attempt;
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
+// src/utils/viemErrorParser.ts
+function isNonceError(error) {
+  return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError);
+}
+function isWaitingForReceiptError(error) {
+  return error instanceof TransactionNotFoundError || error instanceof WaitForTransactionReceiptTimeoutError;
+}
+
+// src/utils/callContract.ts
+async function executeTransaction(publicClient, walletClient, params, nonceManager, config) {
+  const chainId = publicClient.chain.id;
+  const address = walletClient.account.address;
+  let txHash;
+  if (config.simulateTx) {
+    const { request } = await publicClient.simulateContract(params);
+    txHash = await walletClient.writeContract({ request });
+  } else {
+    const nonce = await nonceManager.consume({
+      address,
+      chainId,
+      client: publicClient
+    });
+    const paramsToSend = {
+      ...config.defaultGasLimit && { gas: config.defaultGasLimit },
+      ...params,
+      nonce
+    };
+    txHash = await walletClient.writeContract(paramsToSend);
+  }
+  await publicClient.waitForTransactionReceipt({
+    hash: txHash,
+    confirmations: confirmations_default[chainId.toString()] ?? void 0
+  });
+  return txHash;
+}
+async function callContract(publicClient, walletClient, params, nonceManager, config) {
+  try {
+    const isRetryableError = async (error) => {
+      if (isNonceError(error) || isWaitingForReceiptError(error)) {
+        const chainId = publicClient.chain.id;
+        const address = walletClient.account.address;
+        nonceManager.reset({ chainId, address });
+        return true;
+      }
+      return false;
+    };
+    return asyncRetry(
+      () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
+      {
+        maxRetries: 20,
+        delayMs: 1e3,
+        isRetryableError
+      }
+    );
+  } catch (error) {
+    throw new AppError("ContractCallError" /* ContractCallError */, error);
+  }
 }
 
 // src/managers/NetworkManager.ts
@@ -48254,13 +48290,20 @@ var NonceManager = class _NonceManager extends ManagerBase {
     this.noncesMap[params.chainId] = nonce;
   }
   async fetchNonce(params) {
-    return await params.client.getTransactionCount({ address: params.address });
+    const publicClient = this.createPublicCLientFromGetNonceParams(params);
+    return await publicClient.getTransactionCount({ address: params.address });
   }
   getMutex(chainId) {
     if (!this.mutexMap[chainId]) {
       this.mutexMap[chainId] = new Mutex();
     }
     return this.mutexMap[chainId];
+  }
+  createPublicCLientFromGetNonceParams(params) {
+    return createPublicClient({
+      transport: () => params.client.transport,
+      chain: params.client.chain
+    });
   }
 };
 
@@ -48572,21 +48615,593 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
     this.logger.debug("Disposed");
   }
 };
+
+// src/managers/TxMonitor.ts
+var TxMonitor = class _TxMonitor {
+  constructor(logger, viemClientManager, config) {
+    this.monitors = /* @__PURE__ */ new Map();
+    this.disposed = false;
+    this.checkInterval = null;
+    this.viemClientManager = viemClientManager;
+    this.logger = logger;
+    this.config = config;
+    this.startMonitoring();
+    this.logger.info("initialized");
+  }
+  static createInstance(logger, viemClientManager, config) {
+    if (!_TxMonitor.instance) {
+      _TxMonitor.instance = new _TxMonitor(logger, viemClientManager, config);
+    }
+    return _TxMonitor.instance;
+  }
+  static getInstance() {
+    if (!_TxMonitor.instance) {
+      throw new Error("TxMonitor is not initialized. Call createInstance() first.");
+    }
+    return _TxMonitor.instance;
+  }
+  startMonitoring() {
+    const intervalMs = this.config.checkIntervalMs || 5e3;
+    this.checkInterval = setInterval(() => {
+      this.checkAllTransactions().catch((error) => {
+        this.logger.error("Error in transaction monitoring cycle:", error);
+      });
+    }, intervalMs);
+  }
+  watchTxFinality(txInfo, retryCallback, finalityCallback) {
+    if (this.monitors.has(txInfo.txHash)) {
+      this.logger.debug(`Transaction ${txInfo.txHash} is already being monitored`);
+      return;
+    }
+    const monitoredTx = {
+      txHash: txInfo.txHash,
+      chainName: txInfo.chainName,
+      blockNumber: txInfo.submissionBlock,
+      firstSeen: Date.now(),
+      lastChecked: Date.now(),
+      status: "pending" /* Pending */,
+      managedTxId: txInfo.id
+    };
+    const monitor = {
+      transaction: monitoredTx,
+      retryCallback,
+      finalityCallback,
+      retryCount: 0
+    };
+    this.monitors.set(txInfo.txHash, monitor);
+    this.logger.debug(`Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName}`);
+  }
+  addTransaction(txHash, txInfo) {
+    this.logger.warn(`addTransaction called directly - use watchTxFinality instead`);
+    const defaultRetryCallback = async (failedTx) => {
+      this.logger.warn(
+        `Transaction ${failedTx.txHash} failed but no retry callback provided`
+      );
+      return null;
+    };
+    const defaultFinalityCallback = (finalizedTx) => {
+      this.logger.info(
+        `Transaction ${finalizedTx.txHash} finalized (using legacy addTransaction)`
+      );
+    };
+    this.watchTxFinality(txInfo, defaultRetryCallback, defaultFinalityCallback);
+  }
+  async checkAllTransactions() {
+    if (this.disposed) return;
+    const networksToCheck = /* @__PURE__ */ new Map();
+    for (const monitor of this.monitors.values()) {
+      const chainName = monitor.transaction.chainName;
+      if (!networksToCheck.has(chainName)) {
+        networksToCheck.set(chainName, []);
+      }
+      networksToCheck.get(chainName).push(monitor);
+    }
+    for (const [chainName, monitors] of networksToCheck) {
+      const network = this.getNetwork(chainName);
+      if (!network) continue;
+      await this.checkNetworkTransactions(network, monitors);
+    }
+  }
+  async checkNetworkTransactions(network, monitors) {
+    const { publicClient } = this.viemClientManager.getClients(network);
+    const currentBlock = await publicClient.getBlockNumber();
+    const finalityConfirmations = BigInt(network.finalityConfirmations ?? 12);
+    const finalityBlockNumber = currentBlock - finalityConfirmations;
+    for (const monitor of monitors) {
+      await this.checkTransaction(monitor, currentBlock, finalityBlockNumber, network);
+    }
+  }
+  async checkTransaction(monitor, currentBlock, finalityBlockNumber, network) {
+    const tx = monitor.transaction;
+    tx.lastChecked = Date.now();
+    try {
+      const { publicClient } = this.viemClientManager.getClients(network);
+      const txInfo = await publicClient.getTransaction({
+        hash: tx.txHash
+      });
+      if (!txInfo) {
+        await this.handleMissingTransaction(monitor, network);
+        return;
+      }
+      if (!tx.blockNumber && txInfo.blockNumber) {
+        tx.blockNumber = txInfo.blockNumber;
+        this.logger.debug(
+          `Transaction ${tx.txHash} included in block ${txInfo.blockNumber}`
+        );
+      }
+      if (tx.blockNumber && txInfo.blockNumber && tx.blockNumber !== txInfo.blockNumber) {
+        this.logger.warn(
+          `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`
+        );
+        tx.blockNumber = txInfo.blockNumber;
+      }
+      if (txInfo.blockNumber && txInfo.blockNumber <= finalityBlockNumber) {
+        await this.handleFinalizedTransaction(monitor);
+      } else if (txInfo.blockNumber) {
+        const confirmations = currentBlock - txInfo.blockNumber + 1n;
+        const requiredConfirmations = BigInt(network.finalityConfirmations ?? 12);
+        this.logger.debug(
+          `Transaction ${tx.txHash} has ${confirmations} confirmations (needs ${requiredConfirmations})`
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
+      const timeSinceLastRetry = tx.lastChecked - (monitor.lastRetryAt || 0);
+      const retryDelayMs = this.config.retryDelayMs || 3e4;
+      if (timeSinceLastRetry > retryDelayMs) {
+        await this.retryTransaction(monitor, network);
+      }
+    }
+  }
+  async handleMissingTransaction(monitor, network) {
+    const tx = monitor.transaction;
+    const timeSinceSubmission = Date.now() - tx.firstSeen;
+    const dropTimeoutMs = this.config.dropTimeoutMs || 6e4;
+    if (timeSinceSubmission < dropTimeoutMs) {
+      this.logger.debug(
+        `Transaction ${tx.txHash} not found yet (${timeSinceSubmission}ms since submission)`
+      );
+      return;
+    }
+    tx.status = "dropped" /* Dropped */;
+    this.logger.warn(
+      `Transaction ${tx.txHash} not found on chain ${network.name} after ${timeSinceSubmission}ms`
+    );
+    await this.retryTransaction(monitor, network);
+  }
+  async retryTransaction(monitor, network) {
+    const tx = monitor.transaction;
+    monitor.retryCount++;
+    monitor.lastRetryAt = Date.now();
+    this.logger.info(
+      `Retrying transaction ${tx.txHash} on ${network.name} (attempt ${monitor.retryCount})`
+    );
+    const failedTx = {
+      id: tx.managedTxId,
+      txHash: tx.txHash,
+      chainName: tx.chainName,
+      submittedAt: tx.firstSeen,
+      submissionBlock: tx.blockNumber,
+      status: "failed"
+    };
+    const newTxInfo = await monitor.retryCallback(failedTx);
+    if (newTxInfo) {
+      this.monitors.delete(tx.txHash);
+      this.watchTxFinality(newTxInfo, monitor.retryCallback, monitor.finalityCallback);
+      this.logger.info(`Transaction ${tx.txHash} replaced with ${newTxInfo.txHash}`);
+    } else {
+      this.logger.error(`Failed to retry transaction ${tx.txHash} - will try again later`);
+    }
+  }
+  async handleFinalizedTransaction(monitor) {
+    const tx = monitor.transaction;
+    tx.status = "finalized" /* Finalized */;
+    this.logger.info(`Transaction ${tx.txHash} has reached finality on ${tx.chainName}`);
+    const finalizedTx = {
+      id: tx.managedTxId,
+      txHash: tx.txHash,
+      chainName: tx.chainName,
+      submittedAt: tx.firstSeen,
+      submissionBlock: tx.blockNumber,
+      status: "finalized"
+    };
+    monitor.finalityCallback(finalizedTx);
+    this.monitors.delete(tx.txHash);
+  }
+  getNetwork(chainName) {
+    return void 0;
+  }
+  async checkTransactionsInRange(network, startBlock, endBlock) {
+    this.logger.debug(`Batch checking not implemented - using continuous monitoring instead`);
+  }
+  getMonitoredTransactions(chainName) {
+    const transactions = [];
+    for (const monitor of this.monitors.values()) {
+      if (!chainName || monitor.transaction.chainName === chainName) {
+        transactions.push(monitor.transaction);
+      }
+    }
+    return transactions;
+  }
+  getTransactionsByMessageId() {
+    this.logger.warn("getTransactionsByMessageId called on generic TxMonitor");
+    return /* @__PURE__ */ new Map();
+  }
+  dispose() {
+    this.disposed = true;
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+    this.monitors.clear();
+    this.logger.info("Disposed");
+  }
+};
+
+// node_modules/uuid/dist/esm/stringify.js
+var byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+
+// node_modules/uuid/dist/esm/rng.js
+var import_crypto3 = require("crypto");
+var rnds8Pool = new Uint8Array(256);
+var poolPtr = rnds8Pool.length;
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    (0, import_crypto3.randomFillSync)(rnds8Pool);
+    poolPtr = 0;
+  }
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+
+// node_modules/uuid/dist/esm/native.js
+var import_crypto4 = require("crypto");
+var native_default = { randomUUID: import_crypto4.randomUUID };
+
+// node_modules/uuid/dist/esm/v4.js
+function v4(options, buf, offset) {
+  if (native_default.randomUUID && !buf && !options) {
+    return native_default.randomUUID();
+  }
+  options = options || {};
+  const rnds = options.random ?? options.rng?.() ?? rng();
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  rnds[6] = rnds[6] & 15 | 64;
+  rnds[8] = rnds[8] & 63 | 128;
+  if (buf) {
+    offset = offset || 0;
+    if (offset < 0 || offset + 16 > buf.length) {
+      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+    }
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+    return buf;
+  }
+  return unsafeStringify(rnds);
+}
+var v4_default = v4;
+
+// src/managers/TxReader.ts
+var TxReader = class _TxReader {
+  constructor(logger, networkManager, viemClientManager, config) {
+    this.logWatchers = /* @__PURE__ */ new Map();
+    this.readContractWatchers = /* @__PURE__ */ new Map();
+    this.readContractIntervals = /* @__PURE__ */ new Map();
+    this.logWatcher = {
+      create: (contractAddress, network, onLogs, event, blockManager) => {
+        const id = v4_default();
+        const unwatcher = blockManager.watchBlocks({
+          onBlockRange: async (startBlock, endBlock) => {
+            await this.fetchLogsForWatcher(id, startBlock, endBlock);
+          }
+        });
+        const watcher = {
+          id,
+          network,
+          contractAddress,
+          event,
+          callback: onLogs,
+          blockManager,
+          unwatch: unwatcher
+        };
+        this.logWatchers.set(id, watcher);
+        this.logger.debug(
+          `Created log watcher for ${network.name}:${contractAddress} (${event.name})`
+        );
+        return id;
+      },
+      remove: (watcherId) => {
+        const watcher = this.logWatchers.get(watcherId);
+        if (!watcher) {
+          this.logger.warn(`Failed to remove log watcher ${watcherId} (not found)`);
+          return false;
+        }
+        watcher.unwatch();
+        this.logWatchers.delete(watcherId);
+        this.logger.info(`Removed log watcher ${watcherId}`);
+        return true;
+      }
+    };
+    this.readContractWatcher = {
+      create: (contractAddress, network, functionName, abi2, callback, intervalMs = 1e4, args) => {
+        const id = v4_default();
+        const watcher = {
+          id,
+          network,
+          contractAddress,
+          functionName,
+          abi: abi2,
+          args,
+          intervalMs,
+          callback
+        };
+        this.readContractWatchers.set(id, watcher);
+        const interval = setInterval(async () => {
+          await this.executeReadContract(watcher);
+        }, intervalMs);
+        this.readContractIntervals.set(id, interval);
+        this.executeReadContract(watcher).catch((error) => {
+          this.logger.error(`Error in initial read contract execution (ID: ${id}):`, error);
+        });
+        this.logger.debug(
+          `Created read contract watcher for ${network.name}:${contractAddress}.${functionName}`
+        );
+        return id;
+      },
+      remove: (watcherId) => {
+        const watcher = this.readContractWatchers.get(watcherId);
+        if (!watcher) {
+          this.logger.warn(`Failed to remove read contract watcher ${watcherId} (not found)`);
+          return false;
+        }
+        const interval = this.readContractIntervals.get(watcherId);
+        if (interval) {
+          clearInterval(interval);
+          this.readContractIntervals.delete(watcherId);
+        }
+        this.readContractWatchers.delete(watcherId);
+        this.logger.info(`Removed read contract watcher ${watcherId}`);
+        return true;
+      }
+    };
+    this.networkManager = networkManager;
+    this.viemClientManager = viemClientManager;
+    this.logger = logger;
+  }
+  static createInstance(logger, networkManager, viemClientManager, config) {
+    _TxReader.instance = new _TxReader(logger, networkManager, viemClientManager, config);
+    return _TxReader.instance;
+  }
+  static getInstance() {
+    if (!_TxReader.instance) {
+      throw new Error("TxReader is not initialized. Call createInstance() first.");
+    }
+    return _TxReader.instance;
+  }
+  async initialize() {
+    this.logger.info("Initialized");
+  }
+  async fetchLogsForWatcher(watcherId, fromBlock, toBlock) {
+    const watcher = this.logWatchers.get(watcherId);
+    if (!watcher) return;
+    try {
+      const logs = await this.getLogs(
+        {
+          address: watcher.contractAddress,
+          event: watcher.event,
+          fromBlock,
+          toBlock
+        },
+        watcher.network
+      );
+      if (logs.length > 0) {
+        watcher.callback(logs, watcher.network).catch((error) => {
+          this.logger.error(`Error in watcher callback (ID: ${watcher.id}):`, error);
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error fetching logs for ${watcher.contractAddress} on ${watcher.network.name}:`,
+        error
+      );
+    }
+  }
+  async executeReadContract(watcher) {
+    try {
+      const { publicClient } = this.viemClientManager.getClients(watcher.network);
+      const result = await publicClient.readContract({
+        address: watcher.contractAddress,
+        abi: watcher.abi,
+        functionName: watcher.functionName,
+        args: watcher.args
+      });
+      await watcher.callback(result, watcher.network);
+    } catch (error) {
+      this.logger.error(`Error executing read contract (ID: ${watcher.id}):`, error);
+    }
+  }
+  async getLogs(query, network) {
+    const { publicClient } = this.viemClientManager.getClients(network);
+    try {
+      const filter2 = {
+        address: query.address,
+        fromBlock: query.fromBlock,
+        toBlock: query.toBlock,
+        event: query.event,
+        ...query.args && { args: query.args }
+      };
+      const logs = await publicClient.getLogs(filter2);
+      return logs;
+    } catch (error) {
+      this.logger.error(`Error fetching logs on ${network.name}:`, error);
+      return [];
+    }
+  }
+  dispose() {
+    for (const [watcherId, watcher] of this.logWatchers.entries()) {
+      watcher.unwatch();
+    }
+    for (const [watcherId, interval] of this.readContractIntervals.entries()) {
+      clearInterval(interval);
+    }
+    this.logWatchers.clear();
+    this.readContractWatchers.clear();
+    this.readContractIntervals.clear();
+    this.logger.info("Disposed");
+  }
+};
+
+// src/managers/TxWriter.ts
+var TxWriter = class _TxWriter {
+  constructor(logger, viemClientManager, txMonitor, nonceManager, config) {
+    this.viemClientManager = viemClientManager;
+    this.txMonitor = txMonitor;
+    this.logger = logger;
+    this.config = config;
+    this.nonceManager = nonceManager;
+  }
+  static createInstance(logger, viemClientManager, txMonitor, nonceManager, config) {
+    _TxWriter.instance = new _TxWriter(
+      logger,
+      viemClientManager,
+      txMonitor,
+      nonceManager,
+      config
+    );
+    return _TxWriter.instance;
+  }
+  static getInstance() {
+    if (!_TxWriter.instance) {
+      throw new Error("TxWriter is not initialized. Call createInstance() first.");
+    }
+    return _TxWriter.instance;
+  }
+  async initialize() {
+    this.logger.info("Initialized");
+  }
+  async callContract(network, params) {
+    try {
+      const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+      if (this.config.dryRun) {
+        this.logger.info(
+          `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`
+        );
+        const mockTxHash = `0xdry${Date.now().toString(16)}`;
+        return mockTxHash;
+      }
+      const txHash = await callContract(
+        publicClient,
+        walletClient,
+        params,
+        this.nonceManager,
+        {
+          simulateTx: this.config.simulateTx,
+          defaultGasLimit: this.config.defaultGasLimit
+        }
+      );
+      this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
+      const currentBlock = await publicClient.getBlockNumber();
+      const txInfo = {
+        id: v4_default(),
+        txHash,
+        chainName: network.name,
+        submittedAt: Date.now(),
+        submissionBlock: currentBlock,
+        status: "submitted",
+        metadata: {
+          functionName: params.functionName,
+          contractAddress: params.address
+        }
+      };
+      this.txMonitor.watchTxFinality(
+        txInfo,
+        this.createRetryCallback(network, params),
+        this.createFinalityCallback(network)
+      );
+      return txHash;
+    } catch (error) {
+      this.logger.error(`[${network.name}] Contract call failed:`, error);
+      throw error;
+    }
+  }
+  createRetryCallback(network, params) {
+    return async (failedTx) => {
+      this.logger.info(
+        `[${network.name}] Retrying transaction ${failedTx.txHash} (${failedTx.id})`
+      );
+      try {
+        const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+        const newTxHash = await callContract(
+          publicClient,
+          walletClient,
+          params,
+          this.nonceManager,
+          {
+            simulateTx: this.config.simulateTx,
+            defaultGasLimit: this.config.defaultGasLimit
+          }
+        );
+        this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
+        const currentBlock = await publicClient.getBlockNumber();
+        return {
+          id: v4_default(),
+          txHash: newTxHash,
+          chainName: network.name,
+          submittedAt: Date.now(),
+          submissionBlock: currentBlock,
+          status: "submitted",
+          metadata: {
+            functionName: params.functionName,
+            contractAddress: params.address
+          }
+        };
+      } catch (error) {
+        this.logger.error(
+          `[${network.name}] Failed to retry transaction ${failedTx.txHash}:`,
+          error
+        );
+        return null;
+      }
+    };
+  }
+  createFinalityCallback(network) {
+    return (finalizedTx) => {
+      this.logger.info(
+        `[${network.name}] Transaction ${finalizedTx.txHash} (${finalizedTx.id}) is now final`
+      );
+    };
+  }
+  dispose() {
+    this.logger.info("Disposed");
+  }
+};
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   AppError,
   AppErrorEnum,
   BlockManager,
   BlockManagerRegistry,
-  DeploymentManager,
+  DeploymentFetcher,
   HttpClient,
   Logger,
   ManagerBase,
   NetworkManager,
   NonceManager,
   RpcManager,
+  TxMonitor,
+  TxReader,
+  TxWriter,
   ViemClientManager,
   appErrors,
+  callContract,
   createCustomHttpTransport,
   createViemChain,
   fetchNetworkConfigs,

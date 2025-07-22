@@ -37,6 +37,19 @@ export class Logger extends ManagerBase {
         return Logger.instance;
     }
 
+    private safeStringify(obj: any, indent?: number): string {
+        return JSON.stringify(
+            obj,
+            (key, value) => {
+                if (typeof value === "bigint") {
+                    return `${value}n`;
+                }
+                return value;
+            },
+            indent
+        );
+    }
+
     private createBaseLogger(): winston.Logger {
         const logFormat = winston.format.combine(
             winston.format.colorize({ level: true }),
@@ -46,9 +59,9 @@ export class Logger extends ManagerBase {
             winston.format.printf(({ level, message, timestamp, consumer, ...meta }) => {
                 const prefix = consumer ? `${consumer}` : "";
                 const formattedMessage =
-                    typeof message === "object" ? JSON.stringify(message, null, 2) : message;
+                    typeof message === "object" ? this.safeStringify(message, 2) : message;
                 const formattedMeta =
-                    meta && Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+                    meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : "";
 
                 return `${timestamp} ${level} ${prefix}: ${formattedMessage} ${formattedMeta}`.trim();
             }),

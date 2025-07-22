@@ -1,10 +1,6 @@
 /** Base configuration interface for all managers */
 export interface BaseManagerConfig {
 }
-/** Configuration for BlockCheckpointManager */
-export interface BlockCheckpointManagerConfig extends BaseManagerConfig {
-    useCheckpoints: boolean;
-}
 /** Configuration for BlockManager */
 export interface BlockManagerConfig extends BaseManagerConfig {
     pollingIntervalMs: number;
@@ -28,6 +24,7 @@ export interface RpcManagerConfig extends BaseManagerConfig {
     rpcOverrides: Record<string, string[]>;
     rpcExtensions: Record<string, string[]>;
     conceroRpcsUrl: string;
+    networkMode: "mainnet" | "testnet" | "localhost";
 }
 /** Configuration for DeploymentManager */
 export interface DeploymentManagerConfig extends BaseManagerConfig {
@@ -37,9 +34,14 @@ export interface DeploymentManagerConfig extends BaseManagerConfig {
 /** Configuration for TxWriter */
 export interface TxWriterConfig extends BaseManagerConfig {
     dryRun: boolean;
+    simulateTx: boolean;
+    defaultGasLimit?: bigint;
 }
 /** Configuration for TxMonitor */
 export interface TxMonitorConfig extends BaseManagerConfig {
+    checkIntervalMs?: number;
+    dropTimeoutMs?: number;
+    retryDelayMs?: number;
 }
 /** Configuration for NonceManager */
 export interface NonceManagerConfig extends BaseManagerConfig {
@@ -72,15 +74,12 @@ export interface LoggerConfig extends BaseManagerConfig {
     logMaxFiles: string | number;
     logLevelDefault: string;
     logLevelsGranular: Record<string, string>;
+    enableConsoleTransport?: boolean;
 }
 /** Configuration for HttpClient */
 export interface HttpClientConfig extends BaseManagerConfig {
     retryDelay: number;
     maxRetries: number;
     defaultTimeout: number;
-}
-/** Configuration for TxManager */
-export interface TxManagerConfig extends BaseManagerConfig {
-    defaultConfirmations: number;
 }
 //# sourceMappingURL=ManagerConfigs.d.ts.map

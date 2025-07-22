@@ -14,6 +14,7 @@ export declare class Logger extends ManagerBase {
     private constructor();
     static createInstance(config: LoggerConfig): Logger;
     static getInstance(): Logger;
+    private safeStringify;
     private createBaseLogger;
     initialize(): Promise<void>;
     getLogger(consumerName?: string): LoggerInterface;
