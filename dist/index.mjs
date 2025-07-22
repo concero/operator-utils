@@ -47360,6 +47360,11 @@ function createWalletClient(parameters) {
   return client.extend(walletActions);
 }
 
+// node_modules/viem/_esm/index.js
+init_contract();
+init_node();
+init_transaction();
+
 // src/utils/localhostViemChain.ts
 var localhostViemChain = defineChain({
   id: 1,
@@ -47403,6 +47408,18 @@ var Logger = class _Logger extends ManagerBase {
     }
     return _Logger.instance;
   }
+  safeStringify(obj, indent) {
+    return JSON.stringify(
+      obj,
+      (key, value) => {
+        if (typeof value === "bigint") {
+          return `${value}n`;
+        }
+        return value;
+      },
+      indent
+    );
+  }
   createBaseLogger() {
     const logFormat = import_winston.default.format.combine(
       import_winston.default.format.colorize({ level: true }),
@@ -47411,8 +47428,8 @@ var Logger = class _Logger extends ManagerBase {
       }),
       import_winston.default.format.printf(({ level, message, timestamp, consumer, ...meta }) => {
         const prefix = consumer ? `${consumer}` : "";
-        const formattedMessage = typeof message === "object" ? JSON.stringify(message, null, 2) : message;
-        const formattedMeta = meta && Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+        const formattedMessage = typeof message === "object" ? this.safeStringify(message, 2) : message;
+        const formattedMeta = meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : "";
         return `${timestamp} ${level} ${prefix}: ${formattedMessage} ${formattedMeta}`.trim();
       })
     );
@@ -47618,6 +47635,98 @@ function processNetworkData(networkData, isTestnet, logger) {
     }
   }
   return processedNetworks;
+}
+
+// src/constants/confirmations.json
+var confirmations_default = {
+  "1270": 3
+};
+
+// src/utils/sleep.ts
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// src/utils/asyncRetry.ts
+async function asyncRetry(fn, options = {}) {
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError = () => false } = options;
+  const logger = Logger.getInstance().getLogger("AsyncRetry");
+  let attempt = 0;
+  let lastError;
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (await isRetryableError(error) && attempt < maxRetries) {
+        ++attempt;
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
+// src/utils/viemErrorParser.ts
+function isNonceError(error) {
+  return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError);
+}
+function isWaitingForReceiptError(error) {
+  return error instanceof TransactionNotFoundError || error instanceof WaitForTransactionReceiptTimeoutError;
+}
+
+// src/utils/callContract.ts
+async function executeTransaction(publicClient, walletClient, params, nonceManager, config) {
+  const chainId = publicClient.chain.id;
+  const address = walletClient.account.address;
+  let txHash;
+  if (config.simulateTx) {
+    const { request } = await publicClient.simulateContract(params);
+    txHash = await walletClient.writeContract({ request });
+  } else {
+    const nonce = await nonceManager.consume({
+      address,
+      chainId,
+      client: publicClient
+    });
+    const paramsToSend = {
+      ...config.defaultGasLimit && { gas: config.defaultGasLimit },
+      ...params,
+      nonce
+    };
+    txHash = await walletClient.writeContract(paramsToSend);
+  }
+  await publicClient.waitForTransactionReceipt({
+    hash: txHash,
+    confirmations: confirmations_default[chainId.toString()] ?? void 0
+  });
+  return txHash;
+}
+async function callContract(publicClient, walletClient, params, nonceManager, config) {
+  try {
+    const isRetryableError = async (error) => {
+      if (isNonceError(error) || isWaitingForReceiptError(error)) {
+        const chainId = publicClient.chain.id;
+        const address = walletClient.account.address;
+        nonceManager.reset({ chainId, address });
+        return true;
+      }
+      return false;
+    };
+    return asyncRetry(
+      () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
+      {
+        maxRetries: 20,
+        delayMs: 1e3,
+        isRetryableError
+      }
+    );
+  } catch (error) {
+    throw new AppError("ContractCallError" /* ContractCallError */, error);
+  }
 }
 
 // src/managers/NetworkManager.ts
@@ -48157,13 +48266,20 @@ var NonceManager = class _NonceManager extends ManagerBase {
     this.noncesMap[params.chainId] = nonce;
   }
   async fetchNonce(params) {
-    return await params.client.getTransactionCount({ address: params.address });
+    const publicClient = this.createPublicCLientFromGetNonceParams(params);
+    return await publicClient.getTransactionCount({ address: params.address });
   }
   getMutex(chainId) {
     if (!this.mutexMap[chainId]) {
       this.mutexMap[chainId] = new Mutex();
     }
     return this.mutexMap[chainId];
+  }
+  createPublicCLientFromGetNonceParams(params) {
+    return createPublicClient({
+      transport: () => params.client.transport,
+      chain: params.client.chain
+    });
   }
 };
 
@@ -48489,6 +48605,7 @@ export {
   RpcManager,
   ViemClientManager,
   appErrors,
+  callContract,
   createCustomHttpTransport,
   createViemChain,
   fetchNetworkConfigs,

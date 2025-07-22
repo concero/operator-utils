@@ -1,11 +1,6 @@
 /** Base configuration interface for all managers */
 export interface BaseManagerConfig {}
 
-/** Configuration for BlockCheckpointManager */
-export interface BlockCheckpointManagerConfig extends BaseManagerConfig {
-    useCheckpoints: boolean;
-}
-
 /** Configuration for BlockManager */
 export interface BlockManagerConfig extends BaseManagerConfig {
     pollingIntervalMs: number;
@@ -24,8 +19,6 @@ export interface NetworkManagerConfig extends BaseManagerConfig {
         localhost: number[];
     };
     defaultConfirmations: number;
-    mainnetUrl: string;
-    testnetUrl: string;
 }
 
 /** Configuration for RpcManager */
@@ -33,22 +26,27 @@ export interface RpcManagerConfig extends BaseManagerConfig {
     rpcOverrides: Record<string, string[]>;
     rpcExtensions: Record<string, string[]>;
     conceroRpcsUrl: string;
+    networkMode: "mainnet" | "testnet" | "localhost";
 }
 
 /** Configuration for DeploymentManager */
 export interface DeploymentManagerConfig extends BaseManagerConfig {
-    deploymentsUrl: string;
+    conceroDeploymentsUrl: string;
     networkMode: "mainnet" | "testnet" | "localhost";
 }
 
 /** Configuration for TxWriter */
 export interface TxWriterConfig extends BaseManagerConfig {
     dryRun: boolean;
+    simulateTx: boolean;
+    defaultGasLimit?: bigint;
 }
 
 /** Configuration for TxMonitor */
 export interface TxMonitorConfig extends BaseManagerConfig {
-    // Any specific config properties for TxMonitor
+    checkIntervalMs?: number;
+    dropTimeoutMs?: number;
+    retryDelayMs?: number;
 }
 
 /** Configuration for NonceManager */
@@ -85,6 +83,7 @@ export interface LoggerConfig extends BaseManagerConfig {
     logMaxFiles: string | number;
     logLevelDefault: string;
     logLevelsGranular: Record<string, string>;
+    enableConsoleTransport?: boolean;
 }
 
 /** Configuration for HttpClient */
@@ -92,9 +91,4 @@ export interface HttpClientConfig extends BaseManagerConfig {
     retryDelay: number;
     maxRetries: number;
     defaultTimeout: number;
-}
-
-/** Configuration for TxManager */
-export interface TxManagerConfig extends BaseManagerConfig {
-    defaultConfirmations: number;
 }

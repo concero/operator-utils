@@ -4,7 +4,7 @@ import { SimulateContractParameters } from "viem";
 import { LoggerInterface } from "../types/LoggerInterface";
 import { ConceroNetwork } from "../types/ConceroNetwork";
 import { TxWriterConfig } from "../types/ManagerConfigs";
-import { ITxMonitor, IViemClientManager } from "../types/managers";
+import { INonceManager, ITxMonitor, IViemClientManager } from "../types/managers";
 import { ITxWriter } from "../types/managers/ITxWriter";
 import { callContract } from "../utils";
 
@@ -14,26 +14,36 @@ export class TxWriter implements ITxWriter {
     private txMonitor: ITxMonitor;
     private logger: LoggerInterface;
     private config: TxWriterConfig;
+    private nonceManager: INonceManager;
 
     private constructor(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
+        nonceManager: INonceManager,
         config: TxWriterConfig,
     ) {
         this.viemClientManager = viemClientManager;
         this.txMonitor = txMonitor;
         this.logger = logger;
         this.config = config;
+        this.nonceManager = nonceManager;
     }
 
     public static createInstance(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
+        nonceManager: INonceManager,
         config: TxWriterConfig,
     ): TxWriter {
-        TxWriter.instance = new TxWriter(logger, viemClientManager, txMonitor, config);
+        TxWriter.instance = new TxWriter(
+            logger,
+            viemClientManager,
+            txMonitor,
+            nonceManager,
+            config,
+        );
         return TxWriter.instance;
     }
 
@@ -63,7 +73,16 @@ export class TxWriter implements ITxWriter {
                 return mockTxHash;
             }
 
-            const txHash = await callContract(publicClient, walletClient, params);
+            const txHash = await callContract(
+                publicClient,
+                walletClient,
+                params,
+                this.nonceManager,
+                {
+                    simulateTx: this.config.simulateTx,
+                    defaultGasLimit: this.config.defaultGasLimit,
+                },
+            );
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
             // Get the current block number for tracking
@@ -110,7 +129,16 @@ export class TxWriter implements ITxWriter {
                 const { walletClient, publicClient } = this.viemClientManager.getClients(network);
 
                 // Retry the transaction
-                const newTxHash = await callContract(publicClient, walletClient, params);
+                const newTxHash = await callContract(
+                    publicClient,
+                    walletClient,
+                    params,
+                    this.nonceManager,
+                    {
+                        simulateTx: this.config.simulateTx,
+                        defaultGasLimit: this.config.defaultGasLimit,
+                    },
+                );
                 this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
 
                 // Get the current block number for tracking
