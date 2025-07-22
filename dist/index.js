@@ -36525,7 +36525,7 @@ __export(index_exports, {
   AppErrorEnum: () => AppErrorEnum,
   BlockManager: () => BlockManager,
   BlockManagerRegistry: () => BlockManagerRegistry,
-  DeploymentManager: () => DeploymentManager,
+  DeploymentFetcher: () => DeploymentFetcher,
   HttpClient: () => HttpClient,
   Logger: () => Logger,
   ManagerBase: () => ManagerBase,
@@ -36942,14 +36942,6 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     }
   }
 };
-
-// src/utils/getEnvVar.ts
-var import_process = __toESM(require("process"));
-function getEnvVar(key) {
-  const value = import_process.default.env[key];
-  if (value === void 0 || value === "") throw new Error(`Missing environment variable ${key}`);
-  return value;
-}
 
 // node_modules/axios/lib/helpers/bind.js
 function bind(fn, thisArg) {
@@ -40378,138 +40370,69 @@ var HttpClient = class _HttpClient extends ManagerBase {
   }
 };
 
-// src/managers/DeploymentManager.ts
-var DeploymentManager = class _DeploymentManager extends ManagerBase {
-  constructor(logger, config) {
-    super();
-    this.conceroRoutersMapByChainName = {};
+// src/managers/DeploymentFetcher.ts
+var DeploymentFetcher = class {
+  constructor(logger) {
     this.httpClient = HttpClient.getInstance();
     this.logger = logger;
-    this.config = config;
   }
-  static createInstance(logger, config) {
-    _DeploymentManager.instance = new _DeploymentManager(logger, config);
-    return _DeploymentManager.instance;
-  }
-  static getInstance() {
-    if (!_DeploymentManager.instance) {
-      throw new Error("DeploymentManager is not initialized. Call createInstance() first.");
-    }
-    return _DeploymentManager.instance;
-  }
-  async initialize() {
-    if (this.initialized) return;
+  async getDeployments(url2, patterns) {
     try {
-      await super.initialize();
-      this.logger.debug("Initialized");
-    } catch (error) {
-      this.logger.error("Failed to initialize:", error);
-      throw error;
-    }
-  }
-  async getRouterByChainName(chainName) {
-    if (this.isLocalhostEnv()) {
-      return getEnvVar("CONCERO_ROUTER_PROXY_LOCALHOST");
-    }
-    const router = this.conceroRoutersMapByChainName[chainName];
-    if (!router) {
-      throw new Error(`Router not found for chain: ${chainName}`);
-    }
-    return router;
-  }
-  async getConceroRouters() {
-    if (this.isLocalhostEnv()) {
-      return {
-        [getEnvVar("LOCALHOST_FORK_CHAIN_ID")]: getEnvVar(
-          "CONCERO_ROUTER_PROXY_LOCALHOST"
-        )
-      };
-    }
-    const routers = this.conceroRoutersMapByChainName;
-    return routers;
-  }
-  async getConceroVerifier() {
-    if (this.isLocalhostEnv()) {
-      return getEnvVar("CONCERO_VERIFIER_PROXY_LOCALHOST");
-    }
-    if (this.conceroVerifier !== void 0) return this.conceroVerifier;
-    await this.updateDeployments();
-    if (!this.conceroVerifier) {
-      throw new Error("Concero verifier address not found after update");
-    }
-    return this.conceroVerifier;
-  }
-  async updateDeployments(networks) {
-    const now = Date.now();
-    try {
-      const deployments = await this.httpClient.get(this.config.conceroDeploymentsUrl, {
+      const deploymentsText = await this.httpClient.get(url2, {
         responseType: "text"
-        // Ensure Axios returns raw text
       });
-      const deploymentsEnvArr = deployments.split("\n");
-      const conceroRouterDeploymentsEnv = deploymentsEnvArr.filter(
-        (d) => d.startsWith("CONCERO_ROUTER_PROXY") && !d.startsWith("CONCERO_ROUTER_PROXY_ADMIN")
-      );
-      const routerMap = {};
-      const activeNetworkNames = networks ? new Set(networks.map((n) => n.name)) : null;
-      if (activeNetworkNames) {
-        const currentNetworkNames = Object.keys(this.conceroRoutersMapByChainName);
-        for (const networkName of currentNetworkNames) {
-          if (!activeNetworkNames.has(networkName)) {
-            delete this.conceroRoutersMapByChainName[networkName];
-            this.logger.debug(
-              `Removed deployment for inactive network: ${networkName}`
-            );
-          }
+      const deploymentsEnvArr = deploymentsText.split("\n");
+      const deployments = /* @__PURE__ */ new Map();
+      for (const deploymentEnv of deploymentsEnvArr) {
+        if (!deploymentEnv || !deploymentEnv.includes("=")) continue;
+        const [key, value] = deploymentEnv.split("=");
+        if (key && value) {
+          deployments.set(key, value);
         }
       }
-      for (const deploymentEnv of conceroRouterDeploymentsEnv) {
-        const [name, address] = deploymentEnv.split("=");
-        const networkName = this.extractNetworkName(name);
-        if (networkName) {
-          if (!activeNetworkNames || activeNetworkNames.has(networkName)) {
-            routerMap[networkName] = address;
-          }
-        }
-      }
-      Object.assign(this.conceroRoutersMapByChainName, routerMap);
-      const verifierEntry = deploymentsEnvArr.find((d) => {
-        const networkSuffix = this.config.networkMode === "testnet" ? "ARBITRUM_SEPOLIA" : "ARBITRUM";
-        return d.startsWith(`CONCERO_VERIFIER_PROXY_${networkSuffix}`);
-      });
-      if (verifierEntry) {
-        this.conceroVerifier = verifierEntry.split("=")[1];
-      }
-      this.lastUpdateTime = now;
-      this.logger.debug("Deployments updated");
+      return this.parseDeployments(deployments, patterns);
     } catch (error) {
-      this.logger.error("Failed to update deployments:", error);
+      this.logger.error("Failed to fetch deployments:", error);
       throw new Error(
-        `Failed to update deployments: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
-  async onNetworksUpdated(networks) {
-    try {
-      await this.updateDeployments(networks);
-    } catch (err) {
-      this.logger.error("Failed to update deployments after network update:", err);
-      throw err;
+  parseDeployments(deployments, patterns) {
+    const parsed = [];
+    for (const [key, value] of deployments) {
+      for (const pattern of patterns) {
+        const match = key.match(pattern);
+        if (match) {
+          const networkCapture = match[1];
+          if (networkCapture) {
+            const networkName = this.convertToNetworkName(networkCapture);
+            const deployment = {
+              key,
+              value,
+              networkName
+            };
+            parsed.push(deployment);
+          }
+          break;
+        }
+      }
     }
+    return parsed;
   }
-  extractNetworkName(key) {
-    const prefix = "CONCERO_ROUTER_PROXY_";
-    const parts = key.slice(prefix.length).toLowerCase().split("_");
+  convertToNetworkName(capture) {
+    const parts = capture.toLowerCase().split("_");
     return parts[0] + parts.slice(1).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   }
-  isLocalhostEnv() {
-    return this.config.networkMode === "localhost";
-  }
-  dispose() {
-    super.dispose();
-    this.logger.debug("Disposed");
-  }
 };
+
+// src/utils/getEnvVar.ts
+var import_process = __toESM(require("process"));
+function getEnvVar(key) {
+  const value = import_process.default.env[key];
+  if (value === void 0 || value === "") throw new Error(`Missing environment variable ${key}`);
+  return value;
+}
 
 // node_modules/viem/_esm/utils/getAction.js
 function getAction(client, actionFn, name) {
@@ -48578,7 +48501,7 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
   AppErrorEnum,
   BlockManager,
   BlockManagerRegistry,
-  DeploymentManager,
+  DeploymentFetcher,
   HttpClient,
   Logger,
   ManagerBase,

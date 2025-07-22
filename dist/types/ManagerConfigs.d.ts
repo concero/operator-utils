@@ -31,7 +31,7 @@ export interface RpcManagerConfig extends BaseManagerConfig {
 }
 /** Configuration for DeploymentManager */
 export interface DeploymentManagerConfig extends BaseManagerConfig {
-    conceroDeploymentsUrl: string;
+    deploymentsUrl: string;
     networkMode: "mainnet" | "testnet" | "localhost";
 }
 /** Configuration for TxWriter */
