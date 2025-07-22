@@ -1,6 +1,7 @@
 import { ConceroNetwork } from "../types/ConceroNetwork";
 import { NetworkManagerConfig } from "../types/ManagerConfigs";
 import { INetworkManager, NetworkUpdateListener } from "../types/managers";
+import { HttpClient } from "../utils";
 import { LoggerInterface } from "../types/LoggerInterface";
 import { ManagerBase } from "./ManagerBase";
 export declare class NetworkManager extends ManagerBase implements INetworkManager {
@@ -13,9 +14,10 @@ export declare class NetworkManager extends ManagerBase implements INetworkManag
     private updateListeners;
     private logger;
     private config;
+    private httpClient;
     private constructor();
     static getInstance(): NetworkManager;
-    static createInstance(logger: LoggerInterface, config: NetworkManagerConfig): NetworkManager;
+    static createInstance(logger: LoggerInterface, httpClient: HttpClient, config: NetworkManagerConfig): NetworkManager;
     initialize(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;

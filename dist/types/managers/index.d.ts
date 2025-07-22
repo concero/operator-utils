@@ -1,7 +1,7 @@
 export { IBlockManager } from "./IBlockManager";
 export { IBlockManagerRegistry } from "./IBlockManagerRegistry";
 export { IBlockCheckpointManager } from "./IBlockCheckpointManager";
-export { IDeploymentsManager } from "./IDeploymentsManager";
+export { IDeploymentFetcher } from "./IDeploymentFetcher";
 export { INetworkManager } from "./INetworkManager";
 export { INonceManager, INonceManagerParams, IGetNonceParams } from "./INonceManager";
 export { IRpcManager } from "./IRpcManager";

@@ -1,6 +1,6 @@
 export { BlockManager } from "./BlockManager";
 export { BlockManagerRegistry } from "./BlockManagerRegistry";
-export { DeploymentManager } from "./DeploymentManager";
+export { DeploymentFetcher, type DeploymentPattern, type ParsedDeployment } from "./DeploymentFetcher";
 export { ManagerBase } from "./ManagerBase";
 export { NetworkManager } from "./NetworkManager";
 export { NonceManager } from "./NonceManager";

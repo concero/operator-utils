@@ -22,6 +22,8 @@ export interface NetworkManagerConfig extends BaseManagerConfig {
         localhost: number[];
     };
     defaultConfirmations: number;
+    mainnetUrl: string;
+    testnetUrl: string;
 }
 /** Configuration for RpcManager */
 export interface RpcManagerConfig extends BaseManagerConfig {
