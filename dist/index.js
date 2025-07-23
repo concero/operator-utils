@@ -36525,11 +36525,12 @@ __export(index_exports, {
   AppErrorEnum: () => AppErrorEnum,
   BlockManager: () => BlockManager,
   BlockManagerRegistry: () => BlockManagerRegistry,
+  ConceroNetworkManager: () => ConceroNetworkManager,
   DeploymentFetcher: () => DeploymentFetcher,
   HttpClient: () => HttpClient,
   Logger: () => Logger,
   ManagerBase: () => ManagerBase,
-  NetworkManager: () => NetworkManager,
+  NetworkManager: () => ConceroNetworkManager,
   NonceManager: () => NonceManager,
   RpcManager: () => RpcManager,
   TxMonitor: () => TxMonitor,
@@ -47753,32 +47754,30 @@ async function callContract(publicClient, walletClient, params, nonceManager, co
   }
 }
 
-// src/managers/NetworkManager.ts
-var NetworkManager = class _NetworkManager extends ManagerBase {
+// src/managers/ConceroNetworkManager.ts
+var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   constructor(logger, httpClient, config) {
     super();
     this.mainnetNetworks = {};
     this.testnetNetworks = {};
     this.allNetworks = {};
     this.activeNetworks = [];
-    this.updateIntervalId = null;
     this.updateListeners = [];
     this.config = config;
     this.logger = logger;
     this.httpClient = httpClient;
   }
   static getInstance() {
-    return _NetworkManager.instance;
+    return _ConceroNetworkManager.instance;
   }
   static createInstance(logger, httpClient, config) {
-    this.instance = new _NetworkManager(logger, httpClient, config);
+    this.instance = new _ConceroNetworkManager(logger, httpClient, config);
     return this.instance;
   }
   async initialize() {
     if (this.initialized) return;
     try {
       await this.updateNetworks();
-      this.setupUpdateCycle();
       this.initialized = true;
       this.logger.debug("Initialized");
     } catch (error) {
@@ -47860,17 +47859,6 @@ var NetworkManager = class _NetworkManager extends ManagerBase {
   }
   async forceUpdate() {
     await this.updateNetworks();
-  }
-  setupUpdateCycle() {
-    if (this.updateIntervalId) {
-      clearInterval(this.updateIntervalId);
-    }
-    this.updateIntervalId = setInterval(
-      () => this.updateNetworks().catch(
-        (err) => this.logger.error("Network update failed:", err)
-      ),
-      this.config.networkUpdateIntervalMs
-    );
   }
   async updateNetworks() {
     let networksFetched = false;
@@ -48020,10 +48008,6 @@ var NetworkManager = class _NetworkManager extends ManagerBase {
     return networks;
   }
   dispose() {
-    if (this.updateIntervalId) {
-      clearInterval(this.updateIntervalId);
-      this.updateIntervalId = null;
-    }
     this.updateListeners = [];
     super.dispose();
   }
@@ -49189,6 +49173,7 @@ var TxWriter = class _TxWriter {
   AppErrorEnum,
   BlockManager,
   BlockManagerRegistry,
+  ConceroNetworkManager,
   DeploymentFetcher,
   HttpClient,
   Logger,

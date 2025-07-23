@@ -2,7 +2,7 @@ export { type IBlockManager } from "./IBlockManager";
 export { type IBlockManagerRegistry } from "./IBlockManagerRegistry";
 export { type IBlockCheckpointManager } from "./IBlockCheckpointManager";
 export { type IDeploymentFetcher } from "./IDeploymentFetcher";
-export { type INetworkManager } from "./INetworkManager";
+export { type IConceroNetworkManager, type INetworkManager } from "./INetworkManager";
 export { type INonceManager, type INonceManagerParams, type IGetNonceParams } from "./INonceManager";
 export { type IRpcManager } from "./IRpcManager";
 export { type IViemClientManager } from "./IViemClientManager";
