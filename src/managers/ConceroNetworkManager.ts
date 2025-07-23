@@ -1,19 +1,18 @@
 import { ConceroNetwork } from "../types/ConceroNetwork";
 import { NetworkManagerConfig } from "../types/ManagerConfigs";
-import { INetworkManager, NetworkUpdateListener } from "../types/managers";
+import { IConceroNetworkManager, NetworkUpdateListener } from "../types/managers";
 import { fetchNetworkConfigs, HttpClient , getEnvVar, localhostViemChain} from "../utils";
 import { LoggerInterface } from "../types/LoggerInterface";
 
 import { ManagerBase } from "./ManagerBase";
 
-export class NetworkManager extends ManagerBase implements INetworkManager {
-    private static instance: NetworkManager;
+export class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
+    private static instance: ConceroNetworkManager;
 
     private mainnetNetworks: Record<string, ConceroNetwork> = {};
     private testnetNetworks: Record<string, ConceroNetwork> = {};
     private allNetworks: Record<string, ConceroNetwork> = {};
     private activeNetworks: ConceroNetwork[] = [];
-    private updateIntervalId: NodeJS.Timeout | null = null;
 
     private updateListeners: NetworkUpdateListener[] = [];
     private logger: LoggerInterface;
@@ -27,16 +26,16 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
         this.httpClient = httpClient;
     }
 
-    public static getInstance(): NetworkManager {
-        return NetworkManager.instance;
+    public static getInstance(): ConceroNetworkManager {
+        return ConceroNetworkManager.instance;
     }
 
     public static createInstance(
         logger: LoggerInterface,
         httpClient: HttpClient,
         config: NetworkManagerConfig,
-    ): NetworkManager {
-        this.instance = new NetworkManager(logger, httpClient, config);
+    ): ConceroNetworkManager {
+        this.instance = new ConceroNetworkManager(logger, httpClient, config);
         return this.instance;
     }
 
@@ -45,7 +44,6 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
 
         try {
             await this.updateNetworks();
-            this.setupUpdateCycle();
             this.initialized = true;
             this.logger.debug("Initialized");
         } catch (error) {
@@ -141,20 +139,6 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
 
     public async forceUpdate(): Promise<void> {
         await this.updateNetworks();
-    }
-
-    private setupUpdateCycle(): void {
-        if (this.updateIntervalId) {
-            clearInterval(this.updateIntervalId);
-        }
-
-        this.updateIntervalId = setInterval(
-            () =>
-                this.updateNetworks().catch(err =>
-                    this.logger.error("Network update failed:", err),
-                ),
-            this.config.networkUpdateIntervalMs,
-        );
     }
 
     private async updateNetworks(): Promise<void> {
@@ -332,10 +316,6 @@ export class NetworkManager extends ManagerBase implements INetworkManager {
     }
 
     public dispose(): void {
-        if (this.updateIntervalId) {
-            clearInterval(this.updateIntervalId);
-            this.updateIntervalId = null;
-        }
         this.updateListeners = [];
         super.dispose();
     }

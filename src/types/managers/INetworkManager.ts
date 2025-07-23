@@ -2,7 +2,7 @@ import { ConceroNetwork } from "../ConceroNetwork";
 
 import { NetworkUpdateListener } from "./NetworkUpdateListener";
 
-export interface INetworkManager {
+export interface IConceroNetworkManager {
     initialize(): Promise<void>;
     dispose(): void;
     getMainnetNetworks(): Record<string, ConceroNetwork>;
@@ -18,3 +18,6 @@ export interface INetworkManager {
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
 }
+
+// Add alias for backward compatibility
+export type INetworkManager = IConceroNetworkManager;
