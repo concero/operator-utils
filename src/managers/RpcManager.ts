@@ -51,6 +51,16 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
     public async updateRpcs(networks: ConceroNetwork[]): Promise<void> {
         try {
+            if (this.config.networkMode === 'localhost') {
+                this.logger.debug('Using localhost RPC for all networks');
+                this.rpcUrls = {};
+                for (const network of networks) {
+                    this.rpcUrls[network.name] = ['http://127.0.0.1:8545'];
+                }
+                this.logger.debug(`Set localhost RPC for ${networks.length} networks`);
+                return;
+            }
+
             const url = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
 
             const response =
