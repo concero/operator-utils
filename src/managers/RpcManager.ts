@@ -50,17 +50,12 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
     }
 
     public async updateRpcs(networks: ConceroNetwork[]): Promise<void> {
-        try {
-            if (this.config.networkMode === 'localhost') {
-                this.logger.debug('Using localhost RPC for all networks');
-                this.rpcUrls = {};
-                for (const network of networks) {
-                    this.rpcUrls[network.name] = ['http://127.0.0.1:8545'];
-                }
-                this.logger.debug(`Set localhost RPC for ${networks.length} networks`);
-                return;
-            }
+        if (this.config.networkMode === 'localhost') {
+            this.logger.debug('Skipping RPC updates in localhost mode');
+            return;
+        }
 
+        try {
             const url = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
 
             const response =
@@ -72,10 +67,8 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
                 throw new Error("Failed to fetch RPC data");
             }
 
-            // Create a set of active network names for efficient lookup
             const activeNetworkNames = new Set(networks.map(n => n.name));
 
-            // Remove RPCs for networks that are no longer active
             const currentNetworkNames = Object.keys(this.rpcUrls);
             for (const networkName of currentNetworkNames) {
                 if (!activeNetworkNames.has(networkName)) {
@@ -84,12 +77,10 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
                 }
             }
 
-            // Only store RPCs for active networks
             const activeNetworkRpcs = Object.entries(response)
                 .filter(([networkName]) => activeNetworkNames.has(networkName))
                 .map(([networkName, data]) => [networkName, data.rpcUrls || []]);
 
-            // Update RPCs for active networks
             for (const [networkName, rpcUrls] of activeNetworkRpcs) {
                 this.rpcUrls[networkName] = rpcUrls as string[];
             }
@@ -102,6 +93,9 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
     }
 
     public getRpcsForNetwork(networkName: string): string[] {
+        if (this.config.networkMode === 'localhost') {
+            return ['http://127.0.0.1:8545'];
+        }
         return this.rpcUrls[networkName] || [];
     }
 

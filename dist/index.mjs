@@ -48299,16 +48299,11 @@ var RpcManager = class _RpcManager extends ManagerBase {
     await this.updateRpcs(networks);
   }
   async updateRpcs(networks) {
+    if (this.config.networkMode === "localhost") {
+      this.logger.debug("Skipping RPC updates in localhost mode");
+      return;
+    }
     try {
-      if (this.config.networkMode === "localhost") {
-        this.logger.debug("Using localhost RPC for all networks");
-        this.rpcUrls = {};
-        for (const network of networks) {
-          this.rpcUrls[network.name] = ["http://127.0.0.1:8545"];
-        }
-        this.logger.debug(`Set localhost RPC for ${networks.length} networks`);
-        return;
-      }
       const url2 = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
       const response = await this.httpClient.get(url2);
       if (!response) {
@@ -48333,6 +48328,9 @@ var RpcManager = class _RpcManager extends ManagerBase {
     }
   }
   getRpcsForNetwork(networkName) {
+    if (this.config.networkMode === "localhost") {
+      return ["http://127.0.0.1:8545"];
+    }
     return this.rpcUrls[networkName] || [];
   }
   async onNetworksUpdated(networks) {
