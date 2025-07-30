@@ -11,3 +11,16 @@
 # fi
 
 # echo "✅ Lint checks passed!"
+
+echo "🔨 Building JS and CJS code before push..."
+
+# Run the build commands
+npm run build && npm run build:cjs
+
+# Check if the build was successful
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed. Push aborted."
+  exit 1
+fi
+
+echo "✅ Build successful. Proceeding with push..."
