@@ -6,7 +6,9 @@ import {
     IViemClientManager,
     MonitoredTransaction,
     TransactionInfo,
-} from '../types/managers';
+	IConceroNetworkManager,
+	IBlockManagerRegistry,
+} from "../types/managers";
 
 enum TransactionStatus {
     Pending = 'pending',
@@ -32,27 +34,35 @@ export class TxMonitor implements ITxMonitor {
     private disposed: boolean = false;
     private logger: LoggerInterface;
     private config: TxMonitorConfig;
-    private checkInterval: NodeJS.Timeout | null = null;
+    private networkSubscriptions: Map<string, () => void> = new Map();
+    private networksWithTransactions: Set<string> = new Set();
+	private blockManagerRegistry: IBlockManagerRegistry;
+	private networkManager: IConceroNetworkManager;
 
     constructor(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
+		blockManagerRegistry: IBlockManagerRegistry,
+		networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
     ) {
         this.viemClientManager = viemClientManager;
         this.logger = logger;
         this.config = config;
-        this.startMonitoring();
-        this.logger.info('initialized');
+		this.blockManagerRegistry = blockManagerRegistry;
+		this.networkManager = networkManager;
+        this.logger.info("initialized");
     }
 
     public static createInstance(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
+		blockManagerRegistry: IBlockManagerRegistry,
+		networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
     ): TxMonitor {
         if (!TxMonitor.instance) {
-            TxMonitor.instance = new TxMonitor(logger, viemClientManager, config);
+            TxMonitor.instance = new TxMonitor(logger, viemClientManager, blockManagerRegistry, networkManager, config);
         }
         return TxMonitor.instance;
     }
@@ -62,15 +72,6 @@ export class TxMonitor implements ITxMonitor {
             throw new Error('TxMonitor is not initialized. Call createInstance() first.');
         }
         return TxMonitor.instance;
-    }
-
-    private startMonitoring(): void {
-        const intervalMs = this.config.checkIntervalMs || 5000;
-        this.checkInterval = setInterval(() => {
-            this.checkAllTransactions().catch(error => {
-                this.logger.error('Error in transaction monitoring cycle:', error);
-            });
-        }, intervalMs);
     }
 
     public watchTxFinality(
@@ -100,6 +101,8 @@ export class TxMonitor implements ITxMonitor {
             retryCount: 0,
         };
 
+        this.subscribeToNetwork(txInfo.chainName);
+        
         this.monitors.set(txInfo.txHash, monitor);
         this.logger.debug(`Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName}`);
     }
@@ -125,43 +128,6 @@ export class TxMonitor implements ITxMonitor {
         };
 
         this.watchTxFinality(txInfo, defaultRetryCallback, defaultFinalityCallback);
-    }
-
-    private async checkAllTransactions(): Promise<void> {
-        if (this.disposed) return;
-
-        const networksToCheck = new Map<string, TransactionMonitor[]>();
-
-        // Group monitors by network
-        for (const monitor of this.monitors.values()) {
-            const chainName = monitor.transaction.chainName;
-            if (!networksToCheck.has(chainName)) {
-                networksToCheck.set(chainName, []);
-            }
-            networksToCheck.get(chainName)!.push(monitor);
-        }
-
-        // Check transactions for each network
-        for (const [chainName, monitors] of networksToCheck) {
-            const network = this.getNetwork(chainName);
-            if (!network) continue;
-
-            await this.checkNetworkTransactions(network, monitors);
-        }
-    }
-
-    private async checkNetworkTransactions(
-        network: ConceroNetwork,
-        monitors: TransactionMonitor[],
-    ): Promise<void> {
-        const { publicClient } = this.viemClientManager.getClients(network);
-        const currentBlock = await publicClient.getBlockNumber();
-        const finalityConfirmations = BigInt(network.finalityConfirmations ?? 12);
-        const finalityBlockNumber = currentBlock - finalityConfirmations;
-
-        for (const monitor of monitors) {
-            await this.checkTransaction(monitor, currentBlock, finalityBlockNumber, network);
-        }
     }
 
     private async checkTransaction(
@@ -205,7 +171,7 @@ export class TxMonitor implements ITxMonitor {
                 await this.handleFinalizedTransaction(monitor);
             } else if (txInfo.blockNumber) {
                 const confirmations = currentBlock - txInfo.blockNumber + 1n;
-                const requiredConfirmations = BigInt(network.finalityConfirmations ?? 12);
+                const requiredConfirmations = BigInt(network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations());
                 this.logger.debug(
                     `Transaction ${tx.txHash} has ${confirmations} confirmations (needs ${requiredConfirmations})`,
                 );
@@ -274,7 +240,7 @@ export class TxMonitor implements ITxMonitor {
 
         if (newTxInfo) {
             // Remove the old monitor
-            this.monitors.delete(tx.txHash);
+            await this.removeMonitor(tx.txHash);
 
             // Add new monitor for the retry transaction
             this.watchTxFinality(newTxInfo, monitor.retryCallback, monitor.finalityCallback);
@@ -304,13 +270,85 @@ export class TxMonitor implements ITxMonitor {
         monitor.finalityCallback(finalizedTx);
 
         // Remove from monitoring
-        this.monitors.delete(tx.txHash);
+        await this.removeMonitor(tx.txHash);
     }
 
     private getNetwork(chainName: string): ConceroNetwork | undefined {
-        // This would need to be implemented based on your network manager
-        // For now, return undefined to skip
-        return undefined;
+        return this.networkManager.getNetworkByName(chainName);
+    }
+
+    private async checkNetworkTransactions(
+        networkName: string, 
+        startBlock: bigint, 
+        endBlock: bigint
+    ): Promise<void> {
+        const network = this.getNetwork(networkName);
+        if (!network) return;
+
+        const networkMonitors = Array.from(this.monitors.values())
+            .filter(monitor => monitor.transaction.chainName === networkName);
+
+        if (networkMonitors.length === 0) {
+            this.unsubscribeFromNetwork(networkName);
+            return;
+        }
+
+        const finalityConfirmations = BigInt(network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations());
+        const finalityBlockNumber = endBlock - finalityConfirmations;
+
+        for (const monitor of networkMonitors) {
+            await this.checkTransaction(monitor, endBlock, finalityBlockNumber, network);
+        }
+    }
+
+    private subscribeToNetwork(networkName: string): void {
+        if (this.networkSubscriptions.has(networkName)) {
+            return;
+        }
+
+        const blockManager = this.blockManagerRegistry.getBlockManager(networkName);
+        if (!blockManager) {
+            this.logger.warn(`BlockManager for ${networkName} not found`);
+            return;
+        }
+
+        const unsubscribe = blockManager.watchBlocks({
+            onBlockRange: async (startBlock: bigint, endBlock: bigint) => {
+                await this.checkNetworkTransactions(networkName, startBlock, endBlock);
+            },
+            onError: (error: unknown) => {
+                this.logger.error(`Block monitoring error for ${networkName}:`, error);
+            }
+        });
+
+        this.networkSubscriptions.set(networkName, unsubscribe);
+        this.networksWithTransactions.add(networkName);
+        this.logger.debug(`Subscribed to blocks for network ${networkName}`);
+    }
+
+    private unsubscribeFromNetwork(networkName: string): void {
+        const unsubscribe = this.networkSubscriptions.get(networkName);
+        if (unsubscribe) {
+            unsubscribe();
+            this.networkSubscriptions.delete(networkName);
+            this.networksWithTransactions.delete(networkName);
+            this.logger.debug(`Unsubscribed from blocks for network ${networkName}`);
+        }
+    }
+
+    private async removeMonitor(txHash: string): Promise<void> {
+        const monitor = this.monitors.get(txHash);
+        if (!monitor) return;
+
+        const networkName = monitor.transaction.chainName;
+        this.monitors.delete(txHash);
+
+        const hasMoreTransactions = Array.from(this.monitors.values())
+            .some(m => m.transaction.chainName === networkName);
+
+        if (!hasMoreTransactions) {
+            this.unsubscribeFromNetwork(networkName);
+        }
     }
 
     public async checkTransactionsInRange(
@@ -343,11 +381,13 @@ export class TxMonitor implements ITxMonitor {
     public dispose(): void {
         this.disposed = true;
 
-        if (this.checkInterval) {
-            clearInterval(this.checkInterval);
-            this.checkInterval = null;
+        for (const [networkName, unsubscribe] of this.networkSubscriptions) {
+            unsubscribe();
+            this.logger.debug(`Unsubscribed from blocks for network ${networkName} during dispose`);
         }
-
+        
+        this.networkSubscriptions.clear();
+        this.networksWithTransactions.clear();
         this.monitors.clear();
         this.logger.info('Disposed');
     }
