@@ -18,6 +18,7 @@ export interface NetworkManagerConfig extends BaseManagerConfig {
         localhost: number[];
     };
     defaultConfirmations: number;
+    defaultFinalityConfirmations: number;
     mainnetUrl: string;
     testnetUrl: string;
 }
