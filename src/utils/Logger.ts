@@ -1,8 +1,8 @@
-import winston from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
-import { LoggerConfig } from "../types/ManagerConfigs";
-import { ManagerBase } from "../managers/ManagerBase";
+import { ManagerBase } from '../managers/ManagerBase';
+import { LoggerConfig } from '../types/ManagerConfigs';
 
 export interface LoggerInterface {
     error(message: any, ...meta: any[]): void;
@@ -32,7 +32,7 @@ export class Logger extends ManagerBase {
 
     public static getInstance(): Logger {
         if (!Logger.instance) {
-            throw new Error("Logger is not initialized. Call createInstance() first.");
+            throw new Error('Logger is not initialized. Call createInstance() first.');
         }
         return Logger.instance;
     }
@@ -41,12 +41,12 @@ export class Logger extends ManagerBase {
         return JSON.stringify(
             obj,
             (key, value) => {
-                if (typeof value === "bigint") {
+                if (typeof value === 'bigint') {
                     return `${value}n`;
                 }
                 return value;
             },
-            indent
+            indent,
         );
     }
 
@@ -54,36 +54,36 @@ export class Logger extends ManagerBase {
         const logFormat = winston.format.combine(
             winston.format.colorize({ level: true }),
             winston.format.timestamp({
-                format: "MM-DD HH:mm:ss",
+                format: 'MM-DD HH:mm:ss',
             }),
             winston.format.printf(({ level, message, timestamp, consumer, ...meta }) => {
-                const prefix = consumer ? `${consumer}` : "";
+                const prefix = consumer ? `${consumer}` : '';
                 const formattedMessage =
-                    typeof message === "object" ? this.safeStringify(message, 2) : message;
+                    typeof message === 'object' ? this.safeStringify(message, 2) : message;
                 const formattedMeta =
-                    meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : "";
+                    meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : '';
 
                 return `${timestamp} ${level} ${prefix}: ${formattedMessage} ${formattedMeta}`.trim();
             }),
         );
 
         const logger = winston.createLogger({
-            level: "debug", // Allow all logs through at base logger level
+            level: 'debug', // Allow all logs through at base logger level
             format: winston.format.json(),
             transports: [
                 new DailyRotateFile({
-                    level: "debug",
+                    level: 'debug',
                     dirname: this.config.logDir,
-                    filename: "log-%DATE%.log",
-                    datePattern: "YYYY-MM-DD",
+                    filename: 'log-%DATE%.log',
+                    datePattern: 'YYYY-MM-DD',
                     maxSize: this.config.logMaxSize,
                     maxFiles: this.config.logMaxFiles,
                 }),
                 new DailyRotateFile({
-                    level: "error",
+                    level: 'error',
                     dirname: this.config.logDir,
-                    filename: "error-%DATE%.log",
-                    datePattern: "YYYY-MM-DD",
+                    filename: 'error-%DATE%.log',
+                    datePattern: 'YYYY-MM-DD',
                     maxSize: this.config.logMaxSize,
                     maxFiles: this.config.logMaxFiles,
                 }),
@@ -93,7 +93,7 @@ export class Logger extends ManagerBase {
         if (this.config.enableConsoleTransport) {
             logger.add(
                 new winston.transports.Console({
-                    level: "debug",
+                    level: 'debug',
                     format: logFormat,
                 }),
             );
@@ -105,11 +105,11 @@ export class Logger extends ManagerBase {
     public async initialize(): Promise<void> {
         if (this.initialized) return;
         super.initialize();
-        this.getLogger("Logger").info("Initialized");
+        this.getLogger('Logger').info('Initialized');
     }
 
     public getLogger(consumerName?: string): LoggerInterface {
-        const cacheKey = consumerName || "__default__";
+        const cacheKey = consumerName || '__default__';
 
         if (this.consumerLoggers.has(cacheKey)) {
             return this.consumerLoggers.get(cacheKey)!;
@@ -156,7 +156,7 @@ export class Logger extends ManagerBase {
                 );
             },
             warn: (message: any, ...meta: any[]) => {
-                if (shouldLog("warn")) {
+                if (shouldLog('warn')) {
                     this.baseLogger.warn(
                         message,
                         consumerName ? { consumer: consumerName, ...meta } : meta,
@@ -164,7 +164,7 @@ export class Logger extends ManagerBase {
                 }
             },
             info: (message: any, ...meta: any[]) => {
-                if (shouldLog("info")) {
+                if (shouldLog('info')) {
                     this.baseLogger.info(
                         message,
                         consumerName ? { consumer: consumerName, ...meta } : meta,
@@ -172,7 +172,7 @@ export class Logger extends ManagerBase {
                 }
             },
             debug: (message: any, ...meta: any[]) => {
-                if (shouldLog("debug")) {
+                if (shouldLog('debug')) {
                     this.baseLogger.debug(
                         message,
                         consumerName ? { consumer: consumerName, ...meta } : meta,

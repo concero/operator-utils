@@ -1,20 +1,20 @@
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxMonitorConfig } from "../types/ManagerConfigs";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxMonitorConfig } from '../types/ManagerConfigs';
 import {
     ITxMonitor,
     IViemClientManager,
     MonitoredTransaction,
     TransactionInfo,
-} from "../types/managers";
+} from '../types/managers';
 
 enum TransactionStatus {
-    Pending = "pending",
-    Confirmed = "confirmed",
-    Finalized = "finalized",
-    Dropped = "dropped",
-    Reorged = "reorged",
-    Failed = "failed",
+    Pending = 'pending',
+    Confirmed = 'confirmed',
+    Finalized = 'finalized',
+    Dropped = 'dropped',
+    Reorged = 'reorged',
+    Failed = 'failed',
 }
 
 interface TransactionMonitor {
@@ -43,7 +43,7 @@ export class TxMonitor implements ITxMonitor {
         this.logger = logger;
         this.config = config;
         this.startMonitoring();
-        this.logger.info("initialized");
+        this.logger.info('initialized');
     }
 
     public static createInstance(
@@ -59,7 +59,7 @@ export class TxMonitor implements ITxMonitor {
 
     public static getInstance(): TxMonitor {
         if (!TxMonitor.instance) {
-            throw new Error("TxMonitor is not initialized. Call createInstance() first.");
+            throw new Error('TxMonitor is not initialized. Call createInstance() first.');
         }
         return TxMonitor.instance;
     }
@@ -68,7 +68,7 @@ export class TxMonitor implements ITxMonitor {
         const intervalMs = this.config.checkIntervalMs || 5000;
         this.checkInterval = setInterval(() => {
             this.checkAllTransactions().catch(error => {
-                this.logger.error("Error in transaction monitoring cycle:", error);
+                this.logger.error('Error in transaction monitoring cycle:', error);
             });
         }, intervalMs);
     }
@@ -267,7 +267,7 @@ export class TxMonitor implements ITxMonitor {
             chainName: tx.chainName,
             submittedAt: tx.firstSeen,
             submissionBlock: tx.blockNumber,
-            status: "failed",
+            status: 'failed',
         };
 
         const newTxInfo = await monitor.retryCallback(failedTx);
@@ -298,7 +298,7 @@ export class TxMonitor implements ITxMonitor {
             chainName: tx.chainName,
             submittedAt: tx.firstSeen,
             submissionBlock: tx.blockNumber,
-            status: "finalized",
+            status: 'finalized',
         };
 
         monitor.finalityCallback(finalizedTx);
@@ -336,7 +336,7 @@ export class TxMonitor implements ITxMonitor {
 
     public getTransactionsByMessageId(): Map<string, MonitoredTransaction[]> {
         // This method is no longer relevant for a generic monitor
-        this.logger.warn("getTransactionsByMessageId called on generic TxMonitor");
+        this.logger.warn('getTransactionsByMessageId called on generic TxMonitor');
         return new Map();
     }
 
@@ -349,6 +349,6 @@ export class TxMonitor implements ITxMonitor {
         }
 
         this.monitors.clear();
-        this.logger.info("Disposed");
+        this.logger.info('Disposed');
     }
 }

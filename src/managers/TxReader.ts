@@ -1,16 +1,11 @@
-import { v4 as uuidv4 } from "uuid";
-import { Abi, AbiEvent, Address, Log } from "viem";
+import { v4 as uuidv4 } from 'uuid';
+import { Abi, AbiEvent, Address, Log } from 'viem';
 
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxReaderConfig } from "../types/ManagerConfigs";
-import { INetworkManager, IViemClientManager } from "../types/managers";
-import {
-    ITxReader,
-    LogQuery,
-    LogWatcher,
-    ReadContractWatcher,
-} from "../types/managers/ITxReader";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxReaderConfig } from '../types/ManagerConfigs';
+import { INetworkManager, IViemClientManager } from '../types/managers';
+import { ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers/ITxReader';
 
 type Watcher = ReadContractWatcher & {
     timeoutMs?: number;
@@ -54,12 +49,12 @@ export class TxReader implements ITxReader {
     }
 
     public static getInstance(): TxReader {
-        if (!TxReader.instance) throw new Error("TxReader is not initialized.");
+        if (!TxReader.instance) throw new Error('TxReader is not initialized.');
         return TxReader.instance;
     }
 
     public async initialize(): Promise<void> {
-        this.logger.info("Initialized");
+        this.logger.info('Initialized');
     }
 
     public logWatcher = {
@@ -72,8 +67,7 @@ export class TxReader implements ITxReader {
         ): string => {
             const id = uuidv4();
             const unwatch = blockManager.watchBlocks({
-                onBlockRange: (from: bigint, to: bigint) =>
-                    this.fetchLogsForWatcher(id, from, to),
+                onBlockRange: (from: bigint, to: bigint) => this.fetchLogsForWatcher(id, from, to),
             });
             this.logWatchers.set(id, {
                 id,
@@ -138,17 +132,16 @@ export class TxReader implements ITxReader {
             options: { timeoutMs?: number },
             onResult: BulkCallback,
         ): { bulkId: string; watcherIds: string[] } => {
-
             const { timeoutMs } = options;
             let effectiveInterval = this.watcherIntervalMs;
 
             if (timeoutMs !== undefined && timeoutMs > this.watcherIntervalMs) {
-              this.logger.warn(
-                `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the ` +
-                `global polling interval (${this.watcherIntervalMs} ms). ` +
-                `Using timeoutMs as the interval for this bulk to prevent overlapping reads.`,
-              );
-              effectiveInterval = timeoutMs;
+                this.logger.warn(
+                    `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the ` +
+                        `global polling interval (${this.watcherIntervalMs} ms). ` +
+                        `Using timeoutMs as the interval for this bulk to prevent overlapping reads.`,
+                );
+                effectiveInterval = timeoutMs;
             }
 
             const bulkId = uuidv4();
@@ -175,7 +168,7 @@ export class TxReader implements ITxReader {
             this.bulkCallbacks.set(bulkId, onResult);
             this.ensureGlobalLoop();
             this.logger.debug(
-                `Bulk-created ${watcherIds.length} watchers ${bulkId} (timeout: ${options?.timeoutMs ?? "∞"} ms)`,
+                `Bulk-created ${watcherIds.length} watchers ${bulkId} (timeout: ${options?.timeoutMs ?? '∞'} ms)`,
             );
             return { bulkId, watcherIds };
         },
@@ -235,9 +228,7 @@ export class TxReader implements ITxReader {
         }
 
         const outcomes = (
-            await Promise.all(
-                [...byNetwork.values()].map(group => this.executeBatch(group)),
-            )
+            await Promise.all([...byNetwork.values()].map(group => this.executeBatch(group)))
         ).flat();
 
         const bulkBuckets = new Map<string, typeof outcomes>();
@@ -247,11 +238,13 @@ export class TxReader implements ITxReader {
                 if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
                 bulkBuckets.get(b)!.push(o);
             } else {
-                if (o.status === "fulfilled") {
+                if (o.status === 'fulfilled') {
                     // single-watcher callback
                     o.watcher
                         .callback(o.value, o.watcher.network)
-                        .catch(err => this.logger.error(`single callback failed (${o.watcher.id})`, err));
+                        .catch(err =>
+                            this.logger.error(`single callback failed (${o.watcher.id})`, err),
+                        );
                 } else {
                     this.logger.error(`readContract failed (${o.watcher.id})`, o.reason);
                 }
@@ -263,7 +256,7 @@ export class TxReader implements ITxReader {
             if (!cb) continue;
 
             const results = bucket
-                .filter(x => x.status === "fulfilled")
+                .filter(x => x.status === 'fulfilled')
                 .map(x => ({
                     watcherId: x.watcher.id,
                     network: x.watcher.network,
@@ -271,7 +264,7 @@ export class TxReader implements ITxReader {
                 }));
 
             const errors = bucket
-                .filter(x => x.status === "rejected")
+                .filter(x => x.status === 'rejected')
                 .map(x => ({
                     watcherId: x.watcher.id,
                     network: x.watcher.network,
@@ -304,30 +297,31 @@ export class TxReader implements ITxReader {
         );
 
         return settled.map((res, i) =>
-            res.status === "fulfilled"
-                ? { status: "fulfilled" as const, watcher: ws[i], value: res.value }
-                : { status: "rejected" as const, watcher: ws[i], reason: res.reason },
+            res.status === 'fulfilled'
+                ? { status: 'fulfilled' as const, watcher: ws[i], value: res.value }
+                : { status: 'rejected' as const, watcher: ws[i], reason: res.reason },
         );
     }
 
     private withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
         return Promise.race([
             p,
-            new Promise<T>((_, r) => setTimeout(() => r(new Error("timeout")), ms)),
+            new Promise<T>((_, r) => setTimeout(() => r(new Error('timeout')), ms)),
         ]);
     }
 
-    private async fetchLogsForWatcher(
-        id: string,
-        from: bigint,
-        to: bigint,
-    ): Promise<void> {
+    private async fetchLogsForWatcher(id: string, from: bigint, to: bigint): Promise<void> {
         const w = this.logWatchers.get(id);
         if (!w) return;
 
         try {
             const logs = await this.getLogs(
-                { address: w.contractAddress, event: w.event, fromBlock: from, toBlock: to },
+                {
+                    address: w.contractAddress,
+                    event: w.event,
+                    fromBlock: from,
+                    toBlock: to,
+                },
                 w.network,
             );
             if (logs.length) await w.callback(logs, w.network);

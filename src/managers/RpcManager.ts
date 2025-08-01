@@ -1,9 +1,10 @@
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { RpcManagerConfig } from "../types/ManagerConfigs";
-import { IRpcManager, NetworkUpdateListener } from "../types/managers";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { HttpClient } from "../utils/HttpClient";
-import { ManagerBase } from "./ManagerBase";
+import { ManagerBase } from './ManagerBase';
+
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { RpcManagerConfig } from '../types/ManagerConfigs';
+import { IRpcManager, NetworkUpdateListener } from '../types/managers';
+import { HttpClient } from '../utils/HttpClient';
 
 // Watches @concero/rpcs and keeps an updatable list of RPC endpoints for networks
 export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdateListener {
@@ -27,7 +28,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
     public static getInstance(): RpcManager {
         if (!RpcManager.instance) {
-            throw new Error("RpcManager is not initialized. Call createInstance() first.");
+            throw new Error('RpcManager is not initialized. Call createInstance() first.');
         }
         return RpcManager.instance;
     }
@@ -36,7 +37,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         if (this.initialized) return;
 
         await super.initialize();
-        this.logger.debug("Initialized");
+        this.logger.debug('Initialized');
     }
 
     public async ensureRpcsForNetwork(network: ConceroNetwork): Promise<void> {
@@ -64,7 +65,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
                 >(url);
 
             if (!response) {
-                throw new Error("Failed to fetch RPC data");
+                throw new Error('Failed to fetch RPC data');
             }
 
             const activeNetworkNames = new Set(networks.map(n => n.name));
@@ -87,7 +88,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
             this.logger.debug(`Updated RPCs for ${activeNetworkRpcs.length} active networks`);
         } catch (error) {
-            this.logger.error("Failed to update RPCs:", error);
+            this.logger.error('Failed to update RPCs:', error);
             throw error;
         }
     }
@@ -103,7 +104,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         try {
             await this.updateRpcs(networks);
         } catch (err) {
-            this.logger.error("Failed to update RPCs after network update:", err);
+            this.logger.error('Failed to update RPCs after network update:', err);
             throw err;
         }
     }

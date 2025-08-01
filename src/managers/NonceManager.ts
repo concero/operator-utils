@@ -1,10 +1,15 @@
-import { Mutex } from "async-mutex";
+import { ManagerBase } from './ManagerBase';
 
-import { NonceManagerConfig } from "../types/ManagerConfigs";
-import { IGetNonceParams, INonceManager, INonceManagerParams } from "../types/managers/INonceManager";
-import { LoggerInterface } from "../utils/Logger";
-import { ManagerBase } from "./ManagerBase";
-import { createPublicClient } from "viem";
+import { Mutex } from 'async-mutex';
+import { createPublicClient } from 'viem';
+
+import { NonceManagerConfig } from '../types/ManagerConfigs';
+import {
+    IGetNonceParams,
+    INonceManager,
+    INonceManagerParams,
+} from '../types/managers/INonceManager';
+import { LoggerInterface } from '../utils/Logger';
 
 export class NonceManager extends ManagerBase implements INonceManager {
     private static instance: NonceManager | null = null;
@@ -29,7 +34,7 @@ export class NonceManager extends ManagerBase implements INonceManager {
     static getInstance(): NonceManager {
         if (!NonceManager.instance) {
             throw new Error(
-                "NonceManager instance has not been created. Call createInstance() first.",
+                'NonceManager instance has not been created. Call createInstance() first.',
             );
         }
         return NonceManager.instance;

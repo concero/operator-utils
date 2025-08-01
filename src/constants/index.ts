@@ -1,1 +1,1 @@
-export { AppErrorEnum, appErrors } from "./appErrors";
+export { AppErrorEnum, appErrors } from './appErrors';

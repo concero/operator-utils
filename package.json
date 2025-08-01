@@ -1,46 +1,49 @@
 {
-  "name": "@concero/operator-utils",
-  "version": "1.0.0",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "name": "@concero/operator-utils",
+    "version": "1.0.0",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "prepare": "husky",
+        "build": "npm run build:js && npm run build:cjs && npm run build:types",
+        "build:js": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.mjs --format=esm",
+        "build:cjs": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
+        "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --noEmitOnError false  || true",
+        "lint": "eslint --config .eslint.config.mjs",
+        "lint:fix": "eslint --config .eslint.config.mjs --fix",
+        "format": "prettier --config .prettierrc.json --write \"**/*.{ts,json}\"",
+        "check-updates": "npx npm-check-updates"
+    },
+    "author": "",
+    "license": "ISC",
+    "description": "",
+    "dependencies": {
+        "async-mutex": "^0.5.0",
+        "axios": "^1.11.0",
+        "uuid": "^11.1.0",
+        "viem": "^2.33.2",
+        "winston": "^3.17.0",
+        "winston-daily-rotate-file": "^5.0.0"
+    },
+    "devDependencies": {
+        "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+        "@types/node": "^24.1.0",
+        "@typescript-eslint/eslint-plugin": "^8.38.0",
+        "@typescript-eslint/parser": "8.38.0",
+        "esbuild": "^0.25.8",
+        "eslint": "^9.32.0",
+        "eslint-plugin-prettier": "^5.5.3",
+        "husky": "^9.1.7",
+        "prettier": "3.6.2",
+        "typescript": "^5.9.2"
     }
-  },
-  "scripts": {
-    "prepare": "husky",
-    "build": "npm run build:js && npm run build:cjs && npm run build:types",
-    "build:js": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.mjs --format=esm",
-    "build:cjs": "esbuild src/index.ts --bundle --platform=node --target=node22 --outfile=dist/index.js --format=cjs",
-    "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap --noEmitOnError false  || true",
-    "lint": "eslint --config .eslint.config.mjs",
-    "lint:fix": "eslint --config .eslint.config.mjs --fix",
-    "format": "prettier --config .prettierrc.json --write **/*.{ts,json}",
-    "check-updates": "npx npm-check-updates"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "async-mutex": "^0.5.0",
-    "axios": "^1.10.0",
-    "uuid": "^11.1.0",
-    "viem": "^2.33.0",
-    "winston": "^3.17.0",
-    "winston-daily-rotate-file": "^5.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.15",
-    "@typescript-eslint/eslint-plugin": "^8.37.0",
-    "esbuild": "^0.25.8",
-    "eslint": "^9.31.0",
-    "eslint-plugin-prettier": "^5.5.3",
-    "husky": "^9.1.7",
-    "typescript": "^5.8.3"
-  }
 }

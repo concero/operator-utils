@@ -1,7 +1,11 @@
-import { PublicClient } from "viem";
+import { BlockManager } from './BlockManager';
+import { ManagerBase } from './ManagerBase';
 
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { BlockManagerRegistryConfig } from "../types/ManagerConfigs";
+import { PublicClient } from 'viem';
+
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { BlockManagerRegistryConfig } from '../types/ManagerConfigs';
 import {
     IBlockCheckpointManager,
     IBlockManagerRegistry,
@@ -9,11 +13,7 @@ import {
     IRpcManager,
     IViemClientManager,
     NetworkUpdateListener,
-} from "../types/managers/";
-import { LoggerInterface } from "../types/LoggerInterface";
-
-import { BlockManager } from "./BlockManager";
-import { ManagerBase } from "./ManagerBase";
+} from '../types/managers/';
 
 export class BlockManagerRegistry
     extends ManagerBase
@@ -50,7 +50,7 @@ export class BlockManagerRegistry
         try {
             await this.updateBlockManagers(networks);
         } catch (error) {
-            this.logger.error("Failed to sync BlockManagers after network update", error);
+            this.logger.error('Failed to sync BlockManagers after network update', error);
             throw error;
         }
     }
@@ -88,7 +88,7 @@ export class BlockManagerRegistry
             if (!newNetworkNames.has(networkName)) {
                 this.logger.info(`Removing BlockManager for inactive network ${networkName}`);
                 const blockManager = this.blockManagers.get(networkName);
-                if (blockManager && "dispose" in blockManager) {
+                if (blockManager && 'dispose' in blockManager) {
                     (blockManager as any).dispose();
                 }
                 this.blockManagers.delete(networkName);
@@ -129,7 +129,7 @@ export class BlockManagerRegistry
     public static getInstance(): BlockManagerRegistry {
         if (!BlockManagerRegistry.instance) {
             throw new Error(
-                "BlockManagerRegistry is not initialized. Call createInstance() first.",
+                'BlockManagerRegistry is not initialized. Call createInstance() first.',
             );
         }
         return BlockManagerRegistry.instance;
@@ -140,9 +140,9 @@ export class BlockManagerRegistry
 
         try {
             await super.initialize();
-            this.logger.debug("Initialized");
+            this.logger.debug('Initialized');
         } catch (error) {
-            this.logger.error("Failed to initialize", error);
+            this.logger.error('Failed to initialize', error);
             throw error;
         }
     }
@@ -206,7 +206,7 @@ export class BlockManagerRegistry
 
             // Properly dispose all block managers
             for (const [networkName, blockManager] of this.blockManagers.entries()) {
-                if ("dispose" in blockManager) {
+                if ('dispose' in blockManager) {
                     (blockManager as any).dispose();
                 }
                 this.logger.debug(`Disposed BlockManager for ${networkName}`);
@@ -214,7 +214,7 @@ export class BlockManagerRegistry
 
             this.blockManagers.clear();
             super.dispose();
-            this.logger.debug("Disposed");
+            this.logger.debug('Disposed');
         }
     }
 }

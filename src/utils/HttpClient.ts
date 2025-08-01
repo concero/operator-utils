@@ -1,11 +1,11 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+import { AppError } from './AppError';
+import { LoggerInterface } from './Logger';
 
-import { AppErrorEnum } from "../constants/appErrors";
-import { HttpClientConfig } from "../types/ManagerConfigs";
-import { ManagerBase } from "../managers";
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-import { AppError } from "./AppError";
-import { LoggerInterface } from "./Logger";
+import { AppErrorEnum } from '../constants/appErrors';
+import { ManagerBase } from '../managers';
+import { HttpClientConfig } from '../types/ManagerConfigs';
 
 export class HttpClient extends ManagerBase {
     private static instance?: HttpClient;
@@ -88,7 +88,7 @@ export class HttpClient extends ManagerBase {
     }
 
     private async request<T>(
-        method: "GET" | "POST",
+        method: 'GET' | 'POST',
         url: string,
         config: AxiosRequestConfig = {},
         body?: any,
@@ -96,14 +96,14 @@ export class HttpClient extends ManagerBase {
         if (!this.initialized || !this.axiosInstance) {
             throw new AppError(
                 AppErrorEnum.FailedHTTPRequest,
-                new Error("HttpClient not initialized"),
+                new Error('HttpClient not initialized'),
             );
         }
 
         try {
             this.logger.debug(
                 `${method} request to ${url} with config: ${JSON.stringify(config)} ${
-                    body ? `and body: ${JSON.stringify(body)}` : ""
+                    body ? `and body: ${JSON.stringify(body)}` : ''
                 }`,
             );
 
@@ -122,10 +122,10 @@ export class HttpClient extends ManagerBase {
     }
 
     public async get<T>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
-        return this.request<T>("GET", url, config);
+        return this.request<T>('GET', url, config);
     }
 
     public async post<T>(url: string, body: any, config: AxiosRequestConfig = {}): Promise<T> {
-        return this.request<T>("POST", url, config, body);
+        return this.request<T>('POST', url, config, body);
     }
 }

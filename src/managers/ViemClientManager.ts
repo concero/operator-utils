@@ -1,14 +1,14 @@
-import { createPublicClient, createWalletClient, fallback, PublicClient, WalletClient } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import type { PrivateKeyAccount } from "viem/accounts/types";
+import { ManagerBase } from './ManagerBase';
 
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { ViemClientManagerConfig } from "../types/ManagerConfigs";
-import { IRpcManager, NetworkUpdateListener } from "../types/managers";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { createCustomHttpTransport, getEnvVar } from "../utils";
+import { PublicClient, WalletClient, createPublicClient, createWalletClient, fallback } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import type { PrivateKeyAccount } from 'viem/accounts/types';
 
-import { ManagerBase } from "./ManagerBase";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { ViemClientManagerConfig } from '../types/ManagerConfigs';
+import { IRpcManager, NetworkUpdateListener } from '../types/managers';
+import { createCustomHttpTransport, getEnvVar } from '../utils';
 
 export interface ViemClients {
     walletClient: WalletClient;
@@ -46,7 +46,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
     }
     public static getInstance(): ViemClientManager {
         if (!ViemClientManager.instance) {
-            throw new Error("ViemClientManager is not initialized. Call createInstance() first.");
+            throw new Error('ViemClientManager is not initialized. Call createInstance() first.');
         }
         return ViemClientManager.instance;
     }
@@ -55,7 +55,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         if (this.initialized) return;
 
         await super.initialize();
-        this.logger.debug("Initialized");
+        this.logger.debug('Initialized');
     }
 
     private createTransport(chain: ConceroNetwork) {
@@ -72,7 +72,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
     }
 
     private initializeClients(chain: ConceroNetwork): ViemClients {
-        const privateKey = getEnvVar("OPERATOR_PRIVATE_KEY");
+        const privateKey = getEnvVar('OPERATOR_PRIVATE_KEY');
         const account = privateKeyToAccount(`0x${privateKey}`);
         const transport = this.createTransport(chain);
 
@@ -96,16 +96,16 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
 
     public getClients(chain: ConceroNetwork): ViemClients {
         if (!this.initialized) {
-            throw new Error("ViemClientManager not properly initialized");
+            throw new Error('ViemClientManager not properly initialized');
         }
 
         if (!chain) {
-            throw new Error("Cannot get clients: chain parameter is undefined or null");
+            throw new Error('Cannot get clients: chain parameter is undefined or null');
         }
 
         if (!chain.name) {
             this.logger.error(`Invalid chain object provided: ${JSON.stringify(chain)}`);
-            throw new Error("Cannot get clients: chain.name is missing");
+            throw new Error('Cannot get clients: chain.name is missing');
         }
 
         const cachedClients = this.clients.get(chain.name);
@@ -154,6 +154,6 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         this.clients.clear();
         super.dispose();
         ViemClientManager.instance = undefined as any;
-        this.logger.debug("Disposed");
+        this.logger.debug('Disposed');
     }
 }

@@ -1,12 +1,12 @@
-import { v4 as uuidv4 } from "uuid";
-import { SimulateContractParameters } from "viem";
+import { v4 as uuidv4 } from 'uuid';
+import { SimulateContractParameters } from 'viem';
 
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxWriterConfig } from "../types/ManagerConfigs";
-import { INonceManager, ITxMonitor, IViemClientManager } from "../types/managers";
-import { ITxWriter } from "../types/managers/ITxWriter";
-import { callContract } from "../utils";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxWriterConfig } from '../types/ManagerConfigs';
+import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { ITxWriter } from '../types/managers/ITxWriter';
+import { callContract } from '../utils';
 
 export class TxWriter implements ITxWriter {
     private static instance: TxWriter | undefined;
@@ -49,13 +49,13 @@ export class TxWriter implements ITxWriter {
 
     public static getInstance(): TxWriter {
         if (!TxWriter.instance) {
-            throw new Error("TxWriter is not initialized. Call createInstance() first.");
+            throw new Error('TxWriter is not initialized. Call createInstance() first.');
         }
         return TxWriter.instance;
     }
 
     public async initialize(): Promise<void> {
-        this.logger.info("Initialized");
+        this.logger.info('Initialized');
     }
 
     public async callContract(
@@ -95,7 +95,7 @@ export class TxWriter implements ITxWriter {
                 chainName: network.name,
                 submittedAt: Date.now(),
                 submissionBlock: currentBlock,
-                status: "submitted",
+                status: 'submitted',
                 metadata: {
                     functionName: params.functionName,
                     contractAddress: params.address,
@@ -151,7 +151,7 @@ export class TxWriter implements ITxWriter {
                     chainName: network.name,
                     submittedAt: Date.now(),
                     submissionBlock: currentBlock,
-                    status: "submitted",
+                    status: 'submitted',
                     metadata: {
                         functionName: params.functionName,
                         contractAddress: params.address,
@@ -176,6 +176,6 @@ export class TxWriter implements ITxWriter {
     }
 
     public dispose(): void {
-        this.logger.info("Disposed");
+        this.logger.info('Disposed');
     }
 }

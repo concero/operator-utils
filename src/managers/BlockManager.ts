@@ -1,12 +1,10 @@
-import { PublicClient } from "viem";
+import { PublicClient } from 'viem';
 
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { BlockManagerConfig } from "../types/ManagerConfigs";
-import { IBlockManager } from "../types/managers";
-import { IBlockCheckpointManager } from "../types/managers";
-
-import { LoggerInterface } from "../types/LoggerInterface";
-
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { BlockManagerConfig } from '../types/ManagerConfigs';
+import { IBlockManager } from '../types/managers';
+import { IBlockCheckpointManager } from '../types/managers';
 
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.

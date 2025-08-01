@@ -1,6 +1,6 @@
-import { ChainDefinition, createViemChain } from "./createViemChain";
-import { HttpClient } from "./HttpClient";
-import { Logger, LoggerInterface } from "./Logger";
+import { HttpClient } from './HttpClient';
+import { Logger, LoggerInterface } from './Logger';
+import { ChainDefinition, createViemChain } from './createViemChain';
 
 export interface V2Network {
     name: string;
@@ -35,29 +35,28 @@ export interface NetworkConfigs {
 export async function fetchNetworkConfigs(
     logger: LoggerInterface,
     httpClient: HttpClient,
-    networkMode: "mainnet" | "testnet" | "localhost" = "testnet",
+    networkMode: 'mainnet' | 'testnet' | 'localhost' = 'testnet',
     urls?: { mainnet: string; testnet: string },
 ): Promise<NetworkConfigs> {
-
     try {
         let mainnetNetworks: Record<string, ProcessedNetwork> = {};
         let testnetNetworks: Record<string, ProcessedNetwork> = {};
 
-        if (networkMode === "localhost") {
+        if (networkMode === 'localhost') {
             // For localhost mode, return empty networks as they are handled separately
             return { mainnetNetworks, testnetNetworks };
         }
 
-        if (networkMode === "mainnet") {
-            if (!urls?.mainnet) throw new Error("Mainnet URL is required");
+        if (networkMode === 'mainnet') {
+            if (!urls?.mainnet) throw new Error('Mainnet URL is required');
             const mainnetData = await httpClient.get(urls.mainnet);
             mainnetNetworks = processNetworkData(
                 mainnetData as Record<string, V2Network>,
                 false,
                 logger,
             );
-        } else if (networkMode === "testnet") {
-            if (!urls?.testnet) throw new Error("Testnet URL is required");
+        } else if (networkMode === 'testnet') {
+            if (!urls?.testnet) throw new Error('Testnet URL is required');
             const testnetData = await httpClient.get(urls.testnet);
             testnetNetworks = processNetworkData(
                 testnetData as Record<string, V2Network>,
@@ -105,7 +104,7 @@ function processNetworkData(
                 viemChain: createViemChain(chainDefinition),
             };
         } catch (error: unknown) {
-            const networkType = isTestnet ? "testnet" : "mainnet";
+            const networkType = isTestnet ? 'testnet' : 'mainnet';
             logger.warn(
                 `Failed to process ${networkType} network ${networkName}: ${error instanceof Error ? error.message : String(error)}`,
             );

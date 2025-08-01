@@ -1,10 +1,10 @@
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { NetworkManagerConfig } from "../types/ManagerConfigs";
-import { IConceroNetworkManager, NetworkUpdateListener } from "../types/managers";
-import { fetchNetworkConfigs, HttpClient , getEnvVar, localhostViemChain} from "../utils";
-import { LoggerInterface } from "../types/LoggerInterface";
+import { ManagerBase } from './ManagerBase';
 
-import { ManagerBase } from "./ManagerBase";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { NetworkManagerConfig } from '../types/ManagerConfigs';
+import { IConceroNetworkManager, NetworkUpdateListener } from '../types/managers';
+import { HttpClient, fetchNetworkConfigs, getEnvVar, localhostViemChain } from '../utils';
 
 export class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance: ConceroNetworkManager;
@@ -19,7 +19,11 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private config: NetworkManagerConfig;
     private httpClient: HttpClient;
 
-    private constructor(logger: LoggerInterface, httpClient: HttpClient, config: NetworkManagerConfig) {
+    private constructor(
+        logger: LoggerInterface,
+        httpClient: HttpClient,
+        config: NetworkManagerConfig,
+    ) {
         super();
         this.config = config;
         this.logger = logger;
@@ -45,9 +49,9 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         try {
             await this.updateNetworks();
             this.initialized = true;
-            this.logger.debug("Initialized");
+            this.logger.debug('Initialized');
         } catch (error) {
-            this.logger.error("Failed to initialize networks:", error);
+            this.logger.error('Failed to initialize networks:', error);
             throw error;
         }
     }
@@ -114,18 +118,18 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     }
 
     public getVerifierNetwork(): ConceroNetwork {
-        if (this.config.networkMode === "mainnet") {
-            return this.mainnetNetworks["arbitrum"];
-        } else if (this.config.networkMode === "testnet") {
-            return this.testnetNetworks["arbitrumSepolia"];
-        } else if (this.config.networkMode === "localhost") {
-            const localNetwork = this.testnetNetworks["localhost"];
+        if (this.config.networkMode === 'mainnet') {
+            return this.mainnetNetworks['arbitrum'];
+        } else if (this.config.networkMode === 'testnet') {
+            return this.testnetNetworks['arbitrumSepolia'];
+        } else if (this.config.networkMode === 'localhost') {
+            const localNetwork = this.testnetNetworks['localhost'];
 
             if (!localNetwork) {
                 this.logger.error(
-                    `Available testnet networks: ${Object.keys(this.testnetNetworks).join(", ")}`,
+                    `Available testnet networks: ${Object.keys(this.testnetNetworks).join(', ')}`,
                 );
-                throw new Error("Localhost network not found in testnetNetworks");
+                throw new Error('Localhost network not found in testnetNetworks');
             }
 
             this.logger.debug(
@@ -144,57 +148,62 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private async updateNetworks(): Promise<void> {
         let networksFetched = false;
         try {
-            const operatorPK = getEnvVar("OPERATOR_PRIVATE_KEY");
+            const operatorPK = getEnvVar('OPERATOR_PRIVATE_KEY');
 
-            if (this.config.networkMode === "localhost") {
+            if (this.config.networkMode === 'localhost') {
                 // In localhost mode, skip fetching remote network configs
                 this.mainnetNetworks = {};
                 const localhostNetworks = this.getTestingNetworks(operatorPK);
                 this.testnetNetworks = localhostNetworks;
                 this.logger.debug(
-                    `Using localhost networks only: ${Object.keys(localhostNetworks).join(", ")}`,
+                    `Using localhost networks only: ${Object.keys(localhostNetworks).join(', ')}`,
                 );
                 networksFetched = true;
             } else {
                 try {
                     const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } =
-                        await fetchNetworkConfigs(this.logger, this.httpClient, this.config.networkMode, {
-                            mainnet: this.config.mainnetUrl,
-                            testnet: this.config.testnetUrl,
-                        });
+                        await fetchNetworkConfigs(
+                            this.logger,
+                            this.httpClient,
+                            this.config.networkMode,
+                            {
+                                mainnet: this.config.mainnetUrl,
+                                testnet: this.config.testnetUrl,
+                            },
+                        );
 
                     const hasMainnetNetworks = Object.keys(fetchedMainnet).length > 0;
                     const hasTestnetNetworks = Object.keys(fetchedTestnet).length > 0;
 
                     if (hasMainnetNetworks) {
-                        this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, "mainnet", [
+                        this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, 'mainnet', [
                             operatorPK,
                         ]);
                     } else {
                         this.logger.warn(
-                            "No mainnet networks fetched, keeping existing mainnet networks",
+                            'No mainnet networks fetched, keeping existing mainnet networks',
                         );
                     }
 
                     if (hasTestnetNetworks) {
-                        this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, "testnet", [
+                        this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, 'testnet', [
                             operatorPK,
                         ]);
                     } else {
                         this.logger.warn(
-                            "No testnet networks fetched, keeping existing testnet networks",
+                            'No testnet networks fetched, keeping existing testnet networks',
                         );
                     }
 
                     networksFetched = true;
                 } catch (error) {
                     this.logger.warn(
-                        "Failed to fetch network configurations. Will retry on next update cycle:",
+                        'Failed to fetch network configurations. Will retry on next update cycle:',
                         error,
                     );
                     if (Object.keys(this.allNetworks).length === 0) {
                         this.logger.error(
-                            "No network configurations available. Unable to initialize services.",
+                            'No network configurations available. Unable to initialize services.',
                         );
                     }
                 }
@@ -207,7 +216,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             if (networksFetched) {
                 this.activeNetworks = filteredNetworks;
                 this.logger.debug(
-                    `Networks updated - Active networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(", ")})`,
+                    `Networks updated - Active networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(', ')})`,
                 );
             }
 
@@ -215,7 +224,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                 await this.notifyListeners();
             }
         } catch (error) {
-            this.logger.error("Failed to update networks:", error);
+            this.logger.error('Failed to update networks:', error);
         }
     }
 
@@ -224,13 +233,13 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             try {
                 await listener.onNetworksUpdated(this.activeNetworks);
             } catch (error) {
-                this.logger.error("Error in network update listener:", error);
+                this.logger.error('Error in network update listener:', error);
             }
         }
     }
 
     public async triggerInitialUpdates(): Promise<void> {
-        this.logger.debug("Triggering initial updates for all listeners sequentially");
+        this.logger.debug('Triggering initial updates for all listeners sequentially');
 
         for (const listener of this.updateListeners) {
             try {
@@ -246,12 +255,12 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             }
         }
 
-        this.logger.debug("Completed all initial updates");
+        this.logger.debug('Completed all initial updates');
     }
 
     private createNetworkConfig<T extends string>(
         networks: Record<string, any>,
-        networkType: "mainnet" | "testnet" | "localhost",
+        networkType: 'mainnet' | 'testnet' | 'localhost',
         accounts: string[],
     ): Record<T, ConceroNetwork> {
         return Object.fromEntries(
@@ -276,32 +285,32 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private getTestingNetworks(operatorPK: string): Record<string, ConceroNetwork> {
         return {
             localhost: {
-                name: "localhost",
-                type: "localhost",
+                name: 'localhost',
+                type: 'localhost',
                 id: 1,
                 accounts: [operatorPK],
-                chainSelector: "1",
+                chainSelector: '1',
                 confirmations: this.config.defaultConfirmations,
                 viemChain: localhostViemChain,
             },
         };
     }
 
-    private filterNetworks(networkType: "mainnet" | "testnet" | "localhost"): ConceroNetwork[] {
+    private filterNetworks(networkType: 'mainnet' | 'testnet' | 'localhost'): ConceroNetwork[] {
         let networks: ConceroNetwork[] = [];
         const ignoredIds = this.config.ignoredNetworkIds || [];
         const whitelistedIds = this.config.whitelistedNetworkIds[networkType] || [];
 
         switch (networkType) {
-            case "localhost":
+            case 'localhost':
                 networks = Object.values(
-                    this.getTestingNetworks(getEnvVar("OPERATOR_PRIVATE_KEY")),
+                    this.getTestingNetworks(getEnvVar('OPERATOR_PRIVATE_KEY')),
                 );
                 break;
-            case "testnet":
+            case 'testnet':
                 networks = Object.values(this.testnetNetworks);
                 break;
-            case "mainnet":
+            case 'mainnet':
                 networks = Object.values(this.mainnetNetworks);
                 break;
         }
