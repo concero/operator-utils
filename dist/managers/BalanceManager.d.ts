@@ -1,0 +1,57 @@
+import type { Address, PublicClient } from 'viem';
+import { NetworkUpdateListener, IViemClientManager, ITxReader, LoggerInterface, ConceroNetwork } from '../types';
+import { ManagerBase } from './ManagerBase';
+export interface TokenConfig {
+    symbol: string;
+    address: string;
+    decimals: number;
+}
+export interface TokenBalance {
+    native: bigint;
+    tokens: Map<string, bigint>;
+}
+export interface BalanceManagerConfig {
+    updateIntervalMs: number;
+    minAllowances?: Map<string, Map<string, bigint>>;
+    tokenDecimals?: Map<string, Map<string, number>>;
+    tokens?: Map<string, TokenConfig[]>;
+}
+export declare abstract class BalanceManager extends ManagerBase implements NetworkUpdateListener {
+    protected balances: Map<string, TokenBalance>;
+    protected viemClientManager: IViemClientManager;
+    protected txReader: ITxReader;
+    protected logger: LoggerInterface;
+    protected config: BalanceManagerConfig;
+    protected activeNetworks: ConceroNetwork[];
+    protected watcherIds: string[];
+    protected minAllowances: Map<string, Map<string, bigint>>;
+    protected tokenDecimals: Map<string, Map<string, number>>;
+    protected tokenConfigs: Map<string, TokenConfig[]>;
+    protected constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
+    initialize(): Promise<void>;
+    addTokenWatcher(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): string;
+    protected getAccountAddress(network: ConceroNetwork): Address;
+    protected onTokenBalanceUpdate(networkName: string, symbol: string, newBalance: bigint): void;
+    updateBalances(networks: ConceroNetwork[]): Promise<void>;
+    protected updateTokenBalances(networks: ConceroNetwork[]): Promise<void>;
+    protected fetchTokenBalance(publicClient: PublicClient, tokenAddress: Address, accountAddress: Address): Promise<bigint>;
+    getBalance(networkName: string): TokenBalance | undefined;
+    getAllBalances(): Map<string, TokenBalance>;
+    getTokenBalance(networkName: string, symbol: string): bigint;
+    getTotalTokenBalance(symbol: string): bigint;
+    hasNativeBalance(networkName: string, minimumBalance?: bigint): boolean;
+    hasTokenBalance(networkName: string, symbol: string, minimumBalance?: bigint): boolean;
+    registerToken(networkName: string, tokenConfig: TokenConfig): void;
+    getTokenConfigs(networkName: string): TokenConfig[];
+    getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
+    onNetworksUpdated(networks: ConceroNetwork[]): Promise<void>;
+    forceUpdate(): Promise<void>;
+    protected updateNativeBalances(networks: ConceroNetwork[]): Promise<void>;
+    ensureAllowance(networkName: string, tokenAddress: string, spenderAddress: string, requiredAmount: bigint): Promise<void>;
+    getAllowance(networkName: string, tokenAddress: string, spenderAddress: string): Promise<bigint>;
+    protected getMinAllowance(networkName: string, tokenAddress: string): bigint;
+    protected getTokenDecimals(networkName: string, tokenAddress: string): number;
+    protected clearTokenWatchers(): void;
+    dispose(): void;
+}
+//# sourceMappingURL=BalanceManager.d.ts.map

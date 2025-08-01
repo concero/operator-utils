@@ -26802,7 +26802,7 @@ var require_diagnostics = __commonJS({
     function write() {
       logger.apply(logger, arguments);
     }
-    function process3(message) {
+    function process4(message) {
       for (var i = 0; i < modifiers.length; i++) {
         message = modifiers[i].apply(modifiers[i], arguments);
       }
@@ -26829,7 +26829,7 @@ var require_diagnostics = __commonJS({
     function yep(options) {
       function diagnostics() {
         var args = Array.prototype.slice.call(arguments, 0);
-        write.call(write, options, process3(args, options));
+        write.call(write, options, process4(args, options));
         return true;
       }
       options.enabled = true;
@@ -26841,7 +26841,7 @@ var require_diagnostics = __commonJS({
     module.exports = function create(diagnostics) {
       diagnostics.introduce = introduce;
       diagnostics.enabled = enabled;
-      diagnostics.process = process3;
+      diagnostics.process = process4;
       diagnostics.modify = modify;
       diagnostics.write = write;
       diagnostics.nope = nope;
@@ -47729,6 +47729,26 @@ async function callContract(publicClient, walletClient, params, nonceManager, co
   }
 }
 
+// src/utils/getGranularLogLevels.ts
+import process3 from "process";
+function getGranularLogLevels() {
+  const logLevels = {};
+  const LOG_LEVEL_PREFIX = "LOG_LEVEL_";
+  Object.keys(process3.env).forEach((key) => {
+    if (key.startsWith(LOG_LEVEL_PREFIX) && key !== "LOG_LEVEL_DEFAULT") {
+      const componentName = key.substring(LOG_LEVEL_PREFIX.length);
+      const level = process3.env[key];
+      if (componentName && level) {
+        logLevels[componentName] = level;
+        console.log(
+          `[getGranularLogLevels] Component-specific log level: ${componentName}=${level}`
+        );
+      }
+    }
+  });
+  return logLevels;
+}
+
 // src/managers/ConceroNetworkManager.ts
 var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   constructor(logger, httpClient, config) {
@@ -48858,48 +48878,44 @@ var v4_default = v4;
 // src/managers/TxReader.ts
 var TxReader = class _TxReader {
   constructor(logger, networkManager, viemClientManager, config) {
+    this.logger = logger;
+    this.networkManager = networkManager;
+    this.viemClientManager = viemClientManager;
     this.logWatchers = /* @__PURE__ */ new Map();
     this.readContractWatchers = /* @__PURE__ */ new Map();
-    this.readContractIntervals = /* @__PURE__ */ new Map();
+    this.bulkCallbacks = /* @__PURE__ */ new Map();
     this.logWatcher = {
       create: (contractAddress, network, onLogs, event, blockManager) => {
         const id = v4_default();
-        const unwatcher = blockManager.watchBlocks({
-          onBlockRange: async (startBlock, endBlock) => {
-            await this.fetchLogsForWatcher(id, startBlock, endBlock);
-          }
+        const unwatch = blockManager.watchBlocks({
+          onBlockRange: (from5, to) => this.fetchLogsForWatcher(id, from5, to)
         });
-        const watcher = {
+        this.logWatchers.set(id, {
           id,
           network,
           contractAddress,
           event,
           callback: onLogs,
           blockManager,
-          unwatch: unwatcher
-        };
-        this.logWatchers.set(id, watcher);
+          unwatch
+        });
         this.logger.debug(
           `Created log watcher for ${network.name}:${contractAddress} (${event.name})`
         );
         return id;
       },
-      remove: (watcherId) => {
-        const watcher = this.logWatchers.get(watcherId);
-        if (!watcher) {
-          this.logger.warn(`Failed to remove log watcher ${watcherId} (not found)`);
-          return false;
-        }
-        watcher.unwatch();
-        this.logWatchers.delete(watcherId);
-        this.logger.info(`Removed log watcher ${watcherId}`);
+      remove: (id) => {
+        const w = this.logWatchers.get(id);
+        if (!w) return false;
+        w.unwatch();
+        this.logWatchers.delete(id);
         return true;
       }
     };
     this.readContractWatcher = {
       create: (contractAddress, network, functionName, abi2, callback, intervalMs = 1e4, args) => {
         const id = v4_default();
-        const watcher = {
+        this.readContractWatchers.set(id, {
           id,
           network,
           contractAddress,
@@ -48907,121 +48923,207 @@ var TxReader = class _TxReader {
           abi: abi2,
           args,
           intervalMs,
-          callback
-        };
-        this.readContractWatchers.set(id, watcher);
-        const interval = setInterval(async () => {
-          await this.executeReadContract(watcher);
-        }, intervalMs);
-        this.readContractIntervals.set(id, interval);
-        this.executeReadContract(watcher).catch((error) => {
-          this.logger.error(`Error in initial read contract execution (ID: ${id}):`, error);
+          callback,
+          lastExecuted: 0
         });
+        this.ensureGlobalLoop();
         this.logger.debug(
           `Created read contract watcher for ${network.name}:${contractAddress}.${functionName}`
         );
         return id;
       },
-      remove: (watcherId) => {
-        const watcher = this.readContractWatchers.get(watcherId);
-        if (!watcher) {
-          this.logger.warn(`Failed to remove read contract watcher ${watcherId} (not found)`);
-          return false;
+      bulkCreate: (items, options, onResult) => {
+        const { timeoutMs } = options;
+        let effectiveInterval = this.watcherIntervalMs;
+        if (timeoutMs !== void 0 && timeoutMs > this.watcherIntervalMs) {
+          this.logger.warn(
+            `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the global polling interval (${this.watcherIntervalMs} ms). Using timeoutMs as the interval for this bulk to prevent overlapping reads.`
+          );
+          effectiveInterval = timeoutMs;
         }
-        const interval = this.readContractIntervals.get(watcherId);
-        if (interval) {
-          clearInterval(interval);
-          this.readContractIntervals.delete(watcherId);
+        const bulkId = v4_default();
+        const watcherIds = [];
+        for (const c of items) {
+          const id = v4_default();
+          watcherIds.push(id);
+          this.readContractWatchers.set(id, {
+            id,
+            bulkId,
+            network: c.network,
+            contractAddress: c.contractAddress,
+            functionName: c.functionName,
+            abi: c.abi,
+            args: c.args,
+            intervalMs: effectiveInterval,
+            timeoutMs: options?.timeoutMs,
+            callback: async () => {
+            },
+            // not used for bulks
+            lastExecuted: 0
+          });
         }
-        this.readContractWatchers.delete(watcherId);
-        this.logger.info(`Removed read contract watcher ${watcherId}`);
-        return true;
+        this.bulkCallbacks.set(bulkId, onResult);
+        this.ensureGlobalLoop();
+        this.logger.debug(
+          `Bulk-created ${watcherIds.length} watchers ${bulkId} (timeout: ${options?.timeoutMs ?? "\u221E"} ms)`
+        );
+        return { bulkId, watcherIds };
+      },
+      remove: (id) => {
+        const removed = this.readContractWatchers.delete(id);
+        this.stopGlobalLoopIfIdle();
+        return removed;
+      },
+      removeBulk: (bulkId) => {
+        let changed = false;
+        for (const [id, w] of this.readContractWatchers.entries()) {
+          if (w.bulkId === bulkId) {
+            this.readContractWatchers.delete(id);
+            changed = true;
+          }
+        }
+        this.bulkCallbacks.delete(bulkId);
+        this.stopGlobalLoopIfIdle();
+        return changed;
       }
     };
-    this.networkManager = networkManager;
-    this.viemClientManager = viemClientManager;
-    this.logger = logger;
+    this.watcherIntervalMs = config.watcherIntervalMs ?? 1e4;
   }
   static createInstance(logger, networkManager, viemClientManager, config) {
     _TxReader.instance = new _TxReader(logger, networkManager, viemClientManager, config);
     return _TxReader.instance;
   }
   static getInstance() {
-    if (!_TxReader.instance) {
-      throw new Error("TxReader is not initialized. Call createInstance() first.");
-    }
+    if (!_TxReader.instance) throw new Error("TxReader is not initialized.");
     return _TxReader.instance;
   }
   async initialize() {
     this.logger.info("Initialized");
   }
-  async fetchLogsForWatcher(watcherId, fromBlock, toBlock) {
-    const watcher = this.logWatchers.get(watcherId);
-    if (!watcher) return;
+  ensureGlobalLoop() {
+    if (this.globalReadInterval) return;
+    this.globalReadInterval = setInterval(
+      () => this.executeGlobalReadLoop(),
+      this.watcherIntervalMs
+    );
+  }
+  stopGlobalLoopIfIdle() {
+    if (this.readContractWatchers.size === 0 && this.globalReadInterval) {
+      clearInterval(this.globalReadInterval);
+      this.globalReadInterval = void 0;
+    }
+  }
+  async executeGlobalReadLoop() {
+    const now = Date.now();
+    const due = [];
+    for (const w of this.readContractWatchers.values()) {
+      if (now - w.lastExecuted >= w.intervalMs) {
+        w.lastExecuted = now;
+        due.push(w);
+      }
+    }
+    if (due.length === 0) return;
+    const byNetwork = /* @__PURE__ */ new Map();
+    for (const w of due) {
+      const key = w.network.name;
+      if (!byNetwork.has(key)) byNetwork.set(key, []);
+      byNetwork.get(key).push(w);
+    }
+    const outcomes = (await Promise.all(
+      [...byNetwork.values()].map((group) => this.executeBatch(group))
+    )).flat();
+    const bulkBuckets = /* @__PURE__ */ new Map();
+    for (const o of outcomes) {
+      if (o.watcher.bulkId) {
+        const b = o.watcher.bulkId;
+        if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
+        bulkBuckets.get(b).push(o);
+      } else {
+        if (o.status === "fulfilled") {
+          o.watcher.callback(o.value, o.watcher.network).catch((err) => this.logger.error(`single callback failed (${o.watcher.id})`, err));
+        } else {
+          this.logger.error(`readContract failed (${o.watcher.id})`, o.reason);
+        }
+      }
+    }
+    for (const [bulkId, bucket] of bulkBuckets.entries()) {
+      const cb = this.bulkCallbacks.get(bulkId);
+      if (!cb) continue;
+      const results = bucket.filter((x) => x.status === "fulfilled").map((x) => ({
+        watcherId: x.watcher.id,
+        network: x.watcher.network,
+        value: x.value
+      }));
+      const errors = bucket.filter((x) => x.status === "rejected").map((x) => ({
+        watcherId: x.watcher.id,
+        network: x.watcher.network,
+        error: x.reason
+      }));
+      try {
+        await cb({ bulkId, results, errors });
+      } catch (e) {
+        this.logger.error(`bulk callback failed (${bulkId})`, e);
+      }
+    }
+  }
+  async executeBatch(ws) {
+    const network = ws[0].network;
+    const { publicClient } = this.viemClientManager.getClients(network);
+    const reads = ws.map(
+      (w) => publicClient.readContract({
+        address: w.contractAddress,
+        abi: w.abi,
+        functionName: w.functionName,
+        args: w.args
+      })
+    );
+    const settled = await Promise.allSettled(
+      ws.map((w, i) => w.timeoutMs ? this.withTimeout(reads[i], w.timeoutMs) : reads[i])
+    );
+    return settled.map(
+      (res, i) => res.status === "fulfilled" ? { status: "fulfilled", watcher: ws[i], value: res.value } : { status: "rejected", watcher: ws[i], reason: res.reason }
+    );
+  }
+  withTimeout(p, ms) {
+    return Promise.race([
+      p,
+      new Promise((_, r) => setTimeout(() => r(new Error("timeout")), ms))
+    ]);
+  }
+  async fetchLogsForWatcher(id, from5, to) {
+    const w = this.logWatchers.get(id);
+    if (!w) return;
     try {
       const logs = await this.getLogs(
-        {
-          address: watcher.contractAddress,
-          event: watcher.event,
-          fromBlock,
-          toBlock
-        },
-        watcher.network
+        { address: w.contractAddress, event: w.event, fromBlock: from5, toBlock: to },
+        w.network
       );
-      if (logs.length > 0) {
-        watcher.callback(logs, watcher.network).catch((error) => {
-          this.logger.error(`Error in watcher callback (ID: ${watcher.id}):`, error);
-        });
-      }
-    } catch (error) {
-      this.logger.error(
-        `Error fetching logs for ${watcher.contractAddress} on ${watcher.network.name}:`,
-        error
-      );
+      if (logs.length) await w.callback(logs, w.network);
+    } catch (e) {
+      this.logger.error(`fetchLogs failed (${id})`, e);
     }
   }
-  async executeReadContract(watcher) {
+  async getLogs(q, n) {
+    const { publicClient } = this.viemClientManager.getClients(n);
     try {
-      const { publicClient } = this.viemClientManager.getClients(watcher.network);
-      const result = await publicClient.readContract({
-        address: watcher.contractAddress,
-        abi: watcher.abi,
-        functionName: watcher.functionName,
-        args: watcher.args
+      return await publicClient.getLogs({
+        address: q.address,
+        fromBlock: q.fromBlock,
+        toBlock: q.toBlock,
+        event: q.event,
+        ...q.args && { args: q.args }
       });
-      await watcher.callback(result, watcher.network);
-    } catch (error) {
-      this.logger.error(`Error executing read contract (ID: ${watcher.id}):`, error);
-    }
-  }
-  async getLogs(query, network) {
-    const { publicClient } = this.viemClientManager.getClients(network);
-    try {
-      const filter2 = {
-        address: query.address,
-        fromBlock: query.fromBlock,
-        toBlock: query.toBlock,
-        event: query.event,
-        ...query.args && { args: query.args }
-      };
-      const logs = await publicClient.getLogs(filter2);
-      return logs;
-    } catch (error) {
-      this.logger.error(`Error fetching logs on ${network.name}:`, error);
+    } catch (e) {
+      this.logger.error(`getLogs failed on ${n.name}`, e);
       return [];
     }
   }
   dispose() {
-    for (const [watcherId, watcher] of this.logWatchers.entries()) {
-      watcher.unwatch();
-    }
-    for (const [watcherId, interval] of this.readContractIntervals.entries()) {
-      clearInterval(interval);
-    }
+    for (const w of this.logWatchers.values()) w.unwatch();
+    if (this.globalReadInterval) clearInterval(this.globalReadInterval);
     this.logWatchers.clear();
     this.readContractWatchers.clear();
-    this.readContractIntervals.clear();
-    this.logger.info("Disposed");
+    this.bulkCallbacks.clear();
   }
 };
 
@@ -49172,6 +49274,7 @@ export {
   createViemChain,
   fetchNetworkConfigs,
   getEnvVar,
+  getGranularLogLevels,
   localhostViemChain
 };
 /*! Bundled license information:
