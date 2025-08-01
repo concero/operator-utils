@@ -23,6 +23,5 @@ export { type ITxWriter } from './ITxWriter';
 export {
     type IBalanceManager,
     type TokenConfig,
-    type TokenBalance,
     type BalanceManagerConfig,
 } from './IBalanceManager';

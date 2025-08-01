@@ -1,31 +1,35 @@
 import { ManagerBase } from './ManagerBase';
 
-import type { Address, PublicClient } from 'viem';
-import { formatUnits } from 'viem';
+import type { Address } from 'viem';
 
 import { abi as ERC20_ABI } from '../constants/erc20Abi.json';
 import {
     BalanceManagerConfig,
     ConceroNetwork,
+    IBalanceManager,
     ITxReader,
     IViemClientManager,
     LoggerInterface,
     NetworkUpdateListener,
-    TokenBalance,
     TokenConfig,
 } from '../types';
 
-export abstract class BalanceManager extends ManagerBase implements NetworkUpdateListener {
-    protected balances: Map<string, TokenBalance> = new Map();
-    protected viemClientManager: IViemClientManager;
-    protected txReader: ITxReader;
-    protected logger: LoggerInterface;
-    protected config: BalanceManagerConfig;
-    protected activeNetworks: ConceroNetwork[] = [];
-    protected watcherIds: string[] = [];
-    protected minAllowances: Map<string, Map<string, bigint>> = new Map();
-    protected tokenDecimals: Map<string, Map<string, number>> = new Map();
-    protected tokenConfigs: Map<string, TokenConfig[]> = new Map();
+export abstract class BalanceManager
+    extends ManagerBase
+    implements IBalanceManager, NetworkUpdateListener
+{
+    private readonly nativeBalances = new Map<string, bigint>();
+    private readonly tokenBalances = new Map<string, Map<string, bigint>>();
+
+    private readonly minAllowances: Record<string, Record<string, bigint>>;
+    private readonly tokenConfigs: Record<string, TokenConfig[]> = {};
+
+    protected readonly activeNetworks: ConceroNetwork[] = [];
+    protected readonly watcherIds: string[] = [];
+
+    private readonly viemClientManager: IViemClientManager;
+    private readonly txReader: ITxReader;
+    private readonly logger: LoggerInterface;
 
     protected constructor(
         logger: LoggerInterface,
@@ -37,235 +41,63 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
         this.logger = logger;
         this.viemClientManager = viemClientManager;
         this.txReader = txReader;
-        this.config = config;
-
-        this.minAllowances = config.minAllowances || new Map();
-        this.tokenDecimals = config.tokenDecimals || new Map();
-        this.tokenConfigs = config.tokens || new Map();
+        this.minAllowances = config.minAllowances ?? {};
     }
 
     public async initialize(): Promise<void> {
         if (this.initialized) return;
-
-        try {
-            this.logger.debug('Initialized');
-        } catch (error) {
-            this.logger.error(`Failed to initialize BalanceManager: ${error}`);
-            throw error;
-        }
+        this.logger.debug('BalanceManager initialized');
     }
 
-    public addTokenWatcher(
-        network: ConceroNetwork,
-        tokenSymbol: string,
-        tokenAddress: Address,
-        decimals: number,
-    ): string {
-        const map = this.tokenDecimals.get(network.name) ?? new Map();
-        map.set(tokenAddress, decimals);
-        this.tokenDecimals.set(network.name, map);
+    public dispose(): void {
+        this.clearTokenWatchers();
+        this.nativeBalances.clear();
+        this.tokenBalances.clear();
+        super.dispose();
+        this.logger.debug('BalanceManager disposed');
+    }
 
-        const accountAddress = this.getAccountAddress(network);
-
+    public watchToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): string {
         const watcherId = this.txReader.readContractWatcher.create(
             tokenAddress,
             network,
             'balanceOf',
             ERC20_ABI,
-            async (result: bigint) => {
-                this.onTokenBalanceUpdate(network.name, tokenSymbol, result);
-            },
-            this.config.updateIntervalMs,
-            [accountAddress],
+            async (b: bigint): Promise<void> =>
+                this.onTokenBalanceUpdate(network.name, tokenSymbol, b),
+            10_000,
+            [this.viemClientManager.getClients(network).account.address],
         );
-
         this.watcherIds.push(watcherId);
         return watcherId;
     }
 
-    protected getAccountAddress(network: ConceroNetwork): Address {
-        const { account } = this.viemClientManager.getClients(network);
-        return account.address;
+    public async forceUpdate(): Promise<void> {
+        await this.refreshTokenBalances(this.activeNetworks);
+        await this.refreshNativeBalances(this.activeNetworks);
+        this.logger.debug('Balances force-updated');
     }
 
-    protected onTokenBalanceUpdate(networkName: string, symbol: string, newBalance: bigint): void {
-        const currentBalance = this.balances.get(networkName);
-        if (!currentBalance) {
-            const tokens = new Map();
-            tokens.set(symbol, newBalance);
-            this.balances.set(networkName, {
-                native: 0n,
-                tokens,
-            });
-        } else {
-            const updatedBalance = { ...currentBalance };
-            updatedBalance.tokens.set(symbol, newBalance);
-            this.balances.set(networkName, updatedBalance);
-        }
-    }
-
-    public async updateBalances(networks: ConceroNetwork[]): Promise<void> {
-        await this.updateNativeBalances(networks);
-        await this.updateTokenBalances(networks);
-    }
-    protected async updateTokenBalances(networks: ConceroNetwork[]): Promise<void> {
-        for (const network of networks) {
-            const { publicClient, account } = this.viemClientManager.getClients(network);
-            const networkName = network.name;
-
-            const tokenConfigs = this.getTokenConfigs(networkName);
-
-            if (tokenConfigs.length === 0) {
-                this.logger.debug(`No tokens configured for network ${networkName}`);
-                continue;
-            }
-
-            const currentBalance = this.balances.get(networkName);
-            const tokens = new Map(currentBalance?.tokens || new Map());
-
-            for (const tokenConfig of tokenConfigs) {
-                try {
-                    const balance = await this.fetchTokenBalance(
-                        publicClient,
-                        tokenConfig.address as Address,
-                        account.address,
-                    );
-                    tokens.set(tokenConfig.symbol, balance);
-                } catch (error) {
-                    this.logger.error(
-                        `Failed to get ${tokenConfig.symbol} balance for ${networkName}:`,
-                        error,
-                    );
-                    tokens.set(tokenConfig.symbol, 0n);
-                }
-            }
-
-            this.balances.set(networkName, {
-                native: currentBalance?.native || 0n,
-                tokens,
-            });
-        }
-    }
-
-    protected async fetchTokenBalance(
-        publicClient: PublicClient,
-        tokenAddress: Address,
-        accountAddress: Address,
-    ): Promise<bigint> {
-        try {
-            const balance = await publicClient.readContract({
-                address: tokenAddress,
-                abi: ERC20_ABI,
-                functionName: 'balanceOf',
-                args: [accountAddress],
-            });
-
-            return balance as bigint;
-        } catch (error) {
-            this.logger.error(`Failed to get token balance for ${tokenAddress}:`, error);
-            return 0n;
-        }
-    }
-
-    public getBalance(networkName: string): TokenBalance | undefined {
-        return this.balances.get(networkName);
-    }
-
-    public getAllBalances(): Map<string, TokenBalance> {
-        return new Map(this.balances);
+    public getNativeBalances(): Map<string, bigint> {
+        return new Map(this.nativeBalances);
     }
 
     public getTokenBalance(networkName: string, symbol: string): bigint {
-        const balance = this.balances.get(networkName);
-        return balance?.tokens.get(symbol) || 0n;
+        return this.tokenBalances.get(networkName)?.get(symbol) ?? 0n;
     }
 
     public getTotalTokenBalance(symbol: string): bigint {
         let total = 0n;
-        for (const balance of this.balances.values()) {
-            total += balance.tokens.get(symbol) || 0n;
-        }
+        for (const m of this.tokenBalances.values()) total += m.get(symbol) ?? 0n;
         return total;
     }
 
-    public hasNativeBalance(networkName: string, minimumBalance: bigint = 0n): boolean {
-        const balance = this.balances.get(networkName);
-        return balance ? balance.native > minimumBalance : false;
-    }
-
-    public hasTokenBalance(
-        networkName: string,
-        symbol: string,
-        minimumBalance: bigint = 0n,
-    ): boolean {
-        const balance = this.balances.get(networkName);
-        return balance ? (balance.tokens.get(symbol) || 0n) > minimumBalance : false;
-    }
-
-    public registerToken(networkName: string, tokenConfig: TokenConfig): void {
-        const existingTokens = this.tokenConfigs.get(networkName) || [];
-        const updatedTokens = [...existingTokens, tokenConfig];
-        this.tokenConfigs.set(networkName, updatedTokens);
-    }
-
     public getTokenConfigs(networkName: string): TokenConfig[] {
-        return this.tokenConfigs.get(networkName) || [];
+        return this.tokenConfigs[networkName] ?? [];
     }
 
     public getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined {
-        const configs = this.tokenConfigs.get(networkName) || [];
-        return configs.find(config => config.symbol === symbol);
-    }
-
-    public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {
-        this.activeNetworks = networks;
-
-        const activeNetworkNames = new Set(networks.map(n => n.name));
-        for (const networkName of this.balances.keys()) {
-            if (!activeNetworkNames.has(networkName)) {
-                this.balances.delete(networkName);
-                this.logger.debug(`Removed balance tracking for inactive network: ${networkName}`);
-            }
-        }
-
-        await this.updateNativeBalances(networks);
-    }
-
-    public async forceUpdate(): Promise<void> {
-        await this.updateBalances(this.activeNetworks);
-        this.logger.debug('Force updated balances');
-    }
-
-    protected async updateNativeBalances(networks: ConceroNetwork[]): Promise<void> {
-        const balancePromises = networks.map(async network => {
-            try {
-                const { publicClient, account } = this.viemClientManager.getClients(network);
-                const nativeBalance = await publicClient.getBalance({
-                    address: account.address,
-                });
-
-                const currentBalance = this.balances.get(network.name);
-                const updatedBalance: TokenBalance = {
-                    native: nativeBalance,
-                    tokens: currentBalance?.tokens || new Map(),
-                };
-
-                this.balances.set(network.name, updatedBalance);
-                return { network: network.name, success: true };
-            } catch (error) {
-                this.logger.error(`Failed to update native balance for ${network.name}:`, error);
-                return { network: network.name, success: false, error };
-            }
-        });
-
-        const results = await Promise.all(balancePromises);
-        const failedNetworks = results.filter(r => !r.success);
-
-        if (failedNetworks.length > 0) {
-            this.logger.warn(
-                `Failed to update native balances for ${failedNetworks.length} networks: ${failedNetworks.map(f => f.network).join(', ')}`,
-            );
-        }
+        return this.getTokenConfigs(networkName).find(c => c.symbol === symbol);
     }
 
     public async ensureAllowance(
@@ -274,63 +106,34 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
         spenderAddress: string,
         requiredAmount: bigint,
     ): Promise<void> {
-        const network = this.activeNetworks.find(n => n.name === networkName);
-        if (!network) throw new Error(`Network ${networkName} not found or not active`);
+        const net = this.findActiveNetwork(networkName);
+        const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+        if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
 
-        const minAmount = this.getMinAllowance(networkName, tokenAddress);
-        const tokenDecimals = this.getTokenDecimals(networkName, tokenAddress);
-
-        const { publicClient, walletClient } = this.viemClientManager.getClients(network);
-        if (!walletClient) throw new Error(`No wallet client found for ${networkName}`);
-
-        const currentAllowance = await publicClient.readContract({
-            address: tokenAddress as `0x${string}`,
+        const min = this.getMinAllowance(networkName, tokenAddress);
+        console.log(`Min allowance: ${min}`);
+        console.log(`Required amount: ${requiredAmount}`);
+        const current = (await publicClient.readContract({
+            address: tokenAddress as Address,
             abi: ERC20_ABI,
             functionName: 'allowance',
-            args: [walletClient.account.address, spenderAddress as `0x${string}`],
-        });
-
-        if (currentAllowance >= requiredAmount) {
-            const effectiveMinAmount = minAmount >= requiredAmount ? minAmount : requiredAmount;
-
-            if (currentAllowance >= effectiveMinAmount) {
-                this.logger.debug(
-                    `Allowance sufficient: ${formatUnits(currentAllowance, tokenDecimals)} >= ${formatUnits(effectiveMinAmount, tokenDecimals)}`,
-                );
-                return;
-            }
-
-            const newAllowance = effectiveMinAmount;
-            this.logger.info(
-                `Increasing allowance from ${formatUnits(currentAllowance, tokenDecimals)} to ${formatUnits(newAllowance, tokenDecimals)} (minAmount: ${formatUnits(minAmount, tokenDecimals)})`,
-            );
-
-            const txHash = await walletClient.writeContract({
-                address: tokenAddress as `0x${string}`,
-                abi: ERC20_ABI,
-                functionName: 'approve',
-                args: [spenderAddress as `0x${string}`, newAllowance],
-            });
-
-            await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-            this.logger.info(`Approve tx submitted: ${txHash} on ${networkName}`);
+            args: [walletClient.account.address, spenderAddress as Address],
+        })) as bigint;
+        const target = requiredAmount > min ? requiredAmount : min;
+        if (current >= target) {
+            this.logger.debug(`Allowance sufficient (${current} ≥ ${target})`);
             return;
         }
-
-        const newAllowance = requiredAmount > minAmount ? requiredAmount : minAmount;
-        this.logger.info(
-            `Setting allowance: ${formatUnits(currentAllowance, tokenDecimals)} -> ${formatUnits(newAllowance, tokenDecimals)} (required: ${formatUnits(requiredAmount, tokenDecimals)}, min: ${formatUnits(minAmount, tokenDecimals)})`,
-        );
-
         const txHash = await walletClient.writeContract({
-            address: tokenAddress as `0x${string}`,
+            address: tokenAddress as Address,
             abi: ERC20_ABI,
             functionName: 'approve',
-            args: [spenderAddress as `0x${string}`, newAllowance],
+            args: [spenderAddress as Address, target],
         });
 
-        this.logger.info(`Approve tx submitted: ${txHash} on ${networkName}`);
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+        this.logger.info(`Allowance updated to ${target} on ${networkName}`);
     }
 
     public async getAllowance(
@@ -338,45 +141,77 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
         tokenAddress: string,
         spenderAddress: string,
     ): Promise<bigint> {
-        const network = this.activeNetworks.find(n => n.name === networkName);
-        if (!network) throw new Error(`Network ${networkName} not found or not active`);
-
-        const { publicClient, walletClient } = this.viemClientManager.getClients(network);
-        if (!walletClient) throw new Error(`No wallet client found for ${networkName}`);
-
-        const allowance = await publicClient.readContract({
-            address: tokenAddress as `0x${string}`,
+        const net = this.findActiveNetwork(networkName);
+        const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+        if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
+        return (await publicClient.readContract({
+            address: tokenAddress as Address,
             abi: ERC20_ABI,
             functionName: 'allowance',
-            args: [walletClient.account.address, spenderAddress as `0x${string}`],
-        });
-
-        return allowance as bigint;
+            args: [walletClient.account.address, spenderAddress as Address],
+        })) as bigint;
     }
 
-    protected getMinAllowance(networkName: string, tokenAddress: string): bigint {
-        const networkMap = this.minAllowances.get(networkName);
-        if (!networkMap) return 0n;
-        return networkMap.get(tokenAddress.toLowerCase()) || 0n;
+    public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {
+        this.activeNetworks.splice(0, this.activeNetworks.length, ...networks);
+        const names = new Set(networks.map(n => n.name));
+        for (const n of [...this.nativeBalances.keys()])
+            if (!names.has(n)) {
+                this.nativeBalances.delete(n);
+                this.tokenBalances.delete(n);
+            }
+        await this.refreshNativeBalances(networks);
     }
 
-    protected getTokenDecimals(networkName: string, tokenAddress: string): number {
-        const networkMap = this.tokenDecimals.get(networkName);
-        if (!networkMap) return 18;
-        return networkMap.get(tokenAddress.toLowerCase()) || 18;
+    private onTokenBalanceUpdate(net: string, sym: string, bal: bigint): void {
+        const map = this.tokenBalances.get(net) ?? new Map<string, bigint>();
+        map.set(sym, bal);
+        this.tokenBalances.set(net, map);
+    }
+
+    private async refreshNativeBalances(networks: ConceroNetwork[]): Promise<void> {
+        await Promise.all(
+            networks.map(async n => {
+                const { publicClient, account } = this.viemClientManager.getClients(n);
+                const bal = await publicClient.getBalance({ address: account.address });
+                this.nativeBalances.set(n.name, bal);
+            }),
+        );
+    }
+
+    private async refreshTokenBalances(networks: ConceroNetwork[]): Promise<void> {
+        for (const n of networks) {
+            const { publicClient, account } = this.viemClientManager.getClients(n);
+            const map = new Map<string, bigint>();
+            for (const cfg of this.getTokenConfigs(n.name)) {
+                try {
+                    const bal = (await publicClient.readContract({
+                        address: cfg.address as Address,
+                        abi: ERC20_ABI,
+                        functionName: 'balanceOf',
+                        args: [account.address],
+                    })) as bigint;
+                    map.set(cfg.symbol, bal);
+                } catch {
+                    map.set(cfg.symbol, 0n);
+                }
+            }
+            this.tokenBalances.set(n.name, map);
+        }
+    }
+
+    private getMinAllowance(net: string, token: string): bigint {
+        return this.minAllowances[net]?.[token.toLowerCase()] ?? 0n;
     }
 
     protected clearTokenWatchers(): void {
-        for (const watcherId of this.watcherIds) {
-            this.txReader.readContractWatcher.remove(watcherId);
-        }
-        this.watcherIds = [];
+        this.watcherIds.forEach(id => this.txReader.readContractWatcher.remove(id));
+        this.watcherIds.length = 0;
     }
 
-    public dispose(): void {
-        this.clearTokenWatchers();
-        this.balances.clear();
-        super.dispose();
-        this.logger.debug('Disposed');
+    private findActiveNetwork(name: string): ConceroNetwork {
+        const net = this.activeNetworks.find(n => n.name === name);
+        if (!net) throw new Error(`Network ${name} is not active`);
+        return net;
     }
 }

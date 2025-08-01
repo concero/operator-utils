@@ -274,7 +274,7 @@ export class TxReader implements ITxReader {
             try {
                 await cb({ bulkId, results, errors });
             } catch (e) {
-                this.logger.error(`bulk callback failed (${bulkId})`, e);
+                this.logger.error(`bulk callback failed (${bulkId}) ${e}`);
             }
         }
     }
