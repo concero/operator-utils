@@ -14,7 +14,7 @@ export declare abstract class BalanceManager extends ManagerBase implements Netw
     protected tokenConfigs: Map<string, TokenConfig[]>;
     protected constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
     initialize(): Promise<void>;
-    addTokenWatcher(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): string;
+    addTokenWatcher(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address, decimals: number): string;
     protected getAccountAddress(network: ConceroNetwork): Address;
     protected onTokenBalanceUpdate(networkName: string, symbol: string, newBalance: bigint): void;
     updateBalances(networks: ConceroNetwork[]): Promise<void>;
