@@ -1,7 +1,7 @@
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxMonitorConfig } from "../types/ManagerConfigs";
-import { ITxMonitor, IViemClientManager, MonitoredTransaction, TransactionInfo } from "../types/managers";
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxMonitorConfig } from '../types/ManagerConfigs';
+import { ITxMonitor, IViemClientManager, MonitoredTransaction, TransactionInfo } from '../types/managers';
 export declare class TxMonitor implements ITxMonitor {
     private static instance;
     private monitors;

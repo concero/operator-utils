@@ -1,9 +1,9 @@
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { NetworkManagerConfig } from "../types/ManagerConfigs";
-import { IConceroNetworkManager, NetworkUpdateListener } from "../types/managers";
-import { HttpClient } from "../utils";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ManagerBase } from "./ManagerBase";
+import { ManagerBase } from './ManagerBase';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { NetworkManagerConfig } from '../types/ManagerConfigs';
+import { IConceroNetworkManager, NetworkUpdateListener } from '../types/managers';
+import { HttpClient } from '../utils';
 export declare class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance;
     private mainnetNetworks;

@@ -1,2 +1,2 @@
-export { AppErrorEnum, appErrors } from "./appErrors";
+export { AppErrorEnum, appErrors } from './appErrors';
 //# sourceMappingURL=index.d.ts.map

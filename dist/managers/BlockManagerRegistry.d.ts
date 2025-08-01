@@ -1,10 +1,10 @@
-import { PublicClient } from "viem";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { BlockManagerRegistryConfig } from "../types/ManagerConfigs";
-import { IBlockCheckpointManager, IBlockManagerRegistry, INetworkManager, IRpcManager, IViemClientManager, NetworkUpdateListener } from "../types/managers/";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { BlockManager } from "./BlockManager";
-import { ManagerBase } from "./ManagerBase";
+import { BlockManager } from './BlockManager';
+import { ManagerBase } from './ManagerBase';
+import { PublicClient } from 'viem';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { BlockManagerRegistryConfig } from '../types/ManagerConfigs';
+import { IBlockCheckpointManager, IBlockManagerRegistry, INetworkManager, IRpcManager, IViemClientManager, NetworkUpdateListener } from '../types/managers/';
 export declare class BlockManagerRegistry extends ManagerBase implements IBlockManagerRegistry, NetworkUpdateListener {
     private static instance;
     private blockManagers;

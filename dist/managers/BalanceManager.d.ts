@@ -1,21 +1,6 @@
-import type { Address, PublicClient } from 'viem';
-import { NetworkUpdateListener, IViemClientManager, ITxReader, LoggerInterface, ConceroNetwork } from '../types';
 import { ManagerBase } from './ManagerBase';
-export interface TokenConfig {
-    symbol: string;
-    address: string;
-    decimals: number;
-}
-export interface TokenBalance {
-    native: bigint;
-    tokens: Map<string, bigint>;
-}
-export interface BalanceManagerConfig {
-    updateIntervalMs: number;
-    minAllowances?: Map<string, Map<string, bigint>>;
-    tokenDecimals?: Map<string, Map<string, number>>;
-    tokens?: Map<string, TokenConfig[]>;
-}
+import type { Address, PublicClient } from 'viem';
+import { BalanceManagerConfig, ConceroNetwork, ITxReader, IViemClientManager, LoggerInterface, NetworkUpdateListener, TokenBalance, TokenConfig } from '../types';
 export declare abstract class BalanceManager extends ManagerBase implements NetworkUpdateListener {
     protected balances: Map<string, TokenBalance>;
     protected viemClientManager: IViemClientManager;

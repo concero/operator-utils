@@ -1,4 +1,4 @@
-import { defineChain } from "viem/utils";
+import { defineChain } from 'viem/utils';
 export interface ChainDefinition {
     id: number;
     name: string;

@@ -1,5 +1,5 @@
-import { IDeploymentFetcher } from "../types/managers";
-import { LoggerInterface } from "../utils/Logger";
+import { IDeploymentFetcher } from '../types/managers';
+import { LoggerInterface } from '../utils/Logger';
 export type DeploymentPattern = RegExp;
 export interface ParsedDeployment {
     key: string;

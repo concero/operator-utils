@@ -1,9 +1,9 @@
-import { Abi, AbiEvent, Address, Log } from "viem";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxReaderConfig } from "../types/ManagerConfigs";
-import { INetworkManager, IViemClientManager } from "../types/managers";
-import { ITxReader, LogQuery } from "../types/managers/ITxReader";
+import { Abi, AbiEvent, Address, Log } from 'viem';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxReaderConfig } from '../types/ManagerConfigs';
+import { INetworkManager, IViemClientManager } from '../types/managers';
+import { ITxReader, LogQuery } from '../types/managers/ITxReader';
 type BulkCallback = (payload: {
     bulkId: string;
     results: {

@@ -1,5 +1,5 @@
-import { LoggerConfig } from "../types/ManagerConfigs";
-import { ManagerBase } from "../managers/ManagerBase";
+import { ManagerBase } from '../managers/ManagerBase';
+import { LoggerConfig } from '../types/ManagerConfigs';
 export interface LoggerInterface {
     error(message: any, ...meta: any[]): void;
     warn(message: any, ...meta: any[]): void;

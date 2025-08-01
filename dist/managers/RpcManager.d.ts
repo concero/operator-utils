@@ -1,8 +1,8 @@
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { RpcManagerConfig } from "../types/ManagerConfigs";
-import { IRpcManager, NetworkUpdateListener } from "../types/managers";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ManagerBase } from "./ManagerBase";
+import { ManagerBase } from './ManagerBase';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { RpcManagerConfig } from '../types/ManagerConfigs';
+import { IRpcManager, NetworkUpdateListener } from '../types/managers';
 export declare class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdateListener {
     private static instance;
     private httpClient;

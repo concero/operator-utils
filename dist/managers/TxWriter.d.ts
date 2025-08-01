@@ -1,9 +1,9 @@
-import { SimulateContractParameters } from "viem";
-import { LoggerInterface } from "../types/LoggerInterface";
-import { ConceroNetwork } from "../types/ConceroNetwork";
-import { TxWriterConfig } from "../types/ManagerConfigs";
-import { INonceManager, ITxMonitor, IViemClientManager } from "../types/managers";
-import { ITxWriter } from "../types/managers/ITxWriter";
+import { SimulateContractParameters } from 'viem';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxWriterConfig } from '../types/ManagerConfigs';
+import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { ITxWriter } from '../types/managers/ITxWriter';
 export declare class TxWriter implements ITxWriter {
     private static instance;
     private viemClientManager;

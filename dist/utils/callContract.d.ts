@@ -1,5 +1,5 @@
-import { Hash, type PublicClient, type SimulateContractParameters, type WalletClient } from "viem";
-import { INonceManager } from "../types/managers";
+import { Hash, type PublicClient, type SimulateContractParameters, type WalletClient } from 'viem';
+import { INonceManager } from '../types/managers';
 export interface CallContractConfig {
     simulateTx: boolean;
     defaultGasLimit?: bigint;

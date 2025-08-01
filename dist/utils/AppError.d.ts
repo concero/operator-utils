@@ -1,4 +1,4 @@
-import { AppErrorEnum } from "../constants";
+import { AppErrorEnum } from '../constants';
 export declare class AppError extends Error {
     readonly isOperational: boolean;
     constructor(errorType: AppErrorEnum, originalError?: Error);

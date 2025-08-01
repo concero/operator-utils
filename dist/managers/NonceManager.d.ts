@@ -1,7 +1,7 @@
-import { NonceManagerConfig } from "../types/ManagerConfigs";
-import { IGetNonceParams, INonceManager, INonceManagerParams } from "../types/managers/INonceManager";
-import { LoggerInterface } from "../utils/Logger";
-import { ManagerBase } from "./ManagerBase";
+import { ManagerBase } from './ManagerBase';
+import { NonceManagerConfig } from '../types/ManagerConfigs';
+import { IGetNonceParams, INonceManager, INonceManagerParams } from '../types/managers/INonceManager';
+import { LoggerInterface } from '../utils/Logger';
 export declare class NonceManager extends ManagerBase implements INonceManager {
     private static instance;
     private noncesMap;

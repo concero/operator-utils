@@ -1,5 +1,5 @@
-import { Abi, AbiEvent, Address, Log } from "viem";
-import { ConceroNetwork } from "../ConceroNetwork";
+import { Abi, AbiEvent, Address, Log } from 'viem';
+import { ConceroNetwork } from '../ConceroNetwork';
 export interface LogQuery {
     address: Address;
     event: AbiEvent;

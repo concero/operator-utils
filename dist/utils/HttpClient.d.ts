@@ -1,7 +1,7 @@
-import { AxiosRequestConfig } from "axios";
-import { HttpClientConfig } from "../types/ManagerConfigs";
-import { ManagerBase } from "../managers";
-import { LoggerInterface } from "./Logger";
+import { LoggerInterface } from './Logger';
+import { AxiosRequestConfig } from 'axios';
+import { ManagerBase } from '../managers';
+import { HttpClientConfig } from '../types/ManagerConfigs';
 export declare class HttpClient extends ManagerBase {
     private static instance?;
     private axiosInstance?;
