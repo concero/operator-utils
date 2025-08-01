@@ -11,5 +11,5 @@ export { type RpcUpdateListener } from './RpcUpdateListener';
 export { type ITxMonitor, type MonitoredTransaction, type TransactionInfo } from './ITxMonitor';
 export { type ITxReader, type LogWatcher, type LogQuery, type ReadContractWatcher, } from './ITxReader';
 export { type ITxWriter } from './ITxWriter';
-export { type IBalanceManager, type TokenConfig, type TokenBalance, type BalanceManagerConfig, } from './IBalanceManager';
+export { type IBalanceManager, type TokenConfig, type BalanceManagerConfig, } from './IBalanceManager';
 //# sourceMappingURL=index.d.ts.map
