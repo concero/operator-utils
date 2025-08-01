@@ -43960,7 +43960,10 @@ var BalanceManager = class extends ManagerBase {
       throw error;
     }
   }
-  addTokenWatcher(network, tokenSymbol, tokenAddress) {
+  addTokenWatcher(network, tokenSymbol, tokenAddress, decimals) {
+    const map = this.tokenDecimals.get(network.name) ?? /* @__PURE__ */ new Map();
+    map.set(tokenAddress, decimals);
+    this.tokenDecimals.set(network.name, map);
     const accountAddress = this.getAccountAddress(network);
     const watcherId = this.txReader.readContractWatcher.create(
       tokenAddress,
@@ -43994,7 +43997,6 @@ var BalanceManager = class extends ManagerBase {
       updatedBalance.tokens.set(symbol, newBalance);
       this.balances.set(networkName, updatedBalance);
     }
-    console.table(this.balances);
   }
   async updateBalances(networks) {
     await this.updateNativeBalances(networks);
@@ -44157,6 +44159,7 @@ var BalanceManager = class extends ManagerBase {
         functionName: "approve",
         args: [spenderAddress, newAllowance2]
       });
+      await publicClient.waitForTransactionReceipt({ hash: txHash2 });
       this.logger.info(`Approve tx submitted: ${txHash2} on ${networkName}`);
       return;
     }

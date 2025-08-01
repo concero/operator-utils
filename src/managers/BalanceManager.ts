@@ -59,7 +59,12 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
         network: ConceroNetwork,
         tokenSymbol: string,
         tokenAddress: Address,
+        decimals: number,
     ): string {
+        const map = this.tokenDecimals.get(network.name) ?? new Map();
+        map.set(tokenAddress, decimals);
+        this.tokenDecimals.set(network.name, map);
+
         const accountAddress = this.getAccountAddress(network);
 
         const watcherId = this.txReader.readContractWatcher.create(
@@ -97,8 +102,6 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
             updatedBalance.tokens.set(symbol, newBalance);
             this.balances.set(networkName, updatedBalance);
         }
-
-        console.table(this.balances);
     }
 
     public async updateBalances(networks: ConceroNetwork[]): Promise<void> {
@@ -308,6 +311,8 @@ export abstract class BalanceManager extends ManagerBase implements NetworkUpdat
                 functionName: 'approve',
                 args: [spenderAddress as `0x${string}`, newAllowance],
             });
+
+            await publicClient.waitForTransactionReceipt({ hash: txHash });
 
             this.logger.info(`Approve tx submitted: ${txHash} on ${networkName}`);
             return;
