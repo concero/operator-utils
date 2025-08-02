@@ -49492,7 +49492,7 @@ var TxReader = class _TxReader {
         return id;
       },
       bulkCreate: (items, options, onResult) => {
-        const { timeoutMs } = options;
+        const timeoutMs = options.timeoutMs || this.watcherIntervalMs;
         let effectiveInterval = this.watcherIntervalMs;
         if (timeoutMs !== void 0 && timeoutMs > this.watcherIntervalMs) {
           this.logger.warn(
