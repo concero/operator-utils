@@ -132,7 +132,7 @@ export class TxReader implements ITxReader {
             options: { timeoutMs?: number },
             onResult: BulkCallback,
         ): { bulkId: string; watcherIds: string[] } => {
-            const { timeoutMs } = options;
+            const timeoutMs = options.timeoutMs || this.watcherIntervalMs;
             let effectiveInterval = this.watcherIntervalMs;
 
             if (timeoutMs !== undefined && timeoutMs > this.watcherIntervalMs) {
