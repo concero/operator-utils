@@ -43826,6 +43826,7 @@ var BalanceManager = class extends ManagerBase {
     this.viemClientManager = viemClientManager;
     this.txReader = txReader;
     this.minAllowances = config.minAllowances ?? {};
+    this.pollingIntervalMs = config.pollingIntervalMs ?? 1e4;
   }
   async initialize() {
     if (this.initialized) return;
@@ -43911,7 +43912,7 @@ var BalanceManager = class extends ManagerBase {
       "getBalance",
       network,
       async (b) => this.onNativeBalanceUpdate(network.name, b),
-      1e4,
+      this.pollingIntervalMs,
       [account.address]
     );
     this.watcherIds.push(watcherId);
@@ -43926,7 +43927,7 @@ var BalanceManager = class extends ManagerBase {
       "balanceOf",
       erc20Abi,
       async (b) => this.onTokenBalanceUpdate(network.name, tokenSymbol, b),
-      1e4,
+      this.pollingIntervalMs,
       [account.address]
     );
     this.watcherIds.push(watcherId);

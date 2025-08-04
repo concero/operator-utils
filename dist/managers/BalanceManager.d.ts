@@ -8,6 +8,7 @@ export declare abstract class BalanceManager extends ManagerBase implements IBal
     private readonly tokenConfigs;
     private readonly registeredTokens;
     private readonly registeredNativeBalances;
+    private readonly pollingIntervalMs;
     protected readonly activeNetworks: ConceroNetwork[];
     protected readonly watcherIds: string[];
     private readonly tokenWatchers;
