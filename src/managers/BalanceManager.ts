@@ -22,6 +22,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     private readonly tokenConfigs: Record<string, TokenConfig[]> = {};
     private readonly registeredTokens: Map<string, Map<string, Address>> = new Map();
     private readonly registeredNativeBalances: Set<string> = new Set();
+    private readonly pollingIntervalMs: number;
 
     protected readonly activeNetworks: ConceroNetwork[] = [];
     protected readonly watcherIds: string[] = [];
@@ -44,6 +45,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         this.viemClientManager = viemClientManager;
         this.txReader = txReader;
         this.minAllowances = config.minAllowances ?? {};
+        this.pollingIntervalMs = config.pollingIntervalMs ?? 10_000;
     }
 
     public async initialize(): Promise<void> {
@@ -146,7 +148,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             'getBalance',
             network,
             async (b: bigint): Promise<void> => this.onNativeBalanceUpdate(network.name, b),
-            10_000,
+            this.pollingIntervalMs,
             [account.address],
         );
         this.watcherIds.push(watcherId);
@@ -167,7 +169,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             erc20Abi,
             async (b: bigint): Promise<void> =>
                 this.onTokenBalanceUpdate(network.name, tokenSymbol, b),
-            10_000,
+            this.pollingIntervalMs,
             [account.address],
         );
         this.watcherIds.push(watcherId);

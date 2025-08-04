@@ -11,6 +11,7 @@ export interface TokenConfig {
 
 export interface BalanceManagerConfig {
     minAllowances?: Map<string, Map<string, bigint>>; // network → token → minAllowance
+    pollingIntervalMs?: number;
 }
 
 export interface IBalanceManager {
