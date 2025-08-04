@@ -43793,7 +43793,6 @@ var BalanceManager = class extends ManagerBase {
     this.registeredNativeBalances = /* @__PURE__ */ new Set();
     this.activeNetworks = [];
     this.watcherIds = [];
-    // Track watchers by network and token symbol for cleanup
     this.tokenWatchers = /* @__PURE__ */ new Map();
     this.nativeWatchers = /* @__PURE__ */ new Map();
     this.logger = logger;

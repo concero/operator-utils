@@ -25,7 +25,6 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     protected readonly activeNetworks: ConceroNetwork[] = [];
     protected readonly watcherIds: string[] = [];
 
-    // Track watchers by network and token symbol for cleanup
     private readonly tokenWatchers: Map<string, Map<string, string>> = new Map();
     private readonly nativeWatchers: Map<string, string> = new Map();
 
@@ -82,7 +81,6 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         const isNative = tokenAddress === ('0x0000000000000000000000000000000000000000' as Address);
 
         if (isNative) {
-            // Handle native balance deregistration
             const watcherId = this.nativeWatchers.get(networkName);
             if (watcherId) {
                 this.txReader.readContractWatcher.remove(watcherId);
@@ -91,13 +89,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
                 this.logger.debug(`Stopped native balance watcher for ${networkName}`);
             }
 
-            // Remove from registered native balances
             this.registeredNativeBalances.delete(networkName);
 
-            // Clean up native balance
             this.nativeBalances.delete(networkName);
         } else {
-            // Handle token deregistration
             const networkWatchers = this.tokenWatchers.get(networkName);
             if (networkWatchers) {
                 const watcherId = networkWatchers.get(tokenSymbol);
@@ -112,13 +107,11 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
                 }
             }
 
-            // Remove from registered tokens
             this.registeredTokens.get(networkName)?.delete(tokenSymbol);
             if (this.registeredTokens.get(networkName)?.size === 0) {
                 this.registeredTokens.delete(networkName);
             }
 
-            // Clean up balances
             const networkBalances = this.tokenBalances.get(networkName);
             if (networkBalances) {
                 networkBalances.delete(tokenSymbol);
@@ -180,7 +173,6 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         );
         this.watcherIds.push(watcherId);
 
-        // Track this watcher for cleanup
         if (!this.tokenWatchers.has(network.name)) {
             this.tokenWatchers.set(network.name, new Map());
         }
