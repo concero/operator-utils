@@ -1,4 +1,3 @@
-import { NetworkUpdateListener } from './NetworkUpdateListener';
 import type { Address } from 'viem';
 import { ConceroNetwork } from '../ConceroNetwork';
 export interface TokenConfig {
@@ -8,17 +7,17 @@ export interface TokenConfig {
 export interface BalanceManagerConfig {
     minAllowances?: Map<string, Map<string, bigint>>;
 }
-export interface IBalanceManager extends NetworkUpdateListener {
+export interface IBalanceManager {
     initialize(): Promise<void>;
     dispose(): void;
-    watchToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): string;
-    updateNativeBalances(): Promise<void>;
+    registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
+    deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;
+    beginWatching(): void;
+    setActiveNetworks(networks: ConceroNetwork[]): void;
     forceUpdate(): Promise<void>;
-    getAllBalances(): Map<string, bigint>;
     getTokenBalance(networkName: string, symbol: string): bigint;
     getTotalTokenBalance(symbol: string): bigint;
-    hasNativeBalance(networkName: string, minimumBalance?: bigint): boolean;
-    hasTokenBalance(networkName: string, symbol: string, minimumBalance?: bigint): boolean;
+    getNativeBalances(): Map<string, bigint>;
     getTokenConfigs(networkName: string): TokenConfig[];
     getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
     ensureAllowance(networkName: string, tokenAddress: string, spenderAddress: string, requiredAmount: bigint): Promise<void>;
