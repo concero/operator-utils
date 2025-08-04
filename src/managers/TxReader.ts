@@ -13,6 +13,18 @@ type Watcher = ReadContractWatcher & {
     bulkId?: string;
 };
 
+type MethodWatcher = {
+    id: string;
+    network: ConceroNetwork;
+    method: string;
+    args?: any[];
+    intervalMs: number;
+    callback: (result: any, network: ConceroNetwork) => Promise<void>;
+    lastExecuted: number;
+    bulkId?: string;
+    timeoutMs?: number;
+};
+
 type BulkCallback = (payload: {
     bulkId: string;
     results: { watcherId: string; network: ConceroNetwork; value: any }[];
@@ -24,6 +36,7 @@ export class TxReader implements ITxReader {
 
     private readonly logWatchers = new Map<string, LogWatcher>();
     private readonly readContractWatchers = new Map<string, Watcher>();
+    private readonly methodWatchers = new Map<string, MethodWatcher>();
     private readonly bulkCallbacks = new Map<string, BulkCallback>();
 
     private globalReadInterval?: NodeJS.Timeout;
@@ -36,6 +49,7 @@ export class TxReader implements ITxReader {
         config: TxReaderConfig,
     ) {
         this.watcherIntervalMs = config.watcherIntervalMs ?? 10_000;
+        this.logger.debug(`TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`);
     }
 
     public static createInstance(
@@ -193,43 +207,92 @@ export class TxReader implements ITxReader {
         },
     };
 
+    public methodWatcher = {
+        create: (
+            method: string,
+            network: ConceroNetwork,
+            callback: (result: any, network: ConceroNetwork) => Promise<void>,
+            intervalMs = 10_000,
+            args?: any[],
+        ): string => {
+            const id = uuidv4();
+            this.methodWatchers.set(id, {
+                id,
+                network,
+                method,
+                args,
+                intervalMs,
+                callback,
+                lastExecuted: 0,
+            });
+            this.ensureGlobalLoop();
+            this.logger.debug(
+                `Created method watcher ${id} for ${network.name}:${method} with interval ${intervalMs}ms`,
+            );
+            return id;
+        },
+
+        remove: (id: string): boolean => {
+            const removed = this.methodWatchers.delete(id);
+            this.stopGlobalLoopIfIdle();
+            return removed;
+        },
+    };
+
     private ensureGlobalLoop(): void {
         if (this.globalReadInterval) return;
         this.globalReadInterval = setInterval(
             () => this.executeGlobalReadLoop(),
             this.watcherIntervalMs,
         );
+        this.logger.debug(`TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`);
     }
 
     private stopGlobalLoopIfIdle(): void {
-        if (this.readContractWatchers.size === 0 && this.globalReadInterval) {
+        if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
             clearInterval(this.globalReadInterval);
             this.globalReadInterval = undefined;
+            this.logger.debug('TxReader: Stopped global read loop - no more watchers');
         }
     }
 
     private async executeGlobalReadLoop(): Promise<void> {
         const now = Date.now();
-        const due: Watcher[] = [];
+        const dueContractWatchers: Watcher[] = [];
+        const dueMethodWatchers: MethodWatcher[] = [];
+
+        this.logger.debug(`TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`);
 
         for (const w of this.readContractWatchers.values()) {
             if (now - w.lastExecuted >= w.intervalMs) {
                 w.lastExecuted = now;
-                due.push(w);
+                dueContractWatchers.push(w);
             }
         }
-        if (due.length === 0) return;
 
-        const byNetwork = new Map<string, Watcher[]>();
-        for (const w of due) {
-            const key = w.network.name;
-            if (!byNetwork.has(key)) byNetwork.set(key, []);
-            byNetwork.get(key)!.push(w);
+        for (const w of this.methodWatchers.values()) {
+            if (now - w.lastExecuted >= w.intervalMs) {
+                w.lastExecuted = now;
+                dueMethodWatchers.push(w);
+            }
         }
 
-        const outcomes = (
-            await Promise.all([...byNetwork.values()].map(group => this.executeBatch(group)))
-        ).flat();
+        if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
+            this.logger.debug('TxReader: No watchers due for execution');
+            return;
+        }
+
+        this.logger.debug(`TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`);
+
+        const contractOutcomes = dueContractWatchers.length > 0
+            ? (await Promise.all([...this.groupByNetwork(dueContractWatchers).values()].map(group => this.executeContractBatch(group)))).flat()
+            : [];
+
+        const methodOutcomes = dueMethodWatchers.length > 0
+            ? (await Promise.all([...this.groupByNetwork(dueMethodWatchers).values()].map(group => this.executeMethodBatch(group)))).flat()
+            : [];
+
+        const outcomes = [...contractOutcomes, ...methodOutcomes];
 
         const bulkBuckets = new Map<string, typeof outcomes>();
         for (const o of outcomes) {
@@ -279,7 +342,17 @@ export class TxReader implements ITxReader {
         }
     }
 
-    private async executeBatch(ws: Watcher[]) {
+    private groupByNetwork(watchers: any[]): Map<string, any[]> {
+        const byNetwork = new Map<string, any[]>();
+        for (const w of watchers) {
+            const key = w.network.name;
+            if (!byNetwork.has(key)) byNetwork.set(key, []);
+            byNetwork.get(key)!.push(w);
+        }
+        return byNetwork;
+    }
+
+    private async executeContractBatch(ws: Watcher[]) {
         const network = ws[0].network;
         const { publicClient } = this.viemClientManager.getClients(network);
 
@@ -295,6 +368,34 @@ export class TxReader implements ITxReader {
         const settled = await Promise.allSettled(
             ws.map((w, i) => (w.timeoutMs ? this.withTimeout(reads[i], w.timeoutMs) : reads[i])),
         );
+
+        return settled.map((res, i) =>
+            res.status === 'fulfilled'
+                ? { status: 'fulfilled' as const, watcher: ws[i], value: res.value }
+                : { status: 'rejected' as const, watcher: ws[i], reason: res.reason },
+        );
+    }
+
+    private async executeMethodBatch(ws: MethodWatcher[]) {
+        const network = ws[0].network;
+        const { publicClient } = this.viemClientManager.getClients(network);
+
+        this.logger.debug(`Executing method batch for ${network.name}: ${ws.length} watchers`);
+
+        const reads = ws.map(w => {
+            switch (w.method) {
+                case 'getBalance':
+                    return publicClient.getBalance({ address: w.args?.[0] });
+                default:
+                    throw new Error(`Unsupported method: ${w.method}`);
+            }
+        });
+
+        const settled = await Promise.allSettled(
+            ws.map((w, i) => (w.timeoutMs ? this.withTimeout(reads[i], w.timeoutMs) : reads[i])),
+        );
+
+        this.logger.debug(`Method batch completed for ${network.name}: ${settled.length} results`);
 
         return settled.map((res, i) =>
             res.status === 'fulfilled'
@@ -351,6 +452,7 @@ export class TxReader implements ITxReader {
         if (this.globalReadInterval) clearInterval(this.globalReadInterval);
         this.logWatchers.clear();
         this.readContractWatchers.clear();
+        this.methodWatchers.clear();
         this.bulkCallbacks.clear();
     }
 }

@@ -58,6 +58,17 @@ export interface ITxReader {
         remove(watcherId: string): boolean;
     };
 
+    methodWatcher: {
+        create(
+            method: string,
+            network: ConceroNetwork,
+            callback: (result: any, network: ConceroNetwork) => Promise<void>,
+            intervalMs?: number,
+            args?: any[],
+        ): string;
+        remove(watcherId: string): boolean;
+    };
+
     initialize(): Promise<void>;
     dispose(): void;
 }

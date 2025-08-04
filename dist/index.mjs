@@ -43816,7 +43816,7 @@ var BalanceManager = class extends ManagerBase {
     this.logger.debug("BalanceManager disposed");
   }
   registerToken(network, tokenSymbol, tokenAddress) {
-    if (tokenAddress === "0x0000000000000000000000000000000000000000") {
+    if (tokenAddress === zeroAddress) {
       this.registeredNativeBalances.add(network.name);
     } else {
       if (!this.registeredTokens.has(network.name)) {
@@ -43826,11 +43826,11 @@ var BalanceManager = class extends ManagerBase {
     }
   }
   deregisterToken(networkName, tokenSymbol, tokenAddress) {
-    const isNative = tokenAddress === "0x0000000000000000000000000000000000000000";
+    const isNative = tokenAddress === zeroAddress;
     if (isNative) {
       const watcherId = this.nativeWatchers.get(networkName);
       if (watcherId) {
-        this.txReader.readContractWatcher.remove(watcherId);
+        this.txReader.methodWatcher.remove(watcherId);
         this.watcherIds = this.watcherIds.filter((id) => id !== watcherId);
         this.nativeWatchers.delete(networkName);
         this.logger.debug(`Stopped native balance watcher for ${networkName}`);
@@ -43879,12 +43879,10 @@ var BalanceManager = class extends ManagerBase {
     }
   }
   watchNativeBalance(network) {
-    const { publicClient, account } = this.viemClientManager.getClients(network);
-    const watcherId = this.txReader.readContractWatcher.create(
-      account.address,
-      network,
+    const { account } = this.viemClientManager.getClients(network);
+    const watcherId = this.txReader.methodWatcher.create(
       "getBalance",
-      [],
+      network,
       async (b) => this.onNativeBalanceUpdate(network.name, b),
       1e4,
       [account.address]
@@ -43985,6 +43983,7 @@ var BalanceManager = class extends ManagerBase {
   }
   onNativeBalanceUpdate(net, bal) {
     this.nativeBalances.set(net, bal);
+    this.logger.info(`Updated native balance for ${net}: ${bal.toString()}`);
   }
   // todo: this needs to be handled by TxManager with a method-centric subscription (eth_balance)
   async updateNativeBalances(networks) {
@@ -44020,7 +44019,10 @@ var BalanceManager = class extends ManagerBase {
     return this.minAllowances[net]?.[token.toLowerCase()] ?? 0n;
   }
   clearTokenWatchers() {
-    this.watcherIds.forEach((id) => this.txReader.readContractWatcher.remove(id));
+    this.watcherIds.forEach((id) => {
+      this.txReader.readContractWatcher.remove(id);
+      this.txReader.methodWatcher.remove(id);
+    });
     this.watcherIds.length = 0;
     this.tokenWatchers.clear();
     this.nativeWatchers.clear();
@@ -49386,6 +49388,7 @@ var TxReader = class _TxReader {
     this.viemClientManager = viemClientManager;
     this.logWatchers = /* @__PURE__ */ new Map();
     this.readContractWatchers = /* @__PURE__ */ new Map();
+    this.methodWatchers = /* @__PURE__ */ new Map();
     this.bulkCallbacks = /* @__PURE__ */ new Map();
     this.logWatcher = {
       create: (contractAddress, network, onLogs, event, blockManager) => {
@@ -49490,6 +49493,30 @@ var TxReader = class _TxReader {
         return changed;
       }
     };
+    this.methodWatcher = {
+      create: (method, network, callback, intervalMs = 1e4, args) => {
+        const id = v4_default();
+        this.methodWatchers.set(id, {
+          id,
+          network,
+          method,
+          args,
+          intervalMs,
+          callback,
+          lastExecuted: 0
+        });
+        this.ensureGlobalLoop();
+        this.logger.debug(
+          `Created method watcher for ${network.name}:${method}`
+        );
+        return id;
+      },
+      remove: (id) => {
+        const removed = this.methodWatchers.delete(id);
+        this.stopGlobalLoopIfIdle();
+        return removed;
+      }
+    };
     this.watcherIntervalMs = config.watcherIntervalMs ?? 1e4;
   }
   static createInstance(logger, networkManager, viemClientManager, config) {
@@ -49511,28 +49538,36 @@ var TxReader = class _TxReader {
     );
   }
   stopGlobalLoopIfIdle() {
-    if (this.readContractWatchers.size === 0 && this.globalReadInterval) {
+    if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
       clearInterval(this.globalReadInterval);
       this.globalReadInterval = void 0;
     }
   }
   async executeGlobalReadLoop() {
     const now = Date.now();
-    const due = [];
+    const dueContractWatchers = [];
+    const dueMethodWatchers = [];
+    this.logger.debug(`TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`);
     for (const w of this.readContractWatchers.values()) {
       if (now - w.lastExecuted >= w.intervalMs) {
         w.lastExecuted = now;
-        due.push(w);
+        dueContractWatchers.push(w);
       }
     }
-    if (due.length === 0) return;
-    const byNetwork = /* @__PURE__ */ new Map();
-    for (const w of due) {
-      const key = w.network.name;
-      if (!byNetwork.has(key)) byNetwork.set(key, []);
-      byNetwork.get(key).push(w);
+    for (const w of this.methodWatchers.values()) {
+      if (now - w.lastExecuted >= w.intervalMs) {
+        w.lastExecuted = now;
+        dueMethodWatchers.push(w);
+      }
     }
-    const outcomes = (await Promise.all([...byNetwork.values()].map((group) => this.executeBatch(group)))).flat();
+    if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
+      this.logger.debug("TxReader: No watchers due for execution");
+      return;
+    }
+    this.logger.debug(`TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`);
+    const contractOutcomes = dueContractWatchers.length > 0 ? (await Promise.all([...this.groupByNetwork(dueContractWatchers).values()].map((group) => this.executeContractBatch(group)))).flat() : [];
+    const methodOutcomes = dueMethodWatchers.length > 0 ? (await Promise.all([...this.groupByNetwork(dueMethodWatchers).values()].map((group) => this.executeMethodBatch(group)))).flat() : [];
+    const outcomes = [...contractOutcomes, ...methodOutcomes];
     const bulkBuckets = /* @__PURE__ */ new Map();
     for (const o of outcomes) {
       if (o.watcher.bulkId) {
@@ -49569,7 +49604,16 @@ var TxReader = class _TxReader {
       }
     }
   }
-  async executeBatch(ws) {
+  groupByNetwork(watchers) {
+    const byNetwork = /* @__PURE__ */ new Map();
+    for (const w of watchers) {
+      const key = w.network.name;
+      if (!byNetwork.has(key)) byNetwork.set(key, []);
+      byNetwork.get(key).push(w);
+    }
+    return byNetwork;
+  }
+  async executeContractBatch(ws) {
     const network = ws[0].network;
     const { publicClient } = this.viemClientManager.getClients(network);
     const reads = ws.map(
@@ -49583,6 +49627,26 @@ var TxReader = class _TxReader {
     const settled = await Promise.allSettled(
       ws.map((w, i) => w.timeoutMs ? this.withTimeout(reads[i], w.timeoutMs) : reads[i])
     );
+    return settled.map(
+      (res, i) => res.status === "fulfilled" ? { status: "fulfilled", watcher: ws[i], value: res.value } : { status: "rejected", watcher: ws[i], reason: res.reason }
+    );
+  }
+  async executeMethodBatch(ws) {
+    const network = ws[0].network;
+    const { publicClient } = this.viemClientManager.getClients(network);
+    this.logger.debug(`Executing method batch for ${network.name}: ${ws.length} watchers`);
+    const reads = ws.map((w) => {
+      switch (w.method) {
+        case "getBalance":
+          return publicClient.getBalance({ address: w.args?.[0] });
+        default:
+          throw new Error(`Unsupported method: ${w.method}`);
+      }
+    });
+    const settled = await Promise.allSettled(
+      ws.map((w, i) => w.timeoutMs ? this.withTimeout(reads[i], w.timeoutMs) : reads[i])
+    );
+    this.logger.debug(`Method batch completed for ${network.name}: ${settled.length} results`);
     return settled.map(
       (res, i) => res.status === "fulfilled" ? { status: "fulfilled", watcher: ws[i], value: res.value } : { status: "rejected", watcher: ws[i], reason: res.reason }
     );
@@ -49631,6 +49695,7 @@ var TxReader = class _TxReader {
     if (this.globalReadInterval) clearInterval(this.globalReadInterval);
     this.logWatchers.clear();
     this.readContractWatchers.clear();
+    this.methodWatchers.clear();
     this.bulkCallbacks.clear();
   }
 };

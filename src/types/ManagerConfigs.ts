@@ -57,7 +57,7 @@ export interface NonceManagerConfig extends BaseManagerConfig {
 
 /** Configuration for TxReader */
 export interface TxReaderConfig extends BaseManagerConfig {
-    // Any specific config properties for TxReader
+    watcherIntervalMs?: number;
 }
 
 /** Configuration for BlockManagerRegistry */

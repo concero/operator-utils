@@ -2,6 +2,7 @@ import { ManagerBase } from './ManagerBase';
 
 import type { Address } from 'viem';
 import { erc20Abi } from 'viem';
+import { zeroAddress } from 'viem';
 
 import {
     BalanceManagerConfig,
@@ -67,7 +68,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         tokenSymbol: string,
         tokenAddress: Address,
     ): void {
-        if (tokenAddress === ('0x0000000000000000000000000000000000000000' as Address)) {
+        if (tokenAddress === zeroAddress) {
             this.registeredNativeBalances.add(network.name);
         } else {
             if (!this.registeredTokens.has(network.name)) {
@@ -78,12 +79,12 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     }
 
     public deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void {
-        const isNative = tokenAddress === ('0x0000000000000000000000000000000000000000' as Address);
+        const isNative = tokenAddress === zeroAddress;
 
         if (isNative) {
             const watcherId = this.nativeWatchers.get(networkName);
             if (watcherId) {
-                this.txReader.readContractWatcher.remove(watcherId);
+                this.txReader.methodWatcher.remove(watcherId);
                 this.watcherIds = this.watcherIds.filter(id => id !== watcherId);
                 this.nativeWatchers.delete(networkName);
                 this.logger.debug(`Stopped native balance watcher for ${networkName}`);
@@ -140,12 +141,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     }
 
     private watchNativeBalance(network: ConceroNetwork): string {
-        const { publicClient, account } = this.viemClientManager.getClients(network);
-        const watcherId = this.txReader.readContractWatcher.create(
-            account.address,
-            network,
+        const { account } = this.viemClientManager.getClients(network);
+        const watcherId = this.txReader.methodWatcher.create(
             'getBalance',
-            [],
+            network,
             async (b: bigint): Promise<void> => this.onNativeBalanceUpdate(network.name, b),
             10_000,
             [account.address],
@@ -281,6 +280,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     private onNativeBalanceUpdate(net: string, bal: bigint): void {
         this.nativeBalances.set(net, bal);
+        this.logger.info(`Updated native balance for ${net}: ${bal.toString()}`);
     }
 
     // todo: this needs to be handled by TxManager with a method-centric subscription (eth_balance)
@@ -320,7 +320,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     }
 
     protected clearTokenWatchers(): void {
-        this.watcherIds.forEach(id => this.txReader.readContractWatcher.remove(id));
+        this.watcherIds.forEach(id => {
+            this.txReader.readContractWatcher.remove(id);
+            this.txReader.methodWatcher.remove(id);
+        });
         this.watcherIds.length = 0;
         this.tokenWatchers.clear();
         this.nativeWatchers.clear();

@@ -24,6 +24,7 @@ export declare class TxReader implements ITxReader {
     private static instance;
     private readonly logWatchers;
     private readonly readContractWatchers;
+    private readonly methodWatchers;
     private readonly bulkCallbacks;
     private globalReadInterval?;
     private readonly watcherIntervalMs;
@@ -52,10 +53,16 @@ export declare class TxReader implements ITxReader {
         remove: (id: string) => boolean;
         removeBulk: (bulkId: string) => boolean;
     };
+    methodWatcher: {
+        create: (method: string, network: ConceroNetwork, callback: (result: any, network: ConceroNetwork) => Promise<void>, intervalMs?: number, args?: any[]) => string;
+        remove: (id: string) => boolean;
+    };
     private ensureGlobalLoop;
     private stopGlobalLoopIfIdle;
     private executeGlobalReadLoop;
-    private executeBatch;
+    private groupByNetwork;
+    private executeContractBatch;
+    private executeMethodBatch;
     private withTimeout;
     private fetchLogsForWatcher;
     getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]>;
