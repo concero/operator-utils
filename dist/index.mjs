@@ -49507,7 +49507,7 @@ var TxReader = class _TxReader {
         });
         this.ensureGlobalLoop();
         this.logger.debug(
-          `Created method watcher for ${network.name}:${method}`
+          `Created method watcher ${id} for ${network.name}:${method} with interval ${intervalMs}ms`
         );
         return id;
       },
@@ -49518,6 +49518,7 @@ var TxReader = class _TxReader {
       }
     };
     this.watcherIntervalMs = config.watcherIntervalMs ?? 1e4;
+    this.logger.debug(`TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`);
   }
   static createInstance(logger, networkManager, viemClientManager, config) {
     _TxReader.instance = new _TxReader(logger, networkManager, viemClientManager, config);
@@ -49536,11 +49537,13 @@ var TxReader = class _TxReader {
       () => this.executeGlobalReadLoop(),
       this.watcherIntervalMs
     );
+    this.logger.debug(`TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`);
   }
   stopGlobalLoopIfIdle() {
     if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
       clearInterval(this.globalReadInterval);
       this.globalReadInterval = void 0;
+      this.logger.debug("TxReader: Stopped global read loop - no more watchers");
     }
   }
   async executeGlobalReadLoop() {
