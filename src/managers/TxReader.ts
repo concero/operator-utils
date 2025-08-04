@@ -49,7 +49,9 @@ export class TxReader implements ITxReader {
         config: TxReaderConfig,
     ) {
         this.watcherIntervalMs = config.watcherIntervalMs ?? 10_000;
-        this.logger.debug(`TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`);
+        this.logger.debug(
+            `TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`,
+        );
     }
 
     public static createInstance(
@@ -245,11 +247,17 @@ export class TxReader implements ITxReader {
             () => this.executeGlobalReadLoop(),
             this.watcherIntervalMs,
         );
-        this.logger.debug(`TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`);
+        this.logger.debug(
+            `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`,
+        );
     }
 
     private stopGlobalLoopIfIdle(): void {
-        if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
+        if (
+            this.readContractWatchers.size === 0 &&
+            this.methodWatchers.size === 0 &&
+            this.globalReadInterval
+        ) {
             clearInterval(this.globalReadInterval);
             this.globalReadInterval = undefined;
             this.logger.debug('TxReader: Stopped global read loop - no more watchers');
@@ -261,7 +269,9 @@ export class TxReader implements ITxReader {
         const dueContractWatchers: Watcher[] = [];
         const dueMethodWatchers: MethodWatcher[] = [];
 
-        this.logger.debug(`TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`);
+        this.logger.debug(
+            `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`,
+        );
 
         for (const w of this.readContractWatchers.values()) {
             if (now - w.lastExecuted >= w.intervalMs) {
@@ -282,15 +292,31 @@ export class TxReader implements ITxReader {
             return;
         }
 
-        this.logger.debug(`TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`);
+        this.logger.debug(
+            `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`,
+        );
 
-        const contractOutcomes = dueContractWatchers.length > 0
-            ? (await Promise.all([...this.groupByNetwork(dueContractWatchers).values()].map(group => this.executeContractBatch(group)))).flat()
-            : [];
+        const contractOutcomes =
+            dueContractWatchers.length > 0
+                ? (
+                      await Promise.all(
+                          [...this.groupByNetwork(dueContractWatchers).values()].map(group =>
+                              this.executeContractBatch(group),
+                          ),
+                      )
+                  ).flat()
+                : [];
 
-        const methodOutcomes = dueMethodWatchers.length > 0
-            ? (await Promise.all([...this.groupByNetwork(dueMethodWatchers).values()].map(group => this.executeMethodBatch(group)))).flat()
-            : [];
+        const methodOutcomes =
+            dueMethodWatchers.length > 0
+                ? (
+                      await Promise.all(
+                          [...this.groupByNetwork(dueMethodWatchers).values()].map(group =>
+                              this.executeMethodBatch(group),
+                          ),
+                      )
+                  ).flat()
+                : [];
 
         const outcomes = [...contractOutcomes, ...methodOutcomes];
 

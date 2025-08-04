@@ -49518,7 +49518,9 @@ var TxReader = class _TxReader {
       }
     };
     this.watcherIntervalMs = config.watcherIntervalMs ?? 1e4;
-    this.logger.debug(`TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`);
+    this.logger.debug(
+      `TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`
+    );
   }
   static createInstance(logger, networkManager, viemClientManager, config) {
     _TxReader.instance = new _TxReader(logger, networkManager, viemClientManager, config);
@@ -49537,7 +49539,9 @@ var TxReader = class _TxReader {
       () => this.executeGlobalReadLoop(),
       this.watcherIntervalMs
     );
-    this.logger.debug(`TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`);
+    this.logger.debug(
+      `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`
+    );
   }
   stopGlobalLoopIfIdle() {
     if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
@@ -49550,7 +49554,9 @@ var TxReader = class _TxReader {
     const now = Date.now();
     const dueContractWatchers = [];
     const dueMethodWatchers = [];
-    this.logger.debug(`TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`);
+    this.logger.debug(
+      `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`
+    );
     for (const w of this.readContractWatchers.values()) {
       if (now - w.lastExecuted >= w.intervalMs) {
         w.lastExecuted = now;
@@ -49567,9 +49573,19 @@ var TxReader = class _TxReader {
       this.logger.debug("TxReader: No watchers due for execution");
       return;
     }
-    this.logger.debug(`TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`);
-    const contractOutcomes = dueContractWatchers.length > 0 ? (await Promise.all([...this.groupByNetwork(dueContractWatchers).values()].map((group) => this.executeContractBatch(group)))).flat() : [];
-    const methodOutcomes = dueMethodWatchers.length > 0 ? (await Promise.all([...this.groupByNetwork(dueMethodWatchers).values()].map((group) => this.executeMethodBatch(group)))).flat() : [];
+    this.logger.debug(
+      `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`
+    );
+    const contractOutcomes = dueContractWatchers.length > 0 ? (await Promise.all(
+      [...this.groupByNetwork(dueContractWatchers).values()].map(
+        (group) => this.executeContractBatch(group)
+      )
+    )).flat() : [];
+    const methodOutcomes = dueMethodWatchers.length > 0 ? (await Promise.all(
+      [...this.groupByNetwork(dueMethodWatchers).values()].map(
+        (group) => this.executeMethodBatch(group)
+      )
+    )).flat() : [];
     const outcomes = [...contractOutcomes, ...methodOutcomes];
     const bulkBuckets = /* @__PURE__ */ new Map();
     for (const o of outcomes) {
