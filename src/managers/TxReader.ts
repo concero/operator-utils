@@ -135,7 +135,7 @@ export class TxReader implements ITxReader {
             const timeoutMs = options.timeoutMs || this.watcherIntervalMs;
             let effectiveInterval = this.watcherIntervalMs;
 
-            if (timeoutMs !== undefined && timeoutMs > this.watcherIntervalMs) {
+            if (timeoutMs > this.watcherIntervalMs) {
                 this.logger.warn(
                     `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the ` +
                         `global polling interval (${this.watcherIntervalMs} ms). ` +
