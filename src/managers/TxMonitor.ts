@@ -2,13 +2,13 @@ import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { TxMonitorConfig } from '../types/ManagerConfigs';
 import {
+    IBlockManagerRegistry,
+    IConceroNetworkManager,
     ITxMonitor,
     IViemClientManager,
     MonitoredTransaction,
     TransactionInfo,
-	IConceroNetworkManager,
-	IBlockManagerRegistry,
-} from "../types/managers";
+} from '../types/managers';
 
 enum TransactionStatus {
     Pending = 'pending',
@@ -25,6 +25,7 @@ interface TransactionMonitor {
     finalityCallback: (finalizedTx: TransactionInfo) => void;
     retryCount: number;
     lastRetryAt?: number;
+    canRetry: boolean;
 }
 
 export class TxMonitor implements ITxMonitor {
@@ -36,33 +37,40 @@ export class TxMonitor implements ITxMonitor {
     private config: TxMonitorConfig;
     private networkSubscriptions: Map<string, () => void> = new Map();
     private networksWithTransactions: Set<string> = new Set();
-	private blockManagerRegistry: IBlockManagerRegistry;
-	private networkManager: IConceroNetworkManager;
+    private networkLastActivity: Map<string, number> = new Map();
+    private blockManagerRegistry: IBlockManagerRegistry;
+    private networkManager: IConceroNetworkManager;
 
     constructor(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
-		blockManagerRegistry: IBlockManagerRegistry,
-		networkManager: IConceroNetworkManager,
+        blockManagerRegistry: IBlockManagerRegistry,
+        networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
     ) {
         this.viemClientManager = viemClientManager;
         this.logger = logger;
         this.config = config;
-		this.blockManagerRegistry = blockManagerRegistry;
-		this.networkManager = networkManager;
-        this.logger.info("initialized");
+        this.blockManagerRegistry = blockManagerRegistry;
+        this.networkManager = networkManager;
+        this.logger.info('initialized');
     }
 
     public static createInstance(
         logger: LoggerInterface,
         viemClientManager: IViemClientManager,
-		blockManagerRegistry: IBlockManagerRegistry,
-		networkManager: IConceroNetworkManager,
+        blockManagerRegistry: IBlockManagerRegistry,
+        networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
     ): TxMonitor {
         if (!TxMonitor.instance) {
-            TxMonitor.instance = new TxMonitor(logger, viemClientManager, blockManagerRegistry, networkManager, config);
+            TxMonitor.instance = new TxMonitor(
+                logger,
+                viemClientManager,
+                blockManagerRegistry,
+                networkManager,
+                config,
+            );
         }
         return TxMonitor.instance;
     }
@@ -78,6 +86,7 @@ export class TxMonitor implements ITxMonitor {
         txInfo: TransactionInfo,
         retryCallback: (failedTx: TransactionInfo) => Promise<TransactionInfo | null>,
         finalityCallback: (finalizedTx: TransactionInfo) => void,
+        canRetry?: boolean,
     ): void {
         if (this.monitors.has(txInfo.txHash)) {
             this.logger.debug(`Transaction ${txInfo.txHash} is already being monitored`);
@@ -99,10 +108,11 @@ export class TxMonitor implements ITxMonitor {
             retryCallback,
             finalityCallback,
             retryCount: 0,
+            canRetry: canRetry ?? true,
         };
 
         this.subscribeToNetwork(txInfo.chainName);
-        
+
         this.monitors.set(txInfo.txHash, monitor);
         this.logger.debug(`Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName}`);
     }
@@ -171,7 +181,10 @@ export class TxMonitor implements ITxMonitor {
                 await this.handleFinalizedTransaction(monitor);
             } else if (txInfo.blockNumber) {
                 const confirmations = currentBlock - txInfo.blockNumber + 1n;
-                const requiredConfirmations = BigInt(network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations());
+                const requiredConfirmations = BigInt(
+                    network.finalityConfirmations ??
+                        this.networkManager.getDefaultFinalityConfirmations(),
+                );
                 this.logger.debug(
                     `Transaction ${tx.txHash} has ${confirmations} confirmations (needs ${requiredConfirmations})`,
                 );
@@ -218,6 +231,15 @@ export class TxMonitor implements ITxMonitor {
         monitor: TransactionMonitor,
         network: ConceroNetwork,
     ): Promise<void> {
+        // If can't retry, stop monitoring
+        if (!monitor.canRetry) {
+            this.logger.info(
+                `Transaction ${monitor.transaction.txHash} is observe-only, stopping monitoring after failure`,
+            );
+            await this.removeMonitor(monitor.transaction.txHash);
+            return;
+        }
+
         const tx = monitor.transaction;
         monitor.retryCount++;
         monitor.lastRetryAt = Date.now();
@@ -278,22 +300,36 @@ export class TxMonitor implements ITxMonitor {
     }
 
     private async checkNetworkTransactions(
-        networkName: string, 
-        startBlock: bigint, 
-        endBlock: bigint
+        networkName: string,
+        startBlock: bigint,
+        endBlock: bigint,
     ): Promise<void> {
         const network = this.getNetwork(networkName);
         if (!network) return;
 
-        const networkMonitors = Array.from(this.monitors.values())
-            .filter(monitor => monitor.transaction.chainName === networkName);
+        const networkMonitors = Array.from(this.monitors.values()).filter(
+            monitor => monitor.transaction.chainName === networkName,
+        );
 
         if (networkMonitors.length === 0) {
-            this.unsubscribeFromNetwork(networkName);
+            // Check if network has been idle long enough to unsubscribe
+            const lastActivity = this.networkLastActivity.get(networkName);
+            if (
+                lastActivity &&
+                Date.now() - lastActivity > (this.config.networkIdleThresholdMs || 3600000)
+            ) {
+                this.unsubscribeFromNetwork(networkName);
+                this.networkLastActivity.delete(networkName);
+            }
             return;
         }
 
-        const finalityConfirmations = BigInt(network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations());
+        // If there are active transactions, clear the idle timer
+        this.networkLastActivity.delete(networkName);
+
+        const finalityConfirmations = BigInt(
+            network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
+        );
         const finalityBlockNumber = endBlock - finalityConfirmations;
 
         for (const monitor of networkMonitors) {
@@ -318,7 +354,7 @@ export class TxMonitor implements ITxMonitor {
             },
             onError: (error: unknown) => {
                 this.logger.error(`Block monitoring error for ${networkName}:`, error);
-            }
+            },
         });
 
         this.networkSubscriptions.set(networkName, unsubscribe);
@@ -343,11 +379,14 @@ export class TxMonitor implements ITxMonitor {
         const networkName = monitor.transaction.chainName;
         this.monitors.delete(txHash);
 
-        const hasMoreTransactions = Array.from(this.monitors.values())
-            .some(m => m.transaction.chainName === networkName);
+        // Check if this network has any remaining transactions
+        const hasMoreTransactions = Array.from(this.monitors.values()).some(
+            m => m.transaction.chainName === networkName,
+        );
 
         if (!hasMoreTransactions) {
-            this.unsubscribeFromNetwork(networkName);
+            // Record when transactions for this network ended
+            this.networkLastActivity.set(networkName, Date.now());
         }
     }
 
@@ -385,9 +424,10 @@ export class TxMonitor implements ITxMonitor {
             unsubscribe();
             this.logger.debug(`Unsubscribed from blocks for network ${networkName} during dispose`);
         }
-        
+
         this.networkSubscriptions.clear();
         this.networksWithTransactions.clear();
+        this.networkLastActivity.clear();
         this.monitors.clear();
         this.logger.info('Disposed');
     }

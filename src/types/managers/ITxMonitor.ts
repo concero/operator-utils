@@ -29,6 +29,7 @@ export interface ITxMonitor {
         txInfo: TransactionInfo,
         retryCallback: (failedTx: TransactionInfo) => Promise<TransactionInfo | null>,
         finalityCallback: (finalizedTx: TransactionInfo) => void,
+        canRetry?: boolean,
     ): void;
     checkTransactionsInRange(
         network: ConceroNetwork,

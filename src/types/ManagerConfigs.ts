@@ -49,6 +49,7 @@ export interface TxMonitorConfig extends BaseManagerConfig {
     checkIntervalMs?: number;
     dropTimeoutMs?: number;
     retryDelayMs?: number;
+	networkIdleThresholdMs?: number;
 }
 
 /** Configuration for NonceManager */
