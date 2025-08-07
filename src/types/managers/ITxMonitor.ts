@@ -17,19 +17,15 @@ export interface TransactionInfo {
 export interface MonitoredTransaction {
     txHash: string;
     chainName: string;
+    submittedAt: number;
     blockNumber: bigint | null;
-    firstSeen: number;
-    lastChecked: number;
     status: string;
-    managedTxId: string;
 }
 
 export interface ITxMonitor {
-    watchTxFinality(
+    ensureTxFinality(
         txInfo: TransactionInfo,
-        retryCallback: (failedTx: TransactionInfo) => Promise<TransactionInfo | null>,
-        finalityCallback: (finalizedTx: TransactionInfo) => void,
-        canRetry?: boolean,
+        onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void,
     ): void;
     checkTransactionsInRange(
         network: ConceroNetwork,

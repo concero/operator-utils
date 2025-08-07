@@ -21,11 +21,7 @@ enum TransactionStatus {
 
 interface TransactionMonitor {
     transaction: MonitoredTransaction;
-    retryCallback: (failedTx: TransactionInfo) => Promise<TransactionInfo | null>;
-    finalityCallback: (finalizedTx: TransactionInfo) => void;
-    retryCount: number;
-    lastRetryAt?: number;
-    canRetry: boolean;
+    subscribers: Map<string, (txInfo: TransactionInfo, isFinalized: boolean) => void>;
     finalityBlockNumber?: bigint;
 }
 
@@ -37,8 +33,6 @@ export class TxMonitor implements ITxMonitor {
     private logger: LoggerInterface;
     private config: TxMonitorConfig;
     private networkSubscriptions: Map<string, () => void> = new Map();
-    private networksWithTransactions: Set<string> = new Set();
-    private networkLastActivity: Map<string, number> = new Map();
     private blockManagerRegistry: IBlockManagerRegistry;
     private networkManager: IConceroNetworkManager;
 
@@ -83,63 +77,65 @@ export class TxMonitor implements ITxMonitor {
         return TxMonitor.instance;
     }
 
-    public watchTxFinality(
+    public ensureTxFinality(
         txInfo: TransactionInfo,
-        retryCallback: (failedTx: TransactionInfo) => Promise<TransactionInfo | null>,
-        finalityCallback: (finalizedTx: TransactionInfo) => void,
-        canRetry?: boolean,
+        onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void,
     ): void {
-        if (this.monitors.has(txInfo.txHash)) {
-            this.logger.debug(`Transaction ${txInfo.txHash} is already being monitored`);
+        const existingMonitor = this.monitors.get(txInfo.txHash);
+
+        if (existingMonitor) {
+            // Add subscriber to existing monitor
+            existingMonitor.subscribers.set(txInfo.id, onFinalityCallback);
+            this.logger.debug(
+                `Added subscriber ${txInfo.id} to existing monitor for tx ${txInfo.txHash}`,
+            );
             return;
         }
 
+        // Create new monitor
         const monitoredTx: MonitoredTransaction = {
             txHash: txInfo.txHash,
             chainName: txInfo.chainName,
+            submittedAt: txInfo.submittedAt,
             blockNumber: txInfo.submissionBlock,
-            firstSeen: Date.now(),
-            lastChecked: Date.now(),
             status: TransactionStatus.Pending,
-            managedTxId: txInfo.id,
         };
 
         const monitor: TransactionMonitor = {
             transaction: monitoredTx,
-            retryCallback,
-            finalityCallback,
-            retryCount: 0,
-            canRetry: canRetry ?? true,
+            subscribers: new Map(),
             finalityBlockNumber: undefined,
         };
+
+        // Add the subscriber for this specific transaction ID
+        monitor.subscribers.set(txInfo.id, onFinalityCallback);
 
         this.subscribeToNetwork(txInfo.chainName);
 
         this.monitors.set(txInfo.txHash, monitor);
-        this.logger.debug(`Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName}`);
+        this.logger.debug(
+            `Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName} with subscriber ${txInfo.id}`,
+        );
     }
 
     public addTransaction(txHash: string, txInfo: TransactionInfo): void {
-        // This method is kept for backward compatibility but delegates to watchTxFinality
-        this.logger.warn(`addTransaction called directly - use watchTxFinality instead`);
+        // This method is kept for backward compatibility but delegates to ensureTxFinality
+        this.logger.warn(`addTransaction called directly - use ensureTxFinality instead`);
 
-        // Create default callbacks for backward compatibility
-        const defaultRetryCallback = async (
-            failedTx: TransactionInfo,
-        ): Promise<TransactionInfo | null> => {
-            this.logger.warn(
-                `Transaction ${failedTx.txHash} failed but no retry callback provided`,
-            );
-            return null;
+        // Create default callback for backward compatibility
+        const defaultCallback = (finalizedTx: TransactionInfo, isFinalized: boolean): void => {
+            if (isFinalized) {
+                this.logger.info(
+                    `Transaction ${finalizedTx.txHash} (${finalizedTx.id}) finalized (using legacy addTransaction)`,
+                );
+            } else {
+                this.logger.warn(
+                    `Transaction ${finalizedTx.txHash} (${finalizedTx.id}) failed (using legacy addTransaction)`,
+                );
+            }
         };
 
-        const defaultFinalityCallback = (finalizedTx: TransactionInfo): void => {
-            this.logger.info(
-                `Transaction ${finalizedTx.txHash} finalized (using legacy addTransaction)`,
-            );
-        };
-
-        this.watchTxFinality(txInfo, defaultRetryCallback, defaultFinalityCallback);
+        this.ensureTxFinality(txInfo, defaultCallback);
     }
 
     private async checkTransactionFinality(
@@ -149,7 +145,6 @@ export class TxMonitor implements ITxMonitor {
         network: ConceroNetwork,
     ): Promise<void> {
         const tx = monitor.transaction;
-        tx.lastChecked = Date.now();
 
         try {
             const { publicClient } = this.viemClientManager.getClients(network);
@@ -158,7 +153,7 @@ export class TxMonitor implements ITxMonitor {
             });
 
             if (!txInfo) {
-                await this.handleMissingTransaction(monitor, network);
+                await this.notifySubscribers(monitor, network, false);
                 return;
             }
 
@@ -190,110 +185,44 @@ export class TxMonitor implements ITxMonitor {
             }
 
             // Transaction has reached finality - this should only be called when we're sure
-            await this.handleFinalizedTransaction(monitor);
+            await this.notifySubscribers(monitor, network, true);
         } catch (error) {
             this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
 
-            // If there's a persistent error, consider retrying the transaction
-            const timeSinceLastRetry = tx.lastChecked - (monitor.lastRetryAt || 0);
-            const retryDelayMs = this.config.retryDelayMs || 30000;
-
-            if (timeSinceLastRetry > retryDelayMs) {
-                await this.retryTransaction(monitor, network);
-            }
+            await this.notifySubscribers(monitor, network, false);
         }
     }
 
-    private async handleMissingTransaction(
+    private async notifySubscribers(
         monitor: TransactionMonitor,
         network: ConceroNetwork,
+        isFinalized: boolean,
     ): Promise<void> {
         const tx = monitor.transaction;
 
-        // Give the transaction some time before considering it dropped
-        const timeSinceSubmission = Date.now() - tx.firstSeen;
-        const dropTimeoutMs = this.config.dropTimeoutMs || 60000;
-
-        if (timeSinceSubmission < dropTimeoutMs) {
-            this.logger.debug(
-                `Transaction ${tx.txHash} not found yet (${timeSinceSubmission}ms since submission)`,
-            );
-            return;
-        }
-
-        tx.status = TransactionStatus.Dropped;
-        this.logger.warn(
-            `Transaction ${tx.txHash} not found on chain ${network.name} after ${timeSinceSubmission}ms`,
-        );
-
-        await this.retryTransaction(monitor, network);
-    }
-
-    private async retryTransaction(
-        monitor: TransactionMonitor,
-        network: ConceroNetwork,
-    ): Promise<void> {
-        // If can't retry, stop monitoring
-        if (!monitor.canRetry) {
-            this.logger.info(
-                `Transaction ${monitor.transaction.txHash} is observe-only, stopping monitoring after failure`,
-            );
-            await this.removeMonitor(monitor.transaction.txHash);
-            return;
-        }
-
-        const tx = monitor.transaction;
-        monitor.retryCount++;
-        monitor.lastRetryAt = Date.now();
-
+        const txStatus = isFinalized ? TransactionStatus.Finalized : TransactionStatus.Failed;
         this.logger.info(
-            `Retrying transaction ${tx.txHash} on ${network.name} (attempt ${monitor.retryCount})`,
+            `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`,
         );
 
-        // Create a TransactionInfo from MonitoredTransaction for the retry callback
-        const failedTx: TransactionInfo = {
-            id: tx.managedTxId,
+        const txResult: TransactionInfo = {
+            id: '', // Will be set per subscriber
             txHash: tx.txHash,
             chainName: tx.chainName,
-            submittedAt: tx.firstSeen,
+            submittedAt: tx.submittedAt,
             submissionBlock: tx.blockNumber,
-            status: 'failed',
+            status: txStatus,
         };
 
-        const newTxInfo = await monitor.retryCallback(failedTx);
+        // Notify all subscribers
+        monitor.subscribers.forEach((callback, subscriberId) => {
+            const txForSubscriber: TransactionInfo = {
+                ...txResult,
+                id: subscriberId,
+            };
+            callback(txForSubscriber, isFinalized);
+        });
 
-        if (newTxInfo) {
-            // Remove the old monitor
-            await this.removeMonitor(tx.txHash);
-
-            // Add new monitor for the retry transaction
-            this.watchTxFinality(newTxInfo, monitor.retryCallback, monitor.finalityCallback);
-
-            this.logger.info(`Transaction ${tx.txHash} replaced with ${newTxInfo.txHash}`);
-        } else {
-            this.logger.error(`Failed to retry transaction ${tx.txHash} - will try again later`);
-        }
-    }
-
-    private async handleFinalizedTransaction(monitor: TransactionMonitor): Promise<void> {
-        const tx = monitor.transaction;
-        tx.status = TransactionStatus.Finalized;
-
-        this.logger.info(`Transaction ${tx.txHash} has reached finality on ${tx.chainName}`);
-
-        // Create a TransactionInfo for the finality callback
-        const finalizedTx: TransactionInfo = {
-            id: tx.managedTxId,
-            txHash: tx.txHash,
-            chainName: tx.chainName,
-            submittedAt: tx.firstSeen,
-            submissionBlock: tx.blockNumber,
-            status: 'finalized',
-        };
-
-        monitor.finalityCallback(finalizedTx);
-
-        // Remove from monitoring
         await this.removeMonitor(tx.txHash);
     }
 
@@ -301,33 +230,13 @@ export class TxMonitor implements ITxMonitor {
         return this.networkManager.getNetworkByName(chainName);
     }
 
-    private async checkNetworkTransactions(
-        networkName: string,
-        startBlock: bigint,
-        endBlock: bigint,
-    ): Promise<void> {
+    private async checkNetworkTransactions(networkName: string, endBlock: bigint): Promise<void> {
         const network = this.getNetwork(networkName);
         if (!network) return;
 
         const networkMonitors = Array.from(this.monitors.values()).filter(
             monitor => monitor.transaction.chainName === networkName,
         );
-
-        if (networkMonitors.length === 0) {
-            // Check if network has been idle long enough to unsubscribe
-            const lastActivity = this.networkLastActivity.get(networkName);
-            if (
-                lastActivity &&
-                Date.now() - lastActivity > (this.config.networkIdleThresholdMs || 3600000)
-            ) {
-                this.unsubscribeFromNetwork(networkName);
-                this.networkLastActivity.delete(networkName);
-            }
-            return;
-        }
-
-        // If there are active transactions, clear the idle timer
-        this.networkLastActivity.delete(networkName);
 
         const finalityConfirmations = BigInt(
             network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
@@ -367,7 +276,7 @@ export class TxMonitor implements ITxMonitor {
 
         const unsubscribe = blockManager.watchBlocks({
             onBlockRange: async (startBlock: bigint, endBlock: bigint) => {
-                await this.checkNetworkTransactions(networkName, startBlock, endBlock);
+                await this.checkNetworkTransactions(networkName, endBlock);
             },
             onError: (error: unknown) => {
                 this.logger.error(`Block monitoring error for ${networkName}:`, error);
@@ -375,36 +284,14 @@ export class TxMonitor implements ITxMonitor {
         });
 
         this.networkSubscriptions.set(networkName, unsubscribe);
-        this.networksWithTransactions.add(networkName);
         this.logger.debug(`Subscribed to blocks for network ${networkName}`);
-    }
-
-    private unsubscribeFromNetwork(networkName: string): void {
-        const unsubscribe = this.networkSubscriptions.get(networkName);
-        if (unsubscribe) {
-            unsubscribe();
-            this.networkSubscriptions.delete(networkName);
-            this.networksWithTransactions.delete(networkName);
-            this.logger.debug(`Unsubscribed from blocks for network ${networkName}`);
-        }
     }
 
     private async removeMonitor(txHash: string): Promise<void> {
         const monitor = this.monitors.get(txHash);
         if (!monitor) return;
 
-        const networkName = monitor.transaction.chainName;
         this.monitors.delete(txHash);
-
-        // Check if this network has any remaining transactions
-        const hasMoreTransactions = Array.from(this.monitors.values()).some(
-            m => m.transaction.chainName === networkName,
-        );
-
-        if (!hasMoreTransactions) {
-            // Record when transactions for this network ended
-            this.networkLastActivity.set(networkName, Date.now());
-        }
     }
 
     public async checkTransactionsInRange(
@@ -443,8 +330,6 @@ export class TxMonitor implements ITxMonitor {
         }
 
         this.networkSubscriptions.clear();
-        this.networksWithTransactions.clear();
-        this.networkLastActivity.clear();
         this.monitors.clear();
         this.logger.info('Disposed');
     }

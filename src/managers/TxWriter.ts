@@ -103,10 +103,9 @@ export class TxWriter implements ITxWriter {
             };
 
             // Watch this transaction for finality
-            this.txMonitor.watchTxFinality(
+            this.txMonitor.ensureTxFinality(
                 txInfo,
-                this.createRetryCallback(network, params),
-                this.createFinalityCallback(network),
+                this.createFinalityCallback(network, params, txInfo),
             );
 
             return txHash;
@@ -116,63 +115,81 @@ export class TxWriter implements ITxWriter {
         }
     }
 
-    private createRetryCallback(
+    private createFinalityCallback(
         network: ConceroNetwork,
         params: SimulateContractParameters,
-    ): (failedTx: any) => Promise<any | null> {
-        return async (failedTx: any): Promise<any | null> => {
-            this.logger.info(
-                `[${network.name}] Retrying transaction ${failedTx.txHash} (${failedTx.id})`,
-            );
-
-            try {
-                const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+        originalTxInfo: any,
+    ): (txInfo: any, isFinalized: boolean) => void {
+        return async (txInfo: any, isFinalized: boolean): Promise<void> => {
+            if (isFinalized) {
+                this.logger.info(
+                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is now final`,
+                );
+            } else {
+                this.logger.warn(
+                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) failed - attempting retry`,
+                );
 
                 // Retry the transaction
-                const newTxHash = await callContract(
-                    publicClient,
-                    walletClient,
-                    params,
-                    this.nonceManager,
-                    {
-                        simulateTx: this.config.simulateTx,
-                        defaultGasLimit: this.config.defaultGasLimit,
-                    },
-                );
-                this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-
-                // Get the current block number for tracking
-                const currentBlock = await publicClient.getBlockNumber();
-
-                // Return new transaction info
-                return {
-                    id: uuidv4(),
-                    txHash: newTxHash,
-                    chainName: network.name,
-                    submittedAt: Date.now(),
-                    submissionBlock: currentBlock,
-                    status: 'submitted',
-                    metadata: {
-                        functionName: params.functionName,
-                        contractAddress: params.address,
-                    },
-                };
-            } catch (error) {
-                this.logger.error(
-                    `[${network.name}] Failed to retry transaction ${failedTx.txHash}:`,
-                    error,
-                );
-                return null;
+                await this.retryTransaction(network, params, originalTxInfo);
             }
         };
     }
 
-    private createFinalityCallback(network: ConceroNetwork): (finalizedTx: any) => void {
-        return (finalizedTx: any): void => {
-            this.logger.info(
-                `[${network.name}] Transaction ${finalizedTx.txHash} (${finalizedTx.id}) is now final`,
+    private async retryTransaction(
+        network: ConceroNetwork,
+        params: SimulateContractParameters,
+        originalTxInfo: any,
+    ): Promise<void> {
+        this.logger.info(
+            `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`,
+        );
+
+        try {
+            const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+
+            // Retry the transaction
+            const newTxHash = await callContract(
+                publicClient,
+                walletClient,
+                params,
+                this.nonceManager,
+                {
+                    simulateTx: this.config.simulateTx,
+                    defaultGasLimit: this.config.defaultGasLimit,
+                },
             );
-        };
+            this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
+
+            // Get the current block number for tracking
+            const currentBlock = await publicClient.getBlockNumber();
+
+            // Create new transaction info for the retry with new ID
+            const retryTxInfo = {
+                id: uuidv4(),
+                txHash: newTxHash,
+                chainName: network.name,
+                submittedAt: Date.now(),
+                submissionBlock: currentBlock,
+                status: 'submitted',
+                metadata: {
+                    functionName: params.functionName,
+                    contractAddress: params.address,
+                },
+            };
+
+            // Start monitoring the retry transaction
+            this.txMonitor.ensureTxFinality(
+                retryTxInfo,
+                this.createFinalityCallback(network, params, retryTxInfo),
+            );
+        } catch (error) {
+            this.logger.error(
+                `[${network.name}] Failed to retry transaction ${originalTxInfo.txHash}:`,
+                error,
+            );
+            // TODO: What if retry fails?
+        }
     }
 
     public dispose(): void {
