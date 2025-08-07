@@ -26,6 +26,7 @@ interface TransactionMonitor {
     retryCount: number;
     lastRetryAt?: number;
     canRetry: boolean;
+    finalityBlockNumber?: bigint;
 }
 
 export class TxMonitor implements ITxMonitor {
@@ -109,6 +110,7 @@ export class TxMonitor implements ITxMonitor {
             finalityCallback,
             retryCount: 0,
             canRetry: canRetry ?? true,
+            finalityBlockNumber: undefined,
         };
 
         this.subscribeToNetwork(txInfo.chainName);
@@ -140,10 +142,10 @@ export class TxMonitor implements ITxMonitor {
         this.watchTxFinality(txInfo, defaultRetryCallback, defaultFinalityCallback);
     }
 
-    private async checkTransaction(
+    private async checkTransactionFinality(
         monitor: TransactionMonitor,
         currentBlock: bigint,
-        finalityBlockNumber: bigint,
+        finalityConfirmations: bigint,
         network: ConceroNetwork,
     ): Promise<void> {
         const tx = monitor.transaction;
@@ -174,21 +176,21 @@ export class TxMonitor implements ITxMonitor {
                     `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`,
                 );
                 tx.blockNumber = txInfo.blockNumber;
+                // Recalculate finality block after reorg
+                monitor.finalityBlockNumber = txInfo.blockNumber + finalityConfirmations;
+
+                this.logger.debug(
+                    `Transaction ${tx.txHash} finality block recalculated to ${monitor.finalityBlockNumber} after reorg`,
+                );
+
+                // If after reorg the finality block is ahead of the current network block, we don't need to finalize yet
+                if (monitor.finalityBlockNumber && currentBlock < monitor.finalityBlockNumber) {
+                    return;
+                }
             }
 
-            // Check if transaction has reached finality
-            if (txInfo.blockNumber && txInfo.blockNumber <= finalityBlockNumber) {
-                await this.handleFinalizedTransaction(monitor);
-            } else if (txInfo.blockNumber) {
-                const confirmations = currentBlock - txInfo.blockNumber + 1n;
-                const requiredConfirmations = BigInt(
-                    network.finalityConfirmations ??
-                        this.networkManager.getDefaultFinalityConfirmations(),
-                );
-                this.logger.debug(
-                    `Transaction ${tx.txHash} has ${confirmations} confirmations (needs ${requiredConfirmations})`,
-                );
-            }
+            // Transaction has reached finality - this should only be called when we're sure
+            await this.handleFinalizedTransaction(monitor);
         } catch (error) {
             this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
 
@@ -330,10 +332,25 @@ export class TxMonitor implements ITxMonitor {
         const finalityConfirmations = BigInt(
             network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
         );
-        const finalityBlockNumber = endBlock - finalityConfirmations;
 
         for (const monitor of networkMonitors) {
-            await this.checkTransaction(monitor, endBlock, finalityBlockNumber, network);
+            if (!this.monitors.has(monitor.transaction.txHash)) {
+                continue;
+            }
+
+            if (!monitor.finalityBlockNumber && monitor.transaction.blockNumber) {
+                monitor.finalityBlockNumber =
+                    monitor.transaction.blockNumber + finalityConfirmations;
+            }
+
+            if (monitor.finalityBlockNumber && endBlock >= monitor.finalityBlockNumber) {
+                await this.checkTransactionFinality(
+                    monitor,
+                    endBlock,
+                    finalityConfirmations,
+                    network,
+                );
+            }
         }
     }
 
