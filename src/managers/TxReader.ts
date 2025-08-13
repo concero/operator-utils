@@ -481,4 +481,8 @@ export class TxReader implements ITxReader {
         this.methodWatchers.clear();
         this.bulkCallbacks.clear();
     }
+
+    public static dispose(): void {
+        TxReader.instance = undefined;
+    }
 }
