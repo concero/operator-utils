@@ -21,7 +21,8 @@
         "lint": "eslint --config .eslint.config.mjs",
         "lint:fix": "eslint --config .eslint.config.mjs --fix",
         "format": "prettier --config .prettierrc.json --write \"**/*.{ts,json}\"",
-        "check-updates": "npx npm-check-updates"
+        "check-updates": "npx npm-check-updates",
+        "test": "jest"
     },
     "author": "",
     "license": "ISC",
@@ -36,14 +37,18 @@
     },
     "devDependencies": {
         "@trivago/prettier-plugin-sort-imports": "^5.2.2",
+        "@types/jest": "^30.0.0",
         "@types/node": "^24.1.0",
-        "@typescript-eslint/eslint-plugin": "^8.38.0",
-        "@typescript-eslint/parser": "8.38.0",
+        "@typescript-eslint/eslint-plugin": "^8.39.1",
+        "@typescript-eslint/parser": "^8.39.1",
         "esbuild": "^0.25.8",
         "eslint": "^9.32.0",
         "eslint-plugin-prettier": "^5.5.3",
         "husky": "^9.1.7",
+        "jest": "^30.0.5",
         "prettier": "3.6.2",
+        "ts-jest": "^29.4.1",
+        "ts-node": "^10.9.2",
         "typescript": "^5.9.2"
     }
 }

@@ -195,4 +195,8 @@ export class TxWriter implements ITxWriter {
     public dispose(): void {
         this.logger.info('Disposed');
     }
+
+    public static dispose(): void {
+        TxWriter.instance = undefined;
+    }
 }

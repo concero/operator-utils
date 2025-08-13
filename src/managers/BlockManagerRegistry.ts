@@ -202,7 +202,7 @@ export class BlockManagerRegistry
 
     public override dispose(): void {
         if (this.initialized) {
-            this.networkManager.unregisterUpdateListener(this);
+            // this.networkManager.unregisterUpdateListener(this);
 
             // Properly dispose all block managers
             for (const [networkName, blockManager] of this.blockManagers.entries()) {
@@ -216,5 +216,9 @@ export class BlockManagerRegistry
             super.dispose();
             this.logger.debug('Disposed');
         }
+    }
+
+    public static dispose(): void {
+        BlockManagerRegistry.instance = undefined as any;
     }
 }

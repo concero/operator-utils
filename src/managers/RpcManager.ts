@@ -33,6 +33,10 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         return RpcManager.instance;
     }
 
+    public static dispose(): void {
+        RpcManager.instance = undefined as any;
+    }
+
     public async initialize(): Promise<void> {
         if (this.initialized) return;
 

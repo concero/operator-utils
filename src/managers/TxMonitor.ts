@@ -313,4 +313,11 @@ export class TxMonitor implements ITxMonitor {
         this.monitors.clear();
         this.logger.info('Disposed');
     }
+
+    public static dispose(): void {
+        if (TxMonitor.instance) {
+            TxMonitor.instance.dispose();
+            TxMonitor.instance = undefined;
+        }
+    }
 }
