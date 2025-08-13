@@ -18,6 +18,7 @@ export interface NetworkManagerConfig extends BaseManagerConfig {
         localhost: number[];
     };
     defaultConfirmations: number;
+    defaultFinalityConfirmations: number;
     mainnetUrl: string;
     testnetUrl: string;
 }
@@ -48,6 +49,7 @@ export interface TxMonitorConfig extends BaseManagerConfig {
     checkIntervalMs?: number;
     dropTimeoutMs?: number;
     retryDelayMs?: number;
+	networkIdleThresholdMs?: number;
 }
 
 /** Configuration for NonceManager */
