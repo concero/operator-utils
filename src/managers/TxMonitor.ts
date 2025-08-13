@@ -118,26 +118,6 @@ export class TxMonitor implements ITxMonitor {
         );
     }
 
-    public addTransaction(txHash: string, txInfo: TransactionInfo): void {
-        // This method is kept for backward compatibility but delegates to ensureTxFinality
-        this.logger.warn(`addTransaction called directly - use ensureTxFinality instead`);
-
-        // Create default callback for backward compatibility
-        const defaultCallback = (finalizedTx: TransactionInfo, isFinalized: boolean): void => {
-            if (isFinalized) {
-                this.logger.info(
-                    `Transaction ${finalizedTx.txHash} (${finalizedTx.id}) finalized (using legacy addTransaction)`,
-                );
-            } else {
-                this.logger.warn(
-                    `Transaction ${finalizedTx.txHash} (${finalizedTx.id}) failed (using legacy addTransaction)`,
-                );
-            }
-        };
-
-        this.ensureTxFinality(txInfo, defaultCallback);
-    }
-
     private async checkTransactionFinality(
         monitor: TransactionMonitor,
         currentBlock: bigint,
