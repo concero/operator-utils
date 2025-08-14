@@ -1,10 +1,12 @@
 import { TxReader } from '@/managers/TxReader';
-import { MockLogger } from '../mocks/Logger';
-import { MockViemClientManager } from '../mocks/ViemClientManager';
 import { INetworkManager } from '@/types/managers';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+
 import { v4 as uuidv4 } from 'uuid';
 import { Abi, AbiEvent } from 'viem';
+
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
+import { MockViemClientManager } from '../mocks/ViemClientManager';
 
 jest.mock('uuid');
 jest.useFakeTimers();
@@ -64,7 +66,8 @@ describe('TxReader', () => {
             ['0x456'],
         );
 
-        const mockReadContract = viemClientManager.getClients(mockConceroNetwork).publicClient.readContract;
+        const mockReadContract =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.readContract;
         (mockReadContract as jest.Mock).mockResolvedValue(123n);
 
         jest.advanceTimersByTime(1000);

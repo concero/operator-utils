@@ -1,8 +1,10 @@
 import { BlockManager } from '@/managers/BlockManager';
-import { MockLogger } from '../mocks/Logger';
+
+import { PublicClient } from 'viem';
+
 import { MockBlockCheckpointManager } from '../mocks/BlockCheckpointManager';
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
-import { PublicClient } from 'viem';
+import { MockLogger } from '../mocks/Logger';
 
 jest.useFakeTimers();
 

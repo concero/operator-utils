@@ -1,7 +1,9 @@
 import { NonceManager } from '@/managers/NonceManager';
-import { MockLogger } from '../mocks/Logger';
 import { IGetNonceParams, INonceManagerParams } from '@/types/managers/INonceManager';
+
 import { PublicClient, createPublicClient } from 'viem';
+
+import { MockLogger } from '../mocks/Logger';
 
 jest.mock('viem', () => ({
     ...jest.requireActual('viem'),

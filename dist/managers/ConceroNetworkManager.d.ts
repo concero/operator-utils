@@ -28,6 +28,7 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     getNetworkByName(name: string): ConceroNetwork;
     getNetworkBySelector(selector: string): ConceroNetwork;
     getVerifierNetwork(): ConceroNetwork;
+    getDefaultFinalityConfirmations(): number;
     forceUpdate(): Promise<void>;
     private updateNetworks;
     private notifyListeners;
@@ -36,5 +37,6 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     private getTestingNetworks;
     private filterNetworks;
     dispose(): void;
+    static dispose(): void;
 }
 //# sourceMappingURL=ConceroNetworkManager.d.ts.map

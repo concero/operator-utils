@@ -1,4 +1,5 @@
 import { ConceroNetwork } from '@/types';
+
 import { localhost } from 'viem/chains';
 
 export const mockConceroNetwork: ConceroNetwork = {

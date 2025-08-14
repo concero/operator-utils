@@ -1,4 +1,5 @@
 import { IBlockCheckpointManager } from '@/types/managers';
+
 import { jest } from '@jest/globals';
 
 export class MockBlockCheckpointManager implements IBlockCheckpointManager {

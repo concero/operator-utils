@@ -1,6 +1,7 @@
-import { IViemClientManager, ViemClients } from '@/types/managers';
-import { ConceroNetwork } from '@/types';
 import { mockConceroNetwork } from './ConceroNetwork';
+import { ConceroNetwork } from '@/types';
+import { IViemClientManager, ViemClients } from '@/types/managers';
+
 import { jest } from '@jest/globals';
 import { Account, PublicClient, WalletClient } from 'viem';
 

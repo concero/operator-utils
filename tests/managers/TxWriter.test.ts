@@ -1,12 +1,14 @@
-import { TxWriter } from '@/managers/TxWriter';
-import { MockLogger } from '../mocks/Logger';
-import { MockViemClientManager } from '../mocks/ViemClientManager';
-import { MockTxMonitor } from '../mocks/TxMonitor';
 import { NonceManager } from '@/managers/NonceManager';
+import { TxWriter } from '@/managers/TxWriter';
 import * as callContractUtil from '@/utils/callContract';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
-import { SimulateContractParameters } from 'viem';
+
 import { v4 as uuidv4 } from 'uuid';
+import { SimulateContractParameters } from 'viem';
+
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
+import { MockTxMonitor } from '../mocks/TxMonitor';
+import { MockViemClientManager } from '../mocks/ViemClientManager';
 
 jest.mock('@/utils/callContract');
 jest.mock('uuid');
@@ -57,11 +59,17 @@ describe('TxWriter', () => {
     });
 
     it('should handle dry run mode', async () => {
-        const dryRunTxWriter = TxWriter.createInstance(logger, viemClientManager, txMonitor, nonceManager, {
-            dryRun: true,
-            simulateTx: true,
-            defaultGasLimit: 100000n,
-        });
+        const dryRunTxWriter = TxWriter.createInstance(
+            logger,
+            viemClientManager,
+            txMonitor,
+            nonceManager,
+            {
+                dryRun: true,
+                simulateTx: true,
+                defaultGasLimit: 100000n,
+            },
+        );
 
         const params: SimulateContractParameters = {
             address: '0x456',
@@ -73,7 +81,9 @@ describe('TxWriter', () => {
         const txHash = await dryRunTxWriter.callContract(mockConceroNetwork, params);
 
         expect(txHash).toMatch(/^0xdry/);
-        expect(logger.info).toHaveBeenCalledWith('[DRY_RUN][test-network] Contract call: testFunction');
+        expect(logger.info).toHaveBeenCalledWith(
+            '[DRY_RUN][test-network] Contract call: testFunction',
+        );
     });
 
     it('should handle contract call errors', async () => {
@@ -87,6 +97,8 @@ describe('TxWriter', () => {
             args: [],
         };
 
-        await expect(txWriter.callContract(mockConceroNetwork, params)).rejects.toThrow('Contract error');
+        await expect(txWriter.callContract(mockConceroNetwork, params)).rejects.toThrow(
+            'Contract error',
+        );
     });
 });

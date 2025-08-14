@@ -13,7 +13,7 @@ export interface IConceroNetworkManager {
     getNetworkByName(name: string): ConceroNetwork;
     getNetworkBySelector(selector: string): ConceroNetwork;
     getVerifierNetwork(): ConceroNetwork | undefined;
-	getDefaultFinalityConfirmations(): number;
+    getDefaultFinalityConfirmations(): number;
     forceUpdate(): Promise<void>;
     triggerInitialUpdates(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;

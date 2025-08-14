@@ -1,7 +1,8 @@
 import { RpcManager } from '@/managers/RpcManager';
-import { MockLogger } from '../mocks/Logger';
 import { HttpClient } from '@/utils/HttpClient';
+
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
 
 jest.mock('@/utils/HttpClient');
 

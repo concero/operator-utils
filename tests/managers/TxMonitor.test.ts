@@ -1,8 +1,9 @@
 import { TxMonitor } from '@/managers/TxMonitor';
+import { IBlockManagerRegistry, IConceroNetworkManager, TransactionInfo } from '@/types/managers';
+
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 import { MockViemClientManager } from '../mocks/ViemClientManager';
-import { IBlockManagerRegistry, IConceroNetworkManager, TransactionInfo } from '@/types/managers';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 
 describe('TxMonitor', () => {
     let logger: MockLogger;
@@ -59,7 +60,8 @@ describe('TxMonitor', () => {
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 
         // Simulate transaction confirmation
-        const mockGetTransaction = viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
+        const mockGetTransaction =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
         (mockGetTransaction as jest.Mock).mockResolvedValue({ blockNumber: 100n });
 
         // Simulate new blocks until finality
@@ -84,7 +86,8 @@ describe('TxMonitor', () => {
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 
         // Simulate transaction not found
-        const mockGetTransaction = viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
+        const mockGetTransaction =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
         (mockGetTransaction as jest.Mock).mockResolvedValue(null);
 
         await onBlockRange(100n, 110n);

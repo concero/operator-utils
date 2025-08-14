@@ -141,9 +141,9 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         }
     }
 
-	public getDefaultFinalityConfirmations(): number {
-		return this.config.defaultFinalityConfirmations;
-	}
+    public getDefaultFinalityConfirmations(): number {
+        return this.config.defaultFinalityConfirmations;
+    }
 
     public async forceUpdate(): Promise<void> {
         await this.updateNetworks();
@@ -280,7 +280,9 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                         chainSelector: network.chainSelector || network.chainId.toString(),
                         confirmations: this.config.defaultConfirmations,
                         viemChain: network.viemChain,
-                        finalityConfirmations: network.finalityConfirmations || this.config.defaultFinalityConfirmations,
+                        finalityConfirmations:
+                            network.finalityConfirmations ||
+                            this.config.defaultFinalityConfirmations,
                     },
                 ];
             }),

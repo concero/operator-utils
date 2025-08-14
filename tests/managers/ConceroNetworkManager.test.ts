@@ -1,9 +1,10 @@
 import { ConceroNetworkManager } from '@/managers/ConceroNetworkManager';
-import { MockLogger } from '../mocks/Logger';
+import { NetworkUpdateListener } from '@/types/managers';
 import { HttpClient } from '@/utils/HttpClient';
 import * as networkUtils from '@/utils/fetchNetworkConfigs';
 import * as envUtils from '@/utils/getEnvVar';
-import { NetworkUpdateListener } from '@/types/managers';
+
+import { MockLogger } from '../mocks/Logger';
 
 jest.mock('@/utils/HttpClient');
 jest.mock('@/utils/fetchNetworkConfigs');

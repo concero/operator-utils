@@ -1,10 +1,11 @@
-import { BlockManagerRegistry } from '@/managers/BlockManagerRegistry';
-import { MockLogger } from '../mocks/Logger';
-import { MockBlockCheckpointManager } from '../mocks/BlockCheckpointManager';
-import { MockViemClientManager } from '../mocks/ViemClientManager';
-import { INetworkManager, IRpcManager } from '@/types/managers';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { BlockManager } from '@/managers/BlockManager';
+import { BlockManagerRegistry } from '@/managers/BlockManagerRegistry';
+import { INetworkManager, IRpcManager } from '@/types/managers';
+
+import { MockBlockCheckpointManager } from '../mocks/BlockCheckpointManager';
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
+import { MockViemClientManager } from '../mocks/ViemClientManager';
 
 jest.mock('@/managers/BlockManager');
 

@@ -951,7 +951,7 @@ var init_size = __esm({
 var version2;
 var init_version2 = __esm({
   "node_modules/viem/_esm/errors/version.js"() {
-    version2 = "2.33.2";
+    version2 = "2.33.3";
   }
 });
 
@@ -4691,7 +4691,7 @@ var init_hmac = __esm({
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/utils.js
+// node_modules/@noble/curves/esm/utils.js
 function abool(title, value) {
   if (typeof value !== "boolean")
     throw new Error(title + " boolean expected, got " + value);
@@ -4829,7 +4829,7 @@ function memoized(fn) {
 }
 var _0n2, _1n2, isPosBig, bitMask;
 var init_utils4 = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/utils.js"() {
+  "node_modules/@noble/curves/esm/utils.js"() {
     init_utils2();
     init_utils2();
     _0n2 = /* @__PURE__ */ BigInt(0);
@@ -4839,7 +4839,7 @@ var init_utils4 = __esm({
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/abstract/modular.js
+// node_modules/@noble/curves/esm/abstract/modular.js
 function mod(a, b) {
   const result = a % b;
   return result >= _0n3 ? result : b + result;
@@ -5109,7 +5109,7 @@ function mapHashToField(key, fieldOrder, isLE2 = false) {
 }
 var _0n3, _1n3, _2n2, _3n, _4n, _5n, _8n, FIELD_FIELDS;
 var init_modular = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/abstract/modular.js"() {
+  "node_modules/@noble/curves/esm/abstract/modular.js"() {
     init_utils4();
     _0n3 = BigInt(0);
     _1n3 = BigInt(1);
@@ -5140,7 +5140,7 @@ var init_modular = __esm({
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/abstract/curve.js
+// node_modules/@noble/curves/esm/abstract/curve.js
 function negateCt(condition, item) {
   const neg = item.negate();
   return condition ? neg : item;
@@ -5412,7 +5412,7 @@ function _createCurveFields(type, CURVE, curveOpts = {}) {
 }
 var _0n4, _1n4, pointPrecomputes, pointWindowSizes;
 var init_curve = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/abstract/curve.js"() {
+  "node_modules/@noble/curves/esm/abstract/curve.js"() {
     init_utils4();
     init_modular();
     _0n4 = BigInt(0);
@@ -5422,7 +5422,7 @@ var init_curve = __esm({
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/abstract/weierstrass.js
+// node_modules/@noble/curves/esm/abstract/weierstrass.js
 function validateSigVerOpts(opts) {
   if (opts.lowS !== void 0)
     abool("lowS", opts.lowS);
@@ -6335,7 +6335,7 @@ function mapToCurveSimpleSWU(Fp, opts) {
 }
 var DERErr, DER, _0n5, _1n5, _2n3, _3n2, _4n2;
 var init_weierstrass = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/abstract/weierstrass.js"() {
+  "node_modules/@noble/curves/esm/abstract/weierstrass.js"() {
     init_hmac();
     init_utils4();
     init_curve();
@@ -6453,18 +6453,18 @@ var init_weierstrass = __esm({
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/_shortw_utils.js
+// node_modules/@noble/curves/esm/_shortw_utils.js
 function createCurve(curveDef, defHash) {
   const create = (hash2) => weierstrass({ ...curveDef, hash: hash2 });
   return { ...create(defHash), create };
 }
 var init_shortw_utils = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/_shortw_utils.js"() {
+  "node_modules/@noble/curves/esm/_shortw_utils.js"() {
     init_weierstrass();
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/abstract/hash-to-curve.js
+// node_modules/@noble/curves/esm/abstract/hash-to-curve.js
 function i2osp(value, length) {
   anum(value);
   anum(length);
@@ -6615,14 +6615,14 @@ function createHasher2(Point2, mapToCurve, defaults2) {
 }
 var os2ip;
 var init_hash_to_curve = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/abstract/hash-to-curve.js"() {
+  "node_modules/@noble/curves/esm/abstract/hash-to-curve.js"() {
     init_utils4();
     init_modular();
     os2ip = bytesToNumberBE;
   }
 });
 
-// node_modules/viem/node_modules/@noble/curves/esm/secp256k1.js
+// node_modules/@noble/curves/esm/secp256k1.js
 var secp256k1_exports = {};
 __export(secp256k1_exports, {
   encodeToCurve: () => encodeToCurve,
@@ -6727,7 +6727,7 @@ function schnorrVerify(signature, message, publicKey) {
 }
 var secp256k1_CURVE, _0n6, _1n6, _2n4, divNearest, Fpk1, secp256k1, TAGGED_HASH_PREFIXES, pointToBytes, numTo32b, modP, modN, Point, hasEven, num, schnorr, isoMap, mapSWU, secp256k1_hasher, hashToCurve, encodeToCurve;
 var init_secp256k1 = __esm({
-  "node_modules/viem/node_modules/@noble/curves/esm/secp256k1.js"() {
+  "node_modules/@noble/curves/esm/secp256k1.js"() {
     init_sha2();
     init_utils2();
     init_shortw_utils();
@@ -27210,9 +27210,9 @@ var require_color_name = __commonJS({
   }
 });
 
-// node_modules/is-arrayish/index.js
+// node_modules/simple-swizzle/node_modules/is-arrayish/index.js
 var require_is_arrayish = __commonJS({
-  "node_modules/is-arrayish/index.js"(exports2, module2) {
+  "node_modules/simple-swizzle/node_modules/is-arrayish/index.js"(exports2, module2) {
     module2.exports = function isArrayish(obj) {
       if (!obj || typeof obj === "string") {
         return false;
@@ -44367,7 +44367,6 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
   }
   dispose() {
     if (this.initialized) {
-      this.networkManager.unregisterUpdateListener(this);
       for (const [networkName, blockManager] of this.blockManagers.entries()) {
         if ("dispose" in blockManager) {
           blockManager.dispose();
@@ -44378,6 +44377,9 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       super.dispose();
       this.logger.debug("Disposed");
     }
+  }
+  static dispose() {
+    _BlockManagerRegistry.instance = void 0;
   }
 };
 
@@ -48380,6 +48382,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       throw new Error(`Unsupported network mode: ${this.config.networkMode}`);
     }
   }
+  getDefaultFinalityConfirmations() {
+    return this.config.defaultFinalityConfirmations;
+  }
   async forceUpdate() {
     await this.updateNetworks();
   }
@@ -48493,7 +48498,8 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
             accounts,
             chainSelector: network.chainSelector || network.chainId.toString(),
             confirmations: this.config.defaultConfirmations,
-            viemChain: network.viemChain
+            viemChain: network.viemChain,
+            finalityConfirmations: network.finalityConfirmations || this.config.defaultFinalityConfirmations
           }
         ];
       })
@@ -48538,6 +48544,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   dispose() {
     this.updateListeners = [];
     super.dispose();
+  }
+  static dispose() {
+    _ConceroNetworkManager.instance = void 0;
   }
 };
 
@@ -48838,6 +48847,9 @@ var RpcManager = class _RpcManager extends ManagerBase {
     }
     return _RpcManager.instance;
   }
+  static dispose() {
+    _RpcManager.instance = void 0;
+  }
   async initialize() {
     if (this.initialized) return;
     await super.initialize();
@@ -49137,19 +49149,26 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
 
 // src/managers/TxMonitor.ts
 var TxMonitor = class _TxMonitor {
-  constructor(logger, viemClientManager, config) {
+  constructor(logger, viemClientManager, blockManagerRegistry, networkManager, config) {
     this.monitors = /* @__PURE__ */ new Map();
     this.disposed = false;
-    this.checkInterval = null;
+    this.networkSubscriptions = /* @__PURE__ */ new Map();
     this.viemClientManager = viemClientManager;
     this.logger = logger;
     this.config = config;
-    this.startMonitoring();
+    this.blockManagerRegistry = blockManagerRegistry;
+    this.networkManager = networkManager;
     this.logger.info("initialized");
   }
-  static createInstance(logger, viemClientManager, config) {
+  static createInstance(logger, viemClientManager, blockManagerRegistry, networkManager, config) {
     if (!_TxMonitor.instance) {
-      _TxMonitor.instance = new _TxMonitor(logger, viemClientManager, config);
+      _TxMonitor.instance = new _TxMonitor(
+        logger,
+        viemClientManager,
+        blockManagerRegistry,
+        networkManager,
+        config
+      );
     }
     return _TxMonitor.instance;
   }
@@ -49159,87 +49178,43 @@ var TxMonitor = class _TxMonitor {
     }
     return _TxMonitor.instance;
   }
-  startMonitoring() {
-    const intervalMs = this.config.checkIntervalMs || 5e3;
-    this.checkInterval = setInterval(() => {
-      this.checkAllTransactions().catch((error) => {
-        this.logger.error("Error in transaction monitoring cycle:", error);
-      });
-    }, intervalMs);
-  }
-  watchTxFinality(txInfo, retryCallback, finalityCallback) {
-    if (this.monitors.has(txInfo.txHash)) {
-      this.logger.debug(`Transaction ${txInfo.txHash} is already being monitored`);
+  ensureTxFinality(txInfo, onFinalityCallback) {
+    const existingMonitor = this.monitors.get(txInfo.txHash);
+    if (existingMonitor) {
+      existingMonitor.subscribers.set(txInfo.id, onFinalityCallback);
+      this.logger.debug(
+        `Added subscriber ${txInfo.id} to existing monitor for tx ${txInfo.txHash}`
+      );
       return;
     }
     const monitoredTx = {
       txHash: txInfo.txHash,
       chainName: txInfo.chainName,
+      submittedAt: txInfo.submittedAt,
       blockNumber: txInfo.submissionBlock,
-      firstSeen: Date.now(),
-      lastChecked: Date.now(),
-      status: "pending" /* Pending */,
-      managedTxId: txInfo.id
+      status: "pending" /* Pending */
     };
     const monitor = {
       transaction: monitoredTx,
-      retryCallback,
-      finalityCallback,
-      retryCount: 0
+      subscribers: /* @__PURE__ */ new Map(),
+      finalityBlockNumber: void 0
     };
+    monitor.subscribers.set(txInfo.id, onFinalityCallback);
+    this.subscribeToNetwork(txInfo.chainName);
     this.monitors.set(txInfo.txHash, monitor);
-    this.logger.debug(`Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName}`);
+    this.logger.debug(
+      `Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName} with subscriber ${txInfo.id}`
+    );
   }
-  addTransaction(txHash, txInfo) {
-    this.logger.warn(`addTransaction called directly - use watchTxFinality instead`);
-    const defaultRetryCallback = async (failedTx) => {
-      this.logger.warn(
-        `Transaction ${failedTx.txHash} failed but no retry callback provided`
-      );
-      return null;
-    };
-    const defaultFinalityCallback = (finalizedTx) => {
-      this.logger.info(
-        `Transaction ${finalizedTx.txHash} finalized (using legacy addTransaction)`
-      );
-    };
-    this.watchTxFinality(txInfo, defaultRetryCallback, defaultFinalityCallback);
-  }
-  async checkAllTransactions() {
-    if (this.disposed) return;
-    const networksToCheck = /* @__PURE__ */ new Map();
-    for (const monitor of this.monitors.values()) {
-      const chainName = monitor.transaction.chainName;
-      if (!networksToCheck.has(chainName)) {
-        networksToCheck.set(chainName, []);
-      }
-      networksToCheck.get(chainName).push(monitor);
-    }
-    for (const [chainName, monitors] of networksToCheck) {
-      const network = this.getNetwork(chainName);
-      if (!network) continue;
-      await this.checkNetworkTransactions(network, monitors);
-    }
-  }
-  async checkNetworkTransactions(network, monitors) {
-    const { publicClient } = this.viemClientManager.getClients(network);
-    const currentBlock = await publicClient.getBlockNumber();
-    const finalityConfirmations = BigInt(network.finalityConfirmations ?? 12);
-    const finalityBlockNumber = currentBlock - finalityConfirmations;
-    for (const monitor of monitors) {
-      await this.checkTransaction(monitor, currentBlock, finalityBlockNumber, network);
-    }
-  }
-  async checkTransaction(monitor, currentBlock, finalityBlockNumber, network) {
+  async checkTransactionFinality(monitor, currentBlock, finalityConfirmations, network) {
     const tx = monitor.transaction;
-    tx.lastChecked = Date.now();
     try {
       const { publicClient } = this.viemClientManager.getClients(network);
       const txInfo = await publicClient.getTransaction({
         hash: tx.txHash
       });
       if (!txInfo) {
-        await this.handleMissingTransaction(monitor, network);
+        await this.notifySubscribers(monitor, network, false);
         return;
       }
       if (!tx.blockNumber && txInfo.blockNumber) {
@@ -49253,82 +49228,97 @@ var TxMonitor = class _TxMonitor {
           `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`
         );
         tx.blockNumber = txInfo.blockNumber;
-      }
-      if (txInfo.blockNumber && txInfo.blockNumber <= finalityBlockNumber) {
-        await this.handleFinalizedTransaction(monitor);
-      } else if (txInfo.blockNumber) {
-        const confirmations = currentBlock - txInfo.blockNumber + 1n;
-        const requiredConfirmations = BigInt(network.finalityConfirmations ?? 12);
+        monitor.finalityBlockNumber = txInfo.blockNumber + finalityConfirmations;
         this.logger.debug(
-          `Transaction ${tx.txHash} has ${confirmations} confirmations (needs ${requiredConfirmations})`
+          `Transaction ${tx.txHash} finality block recalculated to ${monitor.finalityBlockNumber} after reorg`
         );
+        if (monitor.finalityBlockNumber && currentBlock < monitor.finalityBlockNumber) {
+          return;
+        }
       }
+      await this.notifySubscribers(monitor, network, true);
     } catch (error) {
       this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
-      const timeSinceLastRetry = tx.lastChecked - (monitor.lastRetryAt || 0);
-      const retryDelayMs = this.config.retryDelayMs || 3e4;
-      if (timeSinceLastRetry > retryDelayMs) {
-        await this.retryTransaction(monitor, network);
+      await this.notifySubscribers(monitor, network, false);
+    }
+  }
+  async notifySubscribers(monitor, network, isFinalized) {
+    const tx = monitor.transaction;
+    const txStatus = isFinalized ? "finalized" /* Finalized */ : "failed" /* Failed */;
+    this.logger.info(
+      `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`
+    );
+    const txResult = {
+      id: "",
+      // Will be set per subscriber
+      txHash: tx.txHash,
+      chainName: tx.chainName,
+      submittedAt: tx.submittedAt,
+      submissionBlock: tx.blockNumber,
+      status: txStatus
+    };
+    monitor.subscribers.forEach((callback, subscriberId) => {
+      const txForSubscriber = {
+        ...txResult,
+        id: subscriberId
+      };
+      callback(txForSubscriber, isFinalized);
+    });
+    await this.removeMonitor(tx.txHash);
+  }
+  getNetwork(chainName) {
+    return this.networkManager.getNetworkByName(chainName);
+  }
+  async checkNetworkTransactions(networkName, endBlock) {
+    const network = this.getNetwork(networkName);
+    if (!network) return;
+    const networkMonitors = Array.from(this.monitors.values()).filter(
+      (monitor) => monitor.transaction.chainName === networkName
+    );
+    const finalityConfirmations = BigInt(
+      network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations()
+    );
+    for (const monitor of networkMonitors) {
+      if (!this.monitors.has(monitor.transaction.txHash)) {
+        continue;
+      }
+      if (!monitor.finalityBlockNumber && monitor.transaction.blockNumber) {
+        monitor.finalityBlockNumber = monitor.transaction.blockNumber + finalityConfirmations;
+      }
+      if (monitor.finalityBlockNumber && endBlock >= monitor.finalityBlockNumber) {
+        await this.checkTransactionFinality(
+          monitor,
+          endBlock,
+          finalityConfirmations,
+          network
+        );
       }
     }
   }
-  async handleMissingTransaction(monitor, network) {
-    const tx = monitor.transaction;
-    const timeSinceSubmission = Date.now() - tx.firstSeen;
-    const dropTimeoutMs = this.config.dropTimeoutMs || 6e4;
-    if (timeSinceSubmission < dropTimeoutMs) {
-      this.logger.debug(
-        `Transaction ${tx.txHash} not found yet (${timeSinceSubmission}ms since submission)`
-      );
+  subscribeToNetwork(networkName) {
+    if (this.networkSubscriptions.has(networkName)) {
       return;
     }
-    tx.status = "dropped" /* Dropped */;
-    this.logger.warn(
-      `Transaction ${tx.txHash} not found on chain ${network.name} after ${timeSinceSubmission}ms`
-    );
-    await this.retryTransaction(monitor, network);
-  }
-  async retryTransaction(monitor, network) {
-    const tx = monitor.transaction;
-    monitor.retryCount++;
-    monitor.lastRetryAt = Date.now();
-    this.logger.info(
-      `Retrying transaction ${tx.txHash} on ${network.name} (attempt ${monitor.retryCount})`
-    );
-    const failedTx = {
-      id: tx.managedTxId,
-      txHash: tx.txHash,
-      chainName: tx.chainName,
-      submittedAt: tx.firstSeen,
-      submissionBlock: tx.blockNumber,
-      status: "failed"
-    };
-    const newTxInfo = await monitor.retryCallback(failedTx);
-    if (newTxInfo) {
-      this.monitors.delete(tx.txHash);
-      this.watchTxFinality(newTxInfo, monitor.retryCallback, monitor.finalityCallback);
-      this.logger.info(`Transaction ${tx.txHash} replaced with ${newTxInfo.txHash}`);
-    } else {
-      this.logger.error(`Failed to retry transaction ${tx.txHash} - will try again later`);
+    const blockManager = this.blockManagerRegistry.getBlockManager(networkName);
+    if (!blockManager) {
+      this.logger.warn(`BlockManager for ${networkName} not found`);
+      return;
     }
+    const unsubscribe = blockManager.watchBlocks({
+      onBlockRange: async (startBlock, endBlock) => {
+        await this.checkNetworkTransactions(networkName, endBlock);
+      },
+      onError: (error) => {
+        this.logger.error(`Block monitoring error for ${networkName}:`, error);
+      }
+    });
+    this.networkSubscriptions.set(networkName, unsubscribe);
+    this.logger.debug(`Subscribed to blocks for network ${networkName}`);
   }
-  async handleFinalizedTransaction(monitor) {
-    const tx = monitor.transaction;
-    tx.status = "finalized" /* Finalized */;
-    this.logger.info(`Transaction ${tx.txHash} has reached finality on ${tx.chainName}`);
-    const finalizedTx = {
-      id: tx.managedTxId,
-      txHash: tx.txHash,
-      chainName: tx.chainName,
-      submittedAt: tx.firstSeen,
-      submissionBlock: tx.blockNumber,
-      status: "finalized"
-    };
-    monitor.finalityCallback(finalizedTx);
-    this.monitors.delete(tx.txHash);
-  }
-  getNetwork(chainName) {
-    return void 0;
+  async removeMonitor(txHash) {
+    const monitor = this.monitors.get(txHash);
+    if (!monitor) return;
+    this.monitors.delete(txHash);
   }
   async checkTransactionsInRange(network, startBlock, endBlock) {
     this.logger.debug(`Batch checking not implemented - using continuous monitoring instead`);
@@ -49348,12 +49338,19 @@ var TxMonitor = class _TxMonitor {
   }
   dispose() {
     this.disposed = true;
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
+    for (const [networkName, unsubscribe] of this.networkSubscriptions) {
+      unsubscribe();
+      this.logger.debug(`Unsubscribed from blocks for network ${networkName} during dispose`);
     }
+    this.networkSubscriptions.clear();
     this.monitors.clear();
     this.logger.info("Disposed");
+  }
+  static dispose() {
+    if (_TxMonitor.instance) {
+      _TxMonitor.instance.dispose();
+      _TxMonitor.instance = void 0;
+    }
   }
 };
 
@@ -49745,6 +49742,9 @@ var TxReader = class _TxReader {
     this.methodWatchers.clear();
     this.bulkCallbacks.clear();
   }
+  static dispose() {
+    _TxReader.instance = void 0;
+  }
 };
 
 // src/managers/TxWriter.ts
@@ -49809,10 +49809,9 @@ var TxWriter = class _TxWriter {
           contractAddress: params.address
         }
       };
-      this.txMonitor.watchTxFinality(
+      this.txMonitor.ensureTxFinality(
         txInfo,
-        this.createRetryCallback(network, params),
-        this.createFinalityCallback(network)
+        this.createFinalityCallback(network, params, txInfo)
       );
       return txHash;
     } catch (error) {
@@ -49820,55 +49819,66 @@ var TxWriter = class _TxWriter {
       throw error;
     }
   }
-  createRetryCallback(network, params) {
-    return async (failedTx) => {
-      this.logger.info(
-        `[${network.name}] Retrying transaction ${failedTx.txHash} (${failedTx.id})`
-      );
-      try {
-        const { walletClient, publicClient } = this.viemClientManager.getClients(network);
-        const newTxHash = await callContract(
-          publicClient,
-          walletClient,
-          params,
-          this.nonceManager,
-          {
-            simulateTx: this.config.simulateTx,
-            defaultGasLimit: this.config.defaultGasLimit
-          }
+  createFinalityCallback(network, params, originalTxInfo) {
+    return async (txInfo, isFinalized) => {
+      if (isFinalized) {
+        this.logger.info(
+          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is now final`
         );
-        this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-        const currentBlock = await publicClient.getBlockNumber();
-        return {
-          id: v4_default(),
-          txHash: newTxHash,
-          chainName: network.name,
-          submittedAt: Date.now(),
-          submissionBlock: currentBlock,
-          status: "submitted",
-          metadata: {
-            functionName: params.functionName,
-            contractAddress: params.address
-          }
-        };
-      } catch (error) {
-        this.logger.error(
-          `[${network.name}] Failed to retry transaction ${failedTx.txHash}:`,
-          error
+      } else {
+        this.logger.warn(
+          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) failed - attempting retry`
         );
-        return null;
+        await this.retryTransaction(network, params, originalTxInfo);
       }
     };
   }
-  createFinalityCallback(network) {
-    return (finalizedTx) => {
-      this.logger.info(
-        `[${network.name}] Transaction ${finalizedTx.txHash} (${finalizedTx.id}) is now final`
+  async retryTransaction(network, params, originalTxInfo) {
+    this.logger.info(
+      `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`
+    );
+    try {
+      const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+      const newTxHash = await callContract(
+        publicClient,
+        walletClient,
+        params,
+        this.nonceManager,
+        {
+          simulateTx: this.config.simulateTx,
+          defaultGasLimit: this.config.defaultGasLimit
+        }
       );
-    };
+      this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
+      const currentBlock = await publicClient.getBlockNumber();
+      const retryTxInfo = {
+        id: v4_default(),
+        txHash: newTxHash,
+        chainName: network.name,
+        submittedAt: Date.now(),
+        submissionBlock: currentBlock,
+        status: "submitted",
+        metadata: {
+          functionName: params.functionName,
+          contractAddress: params.address
+        }
+      };
+      this.txMonitor.ensureTxFinality(
+        retryTxInfo,
+        this.createFinalityCallback(network, params, retryTxInfo)
+      );
+    } catch (error) {
+      this.logger.error(
+        `[${network.name}] Failed to retry transaction ${originalTxInfo.txHash}:`,
+        error
+      );
+    }
   }
   dispose() {
     this.logger.info("Disposed");
+  }
+  static dispose() {
+    _TxWriter.instance = void 0;
   }
 };
 // Annotate the CommonJS export names for ESM import in node:

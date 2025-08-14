@@ -1,10 +1,12 @@
 import { ViemClientManager } from '@/managers/ViemClientManager';
-import { MockLogger } from '../mocks/Logger';
 import { IRpcManager } from '@/types/managers';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import * as utils from '@/utils';
+
 import * as viem from 'viem';
 import * as viemAccounts from 'viem/accounts';
-import * as utils from '@/utils';
+
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
 
 jest.mock('viem');
 jest.mock('viem/accounts');
@@ -70,6 +72,8 @@ describe('ViemClientManager', () => {
         } catch (e) {
             // ignore
         }
-        expect(logger.debug).toHaveBeenCalledWith('Removed clients for inactive network: test-network');
+        expect(logger.debug).toHaveBeenCalledWith(
+            'Removed clients for inactive network: test-network',
+        );
     });
 });

@@ -12,6 +12,7 @@ export declare class RpcManager extends ManagerBase implements IRpcManager, Netw
     constructor(logger: LoggerInterface, config: RpcManagerConfig);
     static createInstance(logger: LoggerInterface, config: RpcManagerConfig): RpcManager;
     static getInstance(): RpcManager;
+    static dispose(): void;
     initialize(): Promise<void>;
     ensureRpcsForNetwork(network: ConceroNetwork): Promise<void>;
     updateRpcsForNetworks(networks: ConceroNetwork[]): Promise<void>;

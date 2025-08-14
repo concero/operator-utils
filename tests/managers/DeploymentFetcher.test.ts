@@ -1,6 +1,7 @@
 import { DeploymentFetcher } from '@/managers/DeploymentFetcher';
-import { MockLogger } from '../mocks/Logger';
 import { HttpClient } from '@/utils/HttpClient';
+
+import { MockLogger } from '../mocks/Logger';
 
 jest.mock('@/utils/HttpClient');
 
@@ -30,12 +31,12 @@ RANDOM_VAR=abc
 `;
         mockHttpGet.mockResolvedValue(deploymentText);
 
-        const patterns = [
-            /^([A-Z_]+)_CONTRACT_A$/,
-            /^([A-Z_]+)_CONTRACT_B$/,
-        ];
+        const patterns = [/^([A-Z_]+)_CONTRACT_A$/, /^([A-Z_]+)_CONTRACT_B$/];
 
-        const deployments = await deploymentFetcher.getDeployments('http://test.com/deployments', patterns);
+        const deployments = await deploymentFetcher.getDeployments(
+            'http://test.com/deployments',
+            patterns,
+        );
 
         expect(deployments).toHaveLength(2);
         expect(deployments).toContainEqual({
@@ -48,15 +49,17 @@ RANDOM_VAR=abc
             value: '0x456',
             networkName: 'arbitrumSepolia',
         });
-        expect(mockHttpGet).toHaveBeenCalledWith('http://test.com/deployments', { responseType: 'text' });
+        expect(mockHttpGet).toHaveBeenCalledWith('http://test.com/deployments', {
+            responseType: 'text',
+        });
     });
 
     it('should handle http client errors', async () => {
         mockHttpGet.mockRejectedValue(new Error('Network error'));
         const patterns = [/^([A-Z_]+)_CONTRACT_A$/];
 
-        await expect(deploymentFetcher.getDeployments('http://test.com/deployments', patterns)).rejects.toThrow(
-            'Failed to fetch deployments: Network error',
-        );
+        await expect(
+            deploymentFetcher.getDeployments('http://test.com/deployments', patterns),
+        ).rejects.toThrow('Failed to fetch deployments: Network error');
     });
 });

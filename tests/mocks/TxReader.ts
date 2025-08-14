@@ -1,4 +1,5 @@
 import { ITxReader } from '@/types/managers';
+
 import { jest } from '@jest/globals';
 
 export class MockTxReader implements ITxReader {

@@ -1,10 +1,18 @@
 import { BalanceManager } from '@/managers/BalanceManager';
-import { BalanceManagerConfig, ConceroNetwork, ITxReader, IViemClientManager, LoggerInterface } from '@/types';
-import { MockLogger } from '../mocks/Logger';
-import { MockViemClientManager } from '../mocks/ViemClientManager';
-import { MockTxReader } from '../mocks/TxReader';
-import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import {
+    BalanceManagerConfig,
+    ConceroNetwork,
+    ITxReader,
+    IViemClientManager,
+    LoggerInterface,
+} from '@/types';
+
 import { zeroAddress } from 'viem';
+
+import { mockConceroNetwork } from '../mocks/ConceroNetwork';
+import { MockLogger } from '../mocks/Logger';
+import { MockTxReader } from '../mocks/TxReader';
+import { MockViemClientManager } from '../mocks/ViemClientManager';
 
 class TestBalanceManager extends BalanceManager {
     constructor(
@@ -71,7 +79,9 @@ describe('BalanceManager', () => {
         const tokenAddress = '0x123';
         balanceManager.registerToken(mockConceroNetwork, 'TKN', tokenAddress as any);
         // @ts-ignore
-        expect(balanceManager.registeredTokens.get(mockConceroNetwork.name)?.get('TKN')).toBe(tokenAddress);
+        expect(balanceManager.registeredTokens.get(mockConceroNetwork.name)?.get('TKN')).toBe(
+            tokenAddress,
+        );
 
         balanceManager.deregisterToken(mockConceroNetwork.name, 'TKN', tokenAddress as any);
         // @ts-ignore
