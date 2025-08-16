@@ -1,0 +1,44 @@
+import { ManagerBase } from './ManagerBase';
+import type { Address } from 'viem';
+import { BalanceManagerConfig, ConceroNetwork, IBalanceManager, ITxReader, IViemClientManager, LoggerInterface, TokenConfig } from '../types';
+export declare abstract class BalanceManager extends ManagerBase implements IBalanceManager {
+    private readonly nativeBalances;
+    private readonly tokenBalances;
+    private readonly minAllowances;
+    private readonly tokenConfigs;
+    private readonly registeredTokens;
+    private readonly registeredNativeBalances;
+    private readonly pollingIntervalMs;
+    protected readonly activeNetworks: ConceroNetwork[];
+    protected readonly watcherIds: string[];
+    private readonly tokenWatchers;
+    private readonly nativeWatchers;
+    private readonly viemClientManager;
+    private readonly txReader;
+    private readonly logger;
+    protected constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
+    initialize(): Promise<void>;
+    dispose(): void;
+    registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
+    deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;
+    beginWatching(): void;
+    private watchNativeBalance;
+    private watchTokenBalance;
+    setActiveNetworks(networks: ConceroNetwork[]): void;
+    forceUpdate(): Promise<void>;
+    getNativeBalances(): Map<string, bigint>;
+    getTokenBalance(networkName: string, symbol: string): bigint;
+    getTotalTokenBalance(symbol: string): bigint;
+    getTokenConfigs(networkName: string): TokenConfig[];
+    getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
+    ensureAllowance(networkName: string, tokenAddress: string, spenderAddress: string, requiredAmount: bigint): Promise<void>;
+    getAllowance(networkName: string, tokenAddress: string, spenderAddress: string): Promise<bigint>;
+    private onTokenBalanceUpdate;
+    private onNativeBalanceUpdate;
+    private updateNativeBalances;
+    private updateTokenBalances;
+    private getMinAllowance;
+    protected clearTokenWatchers(): void;
+    private findActiveNetwork;
+}
+//# sourceMappingURL=BalanceManager.d.ts.map

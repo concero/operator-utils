@@ -1,0 +1,24 @@
+import { SimulateContractParameters } from 'viem';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { TxWriterConfig } from '../types/ManagerConfigs';
+import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { ITxWriter } from '../types/managers/ITxWriter';
+export declare class TxWriter implements ITxWriter {
+    private static instance;
+    private viemClientManager;
+    private txMonitor;
+    private logger;
+    private config;
+    private nonceManager;
+    private constructor();
+    static createInstance(logger: LoggerInterface, viemClientManager: IViemClientManager, txMonitor: ITxMonitor, nonceManager: INonceManager, config: TxWriterConfig): TxWriter;
+    static getInstance(): TxWriter;
+    initialize(): Promise<void>;
+    callContract(network: ConceroNetwork, params: SimulateContractParameters): Promise<string>;
+    private createFinalityCallback;
+    private retryTransaction;
+    dispose(): void;
+    static dispose(): void;
+}
+//# sourceMappingURL=TxWriter.d.ts.map

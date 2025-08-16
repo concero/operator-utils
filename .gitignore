@@ -35,4 +35,3 @@ rpcs.extension.json
 # Prisma/SQLite databases
 prisma/*.db
 prisma/migrations/*
-dist

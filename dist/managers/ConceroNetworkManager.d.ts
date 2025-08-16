@@ -1,0 +1,43 @@
+import { ManagerBase } from './ManagerBase';
+import { ConceroNetwork } from '../types/ConceroNetwork';
+import { LoggerInterface } from '../types/LoggerInterface';
+import { NetworkManagerConfig } from '../types/ManagerConfigs';
+import { IConceroNetworkManager, NetworkUpdateListener } from '../types/managers';
+import { HttpClient } from '../utils';
+export declare class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
+    private static instance;
+    private mainnetNetworks;
+    private testnetNetworks;
+    private allNetworks;
+    private activeNetworks;
+    private updateListeners;
+    private logger;
+    private config;
+    private httpClient;
+    private constructor();
+    static getInstance(): ConceroNetworkManager;
+    static createInstance(logger: LoggerInterface, httpClient: HttpClient, config: NetworkManagerConfig): ConceroNetworkManager;
+    initialize(): Promise<void>;
+    registerUpdateListener(listener: NetworkUpdateListener): void;
+    unregisterUpdateListener(listener: NetworkUpdateListener): void;
+    getMainnetNetworks(): Record<string, ConceroNetwork>;
+    getTestnetNetworks(): Record<string, ConceroNetwork>;
+    getAllNetworks(): Record<string, ConceroNetwork>;
+    getActiveNetworks(): ConceroNetwork[];
+    getNetworkById(chainId: number): ConceroNetwork;
+    getNetworkByName(name: string): ConceroNetwork;
+    getNetworkBySelector(selector: string): ConceroNetwork;
+    excludeNetwork(networkName: string, reason: string): void;
+    getVerifierNetwork(): ConceroNetwork;
+    getDefaultFinalityConfirmations(): number;
+    forceUpdate(): Promise<void>;
+    private updateNetworks;
+    private notifyListeners;
+    triggerInitialUpdates(): Promise<void>;
+    private createNetworkConfig;
+    private getTestingNetworks;
+    private filterNetworks;
+    dispose(): void;
+    static dispose(): void;
+}
+//# sourceMappingURL=ConceroNetworkManager.d.ts.map
