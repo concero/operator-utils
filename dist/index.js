@@ -49808,7 +49808,7 @@ var TxWriter = class _TxWriter {
         }
       );
       this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
-      const { blockNumber } = await publicClient.getTransactionReceipt({ hash: txHash });
+      const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: txHash });
       const txInfo = {
         id: v4_default(),
         txHash,
@@ -49862,7 +49862,7 @@ var TxWriter = class _TxWriter {
         }
       );
       this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-      const { blockNumber } = await publicClient.getTransactionReceipt({ hash: newTxHash });
+      const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: newTxHash });
       const retryTxInfo = {
         id: v4_default(),
         txHash: newTxHash,

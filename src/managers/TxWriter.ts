@@ -85,7 +85,7 @@ export class TxWriter implements ITxWriter {
             );
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
-            const { blockNumber } = await publicClient.getTransactionReceipt({ hash: txHash });
+            const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
             const txInfo = {
                 id: uuidv4(),
@@ -156,7 +156,7 @@ export class TxWriter implements ITxWriter {
             );
             this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
 
-            const { blockNumber } = await publicClient.getTransactionReceipt({ hash: newTxHash });
+            const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: newTxHash });
 
             const retryTxInfo = {
                 id: uuidv4(),

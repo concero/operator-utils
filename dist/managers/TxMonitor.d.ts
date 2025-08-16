@@ -1,4 +1,3 @@
-import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { TxMonitorConfig } from '../types/ManagerConfigs';
 import { IBlockManagerRegistry, IConceroNetworkManager, ITxMonitor, IViemClientManager, MonitoredTransaction, TransactionInfo } from '../types/managers';
@@ -22,9 +21,7 @@ export declare class TxMonitor implements ITxMonitor {
     private checkNetworkTransactions;
     private subscribeToNetwork;
     private removeMonitor;
-    checkTransactionsInRange(network: ConceroNetwork, startBlock: bigint, endBlock: bigint): Promise<void>;
     getMonitoredTransactions(chainName?: string): MonitoredTransaction[];
-    getTransactionsByMessageId(): Map<string, MonitoredTransaction[]>;
     dispose(): void;
     static dispose(): void;
 }

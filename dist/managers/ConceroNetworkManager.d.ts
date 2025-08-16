@@ -27,6 +27,7 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     getNetworkById(chainId: number): ConceroNetwork;
     getNetworkByName(name: string): ConceroNetwork;
     getNetworkBySelector(selector: string): ConceroNetwork;
+    excludeNetwork(networkName: string, reason: string): void;
     getVerifierNetwork(): ConceroNetwork;
     getDefaultFinalityConfirmations(): number;
     forceUpdate(): Promise<void>;

@@ -1,4 +1,3 @@
-import { ConceroNetwork } from '../ConceroNetwork';
 export interface TransactionInfo {
     id: string;
     txHash: string;
@@ -21,7 +20,6 @@ export interface MonitoredTransaction {
 }
 export interface ITxMonitor {
     ensureTxFinality(txInfo: TransactionInfo, onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void): void;
-    checkTransactionsInRange(network: ConceroNetwork, startBlock: bigint, endBlock: bigint): Promise<void>;
     getMonitoredTransactions(chainName?: string): MonitoredTransaction[];
     dispose(): void;
 }

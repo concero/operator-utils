@@ -16,6 +16,7 @@ export interface IConceroNetworkManager {
     triggerInitialUpdates(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
+    excludeNetwork(networkName: string, reason: string): void;
 }
 export type INetworkManager = IConceroNetworkManager;
 //# sourceMappingURL=INetworkManager.d.ts.map

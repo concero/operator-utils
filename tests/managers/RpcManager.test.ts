@@ -6,18 +6,24 @@ import { MockLogger } from '../mocks/Logger';
 
 jest.mock('@/utils/HttpClient');
 
+class MockConceroNetworkManager {
+    excludeNetwork = jest.fn();
+}
+
 describe('RpcManager', () => {
     let logger: MockLogger;
+    let networkManager: MockConceroNetworkManager;
     let rpcManager: RpcManager;
     let mockHttpGet: jest.Mock;
 
     beforeEach(() => {
         logger = new MockLogger();
+        networkManager = new MockConceroNetworkManager();
         mockHttpGet = jest.fn();
         (HttpClient.getInstance as jest.Mock).mockReturnValue({
             get: mockHttpGet,
         });
-        rpcManager = RpcManager.createInstance(logger, {
+        rpcManager = RpcManager.createInstance(logger, networkManager as any, {
             conceroRpcsUrl: 'http://test.com',
             networkMode: 'mainnet',
         });
@@ -45,7 +51,7 @@ describe('RpcManager', () => {
     });
 
     it('should handle localhost mode', () => {
-        const localRpcManager = RpcManager.createInstance(logger, {
+        const localRpcManager = RpcManager.createInstance(logger, networkManager as any, {
             conceroRpcsUrl: 'http://test.com',
             networkMode: 'localhost',
         });
