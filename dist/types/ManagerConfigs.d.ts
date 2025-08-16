@@ -66,6 +66,12 @@ export interface ViemClientManagerConfig extends BaseManagerConfig {
         retryDelay?: number;
         timeout?: number;
     };
+    httpTransportConfig: {
+        timeout: number;
+        batch: boolean;
+        retryCount: number;
+        retryDelay: number;
+    };
 }
 /** Configuration for Logger */
 export interface LoggerConfig extends BaseManagerConfig {

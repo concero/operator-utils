@@ -50,7 +50,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     public async initialize(): Promise<void> {
         if (this.initialized) return;
-        this.logger.debug('BalanceManager initialized');
+        this.logger.info('BalanceManager initialized');
     }
 
     public dispose(): void {

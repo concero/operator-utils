@@ -66,7 +66,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         }
 
         return fallback(
-            rpcUrls.map(url => createCustomHttpTransport(url)),
+            rpcUrls.map(url => createCustomHttpTransport(url, this.config.httpTransportConfig)),
             this.config.fallbackTransportOptions,
         );
     }
@@ -79,7 +79,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         const publicClient = createPublicClient({
             transport,
             chain: chain.viemChain,
-            batch: { multicall: true },
+            batch: this.config.httpTransportConfig.batch
         });
         const walletClient = createWalletClient({
             transport,
@@ -145,7 +145,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
                 this.clients.set(network.name, newClient);
                 this.logger.debug(`Updated clients for chain ${network.name}`);
             } catch (error) {
-                this.logger.error(`Failed to update clients for chain ${network.name}`, error);
+                this.logger.error(`Failed to update clients for chain ${network.name}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
     }

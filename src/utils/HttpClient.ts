@@ -58,18 +58,14 @@ export class HttpClient extends ManagerBase {
                     config.__retryCount = config.__retryCount || 0;
                     config.__retryCount += 1;
 
-                    logger.warn(
-                        `Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`,
-                    );
+                    logger.warn(`Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`);
 
                     await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
 
                     return this.axiosInstance!(config);
                 }
 
-                logger.error(
-                    `Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`,
-                );
+                logger.error(`Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`);
                 throw new AppError(AppErrorEnum.FailedHTTPRequest, error);
             },
         );
@@ -101,11 +97,7 @@ export class HttpClient extends ManagerBase {
         }
 
         try {
-            this.logger.debug(
-                `${method} request to ${url} with config: ${JSON.stringify(config)} ${
-                    body ? `and body: ${JSON.stringify(body)}` : ''
-                }`,
-            );
+            this.logger.debug(`${method} request to ${url} with config: ${JSON.stringify(config)} ${body ? `and body: ${JSON.stringify(body)}` : ''}`);
 
             const response: AxiosResponse<T> = await this.axiosInstance.request<T>({
                 method,
@@ -116,7 +108,7 @@ export class HttpClient extends ManagerBase {
 
             return response.data;
         } catch (error) {
-            this.logger.error(`Request failed for ${url} with error:`, error);
+            this.logger.error(`Request failed for ${url} with error: ${error instanceof Error ? error.message : String(error)}`);
             throw new AppError(AppErrorEnum.FailedHTTPRequest, error);
         }
     }

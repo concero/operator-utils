@@ -1,3 +1,9 @@
 import { Transport } from 'viem';
-export declare function createCustomHttpTransport(url: string): Transport;
+export interface HttpTransportConfig {
+    timeout: number;
+    batch: boolean;
+    retryCount: number;
+    retryDelay: number;
+}
+export declare function createCustomHttpTransport(url: string, config: Partial<HttpTransportConfig>): Transport;
 //# sourceMappingURL=customHttpTransport.d.ts.map

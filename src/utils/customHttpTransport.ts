@@ -1,24 +1,38 @@
-import { Logger } from './Logger';
+  import { Logger } from './Logger';
 
-import { Transport, http } from 'viem';
+  import { Transport, http } from 'viem';
 
-export function createCustomHttpTransport(url: string): Transport {
+  export interface HttpTransportConfig {
+      timeout: number;
+      batch: boolean;
+      retryCount: number;
+      retryDelay: number;
+  }
+
+  export function createCustomHttpTransport(
+    url: string,
+    config: Partial<HttpTransportConfig>
+  ): Transport {
     const logger = Logger.getInstance().getLogger('ViemTransport');
 
-    return config => {
-        // Get the original transport
-        const transport = http(url, {
-            batch: true,
-        })(config);
+    return (transportConfig) => {
+      const transport = http(url, config)(transportConfig);
 
-        // Create a wrapper for the request method that logs requests
-        // const originalRequest = transport.request;
-        // transport.request = async args => {
-        //     logger.debug(`${args.method} - ${url}: ${JSON.stringify(args.params)}`);
+      const originalRequest = transport.request.bind(transport);
 
-        //     return originalRequest(args);
-        // };
+      transport.request = async (args: { method: string; params?: unknown }) => {
+        logger.debug(`${args.method} → ${url} params=${JSON.stringify(args.params ?? [])}`);
 
-        return transport;
+        try {
+          const result = await originalRequest(args);
+          logger.debug(`${args.method} ← OK`);
+          return result;
+        } catch (err: any) {
+          logger.error(`${args.method} ← ERROR: ${err?.message ?? String(err)}`);
+          throw err;
+        }
+      };
+
+      return transport;
     };
-}
+  }

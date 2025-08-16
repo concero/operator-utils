@@ -332,10 +332,10 @@ export class TxReader implements ITxReader {
                     o.watcher
                         .callback(o.value, o.watcher.network)
                         .catch(err =>
-                            this.logger.error(`single callback failed (${o.watcher.id})`, err),
+                            this.logger.error(`single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`),
                         );
                 } else {
-                    this.logger.error(`readContract failed (${o.watcher.id})`, o.reason);
+                    this.logger.error(`readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`);
                 }
             }
         }
@@ -363,7 +363,7 @@ export class TxReader implements ITxReader {
             try {
                 await cb({ bulkId, results, errors });
             } catch (e) {
-                this.logger.error(`bulk callback failed (${bulkId}) ${e}`);
+                this.logger.error(`bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`);
             }
         }
     }
@@ -456,7 +456,7 @@ export class TxReader implements ITxReader {
                     this.logger.error(`fetchLogs failed (${id})`, e),
                 );
         } catch (e) {
-            this.logger.error(`fetchLogs failed (${id})`, e);
+            this.logger.error(`fetchLogs failed (${id}): ${e instanceof Error ? e.message : String(e)}`);
         }
     }
 
@@ -471,7 +471,7 @@ export class TxReader implements ITxReader {
                 ...(q.args && { args: q.args }),
             });
         } catch (e) {
-            this.logger.error(`getLogs failed on ${n.name}`, e);
+            this.logger.error(`getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`);
             return [];
         }
     }

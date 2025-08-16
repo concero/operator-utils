@@ -41,7 +41,7 @@ export class DeploymentFetcher implements IDeploymentFetcher {
             // Parse deployments based on patterns
             return this.parseDeployments(deployments, patterns);
         } catch (error) {
-            this.logger.error('Failed to fetch deployments:', error);
+            this.logger.error(`Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`);
             throw new Error(
                 `Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`,
             );

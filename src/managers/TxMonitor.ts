@@ -160,7 +160,7 @@ export class TxMonitor implements ITxMonitor {
 
             await this.notifySubscribers(monitor, network, true);
         } catch (error) {
-            this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
+            this.logger.error(`Error checking transaction ${tx.txHash}: ${error instanceof Error ? error.message : String(error)}`);
 
             await this.notifySubscribers(monitor, network, false);
         }
@@ -251,7 +251,7 @@ export class TxMonitor implements ITxMonitor {
                 await this.checkNetworkTransactions(networkName, endBlock);
             },
             onError: (error: unknown) => {
-                this.logger.error(`Block monitoring error for ${networkName}:`, error);
+                this.logger.error(`Block monitoring error for ${networkName}: ${error instanceof Error ? error.message : String(error)}`);
             },
         });
 
