@@ -451,7 +451,10 @@ export class TxReader implements ITxReader {
                 },
                 w.network,
             );
-            if (logs.length) await w.callback(logs, w.network);
+            if (logs.length)
+                w.callback(logs, w.network).catch(e =>
+                    this.logger.error(`fetchLogs failed (${id})`, e),
+                );
         } catch (e) {
             this.logger.error(`fetchLogs failed (${id})`, e);
         }
