@@ -156,7 +156,9 @@ export class TxWriter implements ITxWriter {
             );
             this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
 
-            const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: newTxHash });
+            const { blockNumber } = await publicClient.waitForTransactionReceipt({
+                hash: newTxHash,
+            });
 
             const retryTxInfo = {
                 id: uuidv4(),
