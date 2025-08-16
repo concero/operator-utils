@@ -67,11 +67,13 @@ export class BlockManagerRegistry
         try {
             const { publicClient } = this.viemClientManager.getClients(network);
 
-            // Create the BlockManager
-            const blockManager = await this.createBlockManager(network, publicClient);
-            return blockManager;
+            return await this.createBlockManager(network, publicClient);
         } catch (error) {
             this.logger.warn(`Failed to create BlockManager for network ${network.name}`, error);
+            this.networkManager.excludeNetwork(
+                network.name,
+                `Failed to create BlockManager: ${error}`,
+            );
             return null;
         }
     }
@@ -100,7 +102,7 @@ export class BlockManagerRegistry
         if (newNetworks.length > 0) {
             this.logger.debug(`Creating ${newNetworks.length} new BlockManagers`);
 
-            const results = await Promise.all(
+            await Promise.all(
                 newNetworks.map(network => this.ensureBlockManagerForNetwork(network)),
             );
         }

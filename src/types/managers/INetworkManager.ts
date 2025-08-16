@@ -18,6 +18,7 @@ export interface IConceroNetworkManager {
     triggerInitialUpdates(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
+    excludeNetwork(networkName: string, reason: string): void;
 }
 
 // Add alias for backward compatibility

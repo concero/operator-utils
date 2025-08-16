@@ -1,3 +1,4 @@
+import { ConceroNetworkManager } from './ConceroNetworkManager';
 import { ManagerBase } from './ManagerBase';
 
 import { ConceroNetwork } from '../types/ConceroNetwork';
@@ -13,16 +14,26 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
     private logger: LoggerInterface;
     private config: RpcManagerConfig;
     private rpcUrls: Record<string, string[]> = {};
+    private networkManager: ConceroNetworkManager;
 
-    constructor(logger: LoggerInterface, config: RpcManagerConfig) {
+    constructor(
+        logger: LoggerInterface,
+        networkManager: ConceroNetworkManager,
+        config: RpcManagerConfig,
+    ) {
         super();
         this.httpClient = HttpClient.getInstance();
         this.logger = logger;
+        this.networkManager = networkManager;
         this.config = config;
     }
 
-    public static createInstance(logger: LoggerInterface, config: RpcManagerConfig): RpcManager {
-        RpcManager.instance = new RpcManager(logger, config);
+    public static createInstance(
+        logger: LoggerInterface,
+        networkManager: ConceroNetworkManager,
+        config: RpcManagerConfig,
+    ): RpcManager {
+        RpcManager.instance = new RpcManager(logger, networkManager, config);
         return RpcManager.instance;
     }
 
@@ -104,9 +115,22 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         return this.rpcUrls[networkName] || [];
     }
 
+    public hasValidRpcs(networkName: string): boolean {
+        const rpcUrls = this.getRpcsForNetwork(networkName);
+        return rpcUrls.length > 0;
+    }
+
     public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {
         try {
             await this.updateRpcs(networks);
+
+            if (this.config.networkMode !== 'localhost') {
+                for (const network of networks) {
+                    if (!this.hasValidRpcs(network.name)) {
+                        this.networkManager.excludeNetwork(network.name, 'No RPC URLs available');
+                    }
+                }
+            }
         } catch (err) {
             this.logger.error('Failed to update RPCs after network update:', err);
             throw err;

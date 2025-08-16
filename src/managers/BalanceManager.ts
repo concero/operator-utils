@@ -282,7 +282,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     private onNativeBalanceUpdate(net: string, bal: bigint): void {
         this.nativeBalances.set(net, bal);
-        this.logger.info(`Updated native balance for ${net}: ${bal.toString()}`);
+        this.logger.debug(`Updated native balance for ${net}: ${bal.toString()}`);
     }
 
     // todo: this needs to be handled by TxManager with a method-centric subscription (eth_balance)

@@ -84,7 +84,6 @@ export class TxMonitor implements ITxMonitor {
         const existingMonitor = this.monitors.get(txInfo.txHash);
 
         if (existingMonitor) {
-            // Add subscriber to existing monitor
             existingMonitor.subscribers.set(txInfo.id, onFinalityCallback);
             this.logger.debug(
                 `Added subscriber ${txInfo.id} to existing monitor for tx ${txInfo.txHash}`,
@@ -107,7 +106,6 @@ export class TxMonitor implements ITxMonitor {
             finalityBlockNumber: undefined,
         };
 
-        // Add the subscriber for this specific transaction ID
         monitor.subscribers.set(txInfo.id, onFinalityCallback);
 
         this.subscribeToNetwork(txInfo.chainName);
@@ -137,7 +135,6 @@ export class TxMonitor implements ITxMonitor {
                 return;
             }
 
-            // Update block number if not set
             if (!tx.blockNumber && txInfo.blockNumber) {
                 tx.blockNumber = txInfo.blockNumber;
                 this.logger.debug(
@@ -145,26 +142,22 @@ export class TxMonitor implements ITxMonitor {
                 );
             }
 
-            // Check if block number changed (potential reorg)
             if (tx.blockNumber && txInfo.blockNumber && tx.blockNumber !== txInfo.blockNumber) {
                 this.logger.warn(
                     `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`,
                 );
                 tx.blockNumber = txInfo.blockNumber;
-                // Recalculate finality block after reorg
                 monitor.finalityBlockNumber = txInfo.blockNumber + finalityConfirmations;
 
                 this.logger.debug(
                     `Transaction ${tx.txHash} finality block recalculated to ${monitor.finalityBlockNumber} after reorg`,
                 );
 
-                // If after reorg the finality block is ahead of the current network block, we don't need to finalize yet
                 if (monitor.finalityBlockNumber && currentBlock < monitor.finalityBlockNumber) {
                     return;
                 }
             }
 
-            // Transaction has reached finality - this should only be called when we're sure
             await this.notifySubscribers(monitor, network, true);
         } catch (error) {
             this.logger.error(`Error checking transaction ${tx.txHash}:`, error);
@@ -181,7 +174,7 @@ export class TxMonitor implements ITxMonitor {
         const tx = monitor.transaction;
 
         const txStatus = isFinalized ? TransactionStatus.Finalized : TransactionStatus.Failed;
-        this.logger.info(
+        this.logger.debug(
             `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`,
         );
 
@@ -194,7 +187,6 @@ export class TxMonitor implements ITxMonitor {
             status: txStatus,
         };
 
-        // Notify all subscribers
         monitor.subscribers.forEach((callback, subscriberId) => {
             const txForSubscriber: TransactionInfo = {
                 ...txResult,
@@ -274,15 +266,6 @@ export class TxMonitor implements ITxMonitor {
         this.monitors.delete(txHash);
     }
 
-    public async checkTransactionsInRange(
-        network: ConceroNetwork,
-        startBlock: bigint,
-        endBlock: bigint,
-    ): Promise<void> {
-        // This method can be used for batch checking if needed
-        this.logger.debug(`Batch checking not implemented - using continuous monitoring instead`);
-    }
-
     public getMonitoredTransactions(chainName?: string): MonitoredTransaction[] {
         const transactions: MonitoredTransaction[] = [];
 
@@ -293,12 +276,6 @@ export class TxMonitor implements ITxMonitor {
         }
 
         return transactions;
-    }
-
-    public getTransactionsByMessageId(): Map<string, MonitoredTransaction[]> {
-        // This method is no longer relevant for a generic monitor
-        this.logger.warn('getTransactionsByMessageId called on generic TxMonitor');
-        return new Map();
     }
 
     public dispose(): void {

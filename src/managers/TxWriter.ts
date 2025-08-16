@@ -85,16 +85,14 @@ export class TxWriter implements ITxWriter {
             );
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
-            // Get the current block number for tracking
-            const currentBlock = await publicClient.getBlockNumber();
+            const { blockNumber } = await publicClient.getTransactionReceipt({ hash: txHash });
 
-            // Create transaction info for monitoring
             const txInfo = {
                 id: uuidv4(),
                 txHash,
                 chainName: network.name,
                 submittedAt: Date.now(),
-                submissionBlock: currentBlock,
+                submissionBlock: blockNumber,
                 status: 'submitted',
                 metadata: {
                     functionName: params.functionName,
@@ -102,7 +100,6 @@ export class TxWriter implements ITxWriter {
                 },
             };
 
-            // Watch this transaction for finality
             this.txMonitor.ensureTxFinality(
                 txInfo,
                 this.createFinalityCallback(network, params, txInfo),
@@ -122,15 +119,14 @@ export class TxWriter implements ITxWriter {
     ): (txInfo: any, isFinalized: boolean) => void {
         return async (txInfo: any, isFinalized: boolean): Promise<void> => {
             if (isFinalized) {
-                this.logger.info(
-                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is now final`,
+                this.logger.debug(
+                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is finalized`,
                 );
             } else {
                 this.logger.warn(
                     `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) failed - attempting retry`,
                 );
 
-                // Retry the transaction
                 await this.retryTransaction(network, params, originalTxInfo);
             }
         };
@@ -141,14 +137,13 @@ export class TxWriter implements ITxWriter {
         params: SimulateContractParameters,
         originalTxInfo: any,
     ): Promise<void> {
-        this.logger.info(
+        this.logger.debug(
             `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`,
         );
 
         try {
             const { walletClient, publicClient } = this.viemClientManager.getClients(network);
 
-            // Retry the transaction
             const newTxHash = await callContract(
                 publicClient,
                 walletClient,
@@ -159,18 +154,16 @@ export class TxWriter implements ITxWriter {
                     defaultGasLimit: this.config.defaultGasLimit,
                 },
             );
-            this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
+            this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
 
-            // Get the current block number for tracking
-            const currentBlock = await publicClient.getBlockNumber();
+            const { blockNumber } = await publicClient.getTransactionReceipt({ hash: newTxHash });
 
-            // Create new transaction info for the retry with new ID
             const retryTxInfo = {
                 id: uuidv4(),
                 txHash: newTxHash,
                 chainName: network.name,
                 submittedAt: Date.now(),
-                submissionBlock: currentBlock,
+                submissionBlock: blockNumber,
                 status: 'submitted',
                 metadata: {
                     functionName: params.functionName,
@@ -178,7 +171,6 @@ export class TxWriter implements ITxWriter {
                 },
             };
 
-            // Start monitoring the retry transaction
             this.txMonitor.ensureTxFinality(
                 retryTxInfo,
                 this.createFinalityCallback(network, params, retryTxInfo),

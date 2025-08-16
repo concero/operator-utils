@@ -43984,7 +43984,7 @@ var BalanceManager = class extends ManagerBase {
   }
   onNativeBalanceUpdate(net, bal) {
     this.nativeBalances.set(net, bal);
-    this.logger.info(`Updated native balance for ${net}: ${bal.toString()}`);
+    this.logger.debug(`Updated native balance for ${net}: ${bal.toString()}`);
   }
   // todo: this needs to be handled by TxManager with a method-centric subscription (eth_balance)
   async updateNativeBalances(networks) {
@@ -44238,10 +44238,13 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     }
     try {
       const { publicClient } = this.viemClientManager.getClients(network);
-      const blockManager = await this.createBlockManager(network, publicClient);
-      return blockManager;
+      return await this.createBlockManager(network, publicClient);
     } catch (error) {
       this.logger.warn(`Failed to create BlockManager for network ${network.name}`, error);
+      this.networkManager.excludeNetwork(
+        network.name,
+        `Failed to create BlockManager: ${error}`
+      );
       return null;
     }
   }
@@ -44263,7 +44266,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     const newNetworks = networks.filter((network) => !currentNetworkNames.has(network.name));
     if (newNetworks.length > 0) {
       this.logger.debug(`Creating ${newNetworks.length} new BlockManagers`);
-      const results = await Promise.all(
+      await Promise.all(
         newNetworks.map((network) => this.ensureBlockManagerForNetwork(network))
       );
     }
@@ -48334,6 +48337,10 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     }
     return network;
   }
+  excludeNetwork(networkName, reason) {
+    this.activeNetworks = this.activeNetworks.filter((network) => network.name !== networkName);
+    this.logger.warn(`Network "${networkName}" excluded from active networks. ${reason}`);
+  }
   getVerifierNetwork() {
     if (this.config.networkMode === "mainnet") {
       return this.mainnetNetworks["arbitrum"];
@@ -48420,9 +48427,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       this.allNetworks = { ...this.testnetNetworks, ...this.mainnetNetworks };
       const filteredNetworks = this.filterNetworks(this.config.networkMode);
       if (networksFetched) {
-        this.activeNetworks = filteredNetworks;
+        this.activeNetworks = [...filteredNetworks];
         this.logger.debug(
-          `Networks updated - Active networks: ${this.activeNetworks.length} (${this.activeNetworks.map((n) => n.name).join(", ")})`
+          `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map((n) => n.name).join(", ")})`
         );
       }
       if (networksFetched) {
@@ -48803,15 +48810,16 @@ var NonceManager = class _NonceManager extends ManagerBase {
 
 // src/managers/RpcManager.ts
 var RpcManager = class _RpcManager extends ManagerBase {
-  constructor(logger, config) {
+  constructor(logger, networkManager, config) {
     super();
     this.rpcUrls = {};
     this.httpClient = HttpClient.getInstance();
     this.logger = logger;
+    this.networkManager = networkManager;
     this.config = config;
   }
-  static createInstance(logger, config) {
-    _RpcManager.instance = new _RpcManager(logger, config);
+  static createInstance(logger, networkManager, config) {
+    _RpcManager.instance = new _RpcManager(logger, networkManager, config);
     return _RpcManager.instance;
   }
   static getInstance() {
@@ -48871,9 +48879,20 @@ var RpcManager = class _RpcManager extends ManagerBase {
     }
     return this.rpcUrls[networkName] || [];
   }
+  hasValidRpcs(networkName) {
+    const rpcUrls = this.getRpcsForNetwork(networkName);
+    return rpcUrls.length > 0;
+  }
   async onNetworksUpdated(networks) {
     try {
       await this.updateRpcs(networks);
+      if (this.config.networkMode !== "localhost") {
+        for (const network of networks) {
+          if (!this.hasValidRpcs(network.name)) {
+            this.networkManager.excludeNetwork(network.name, "No RPC URLs available");
+          }
+        }
+      }
     } catch (err) {
       this.logger.error("Failed to update RPCs after network update:", err);
       throw err;
@@ -49218,7 +49237,7 @@ var TxMonitor = class _TxMonitor {
   async notifySubscribers(monitor, network, isFinalized) {
     const tx = monitor.transaction;
     const txStatus = isFinalized ? "finalized" /* Finalized */ : "failed" /* Failed */;
-    this.logger.info(
+    this.logger.debug(
       `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`
     );
     const txResult = {
@@ -49293,9 +49312,6 @@ var TxMonitor = class _TxMonitor {
     if (!monitor) return;
     this.monitors.delete(txHash);
   }
-  async checkTransactionsInRange(network, startBlock, endBlock) {
-    this.logger.debug(`Batch checking not implemented - using continuous monitoring instead`);
-  }
   getMonitoredTransactions(chainName) {
     const transactions = [];
     for (const monitor of this.monitors.values()) {
@@ -49304,10 +49320,6 @@ var TxMonitor = class _TxMonitor {
       }
     }
     return transactions;
-  }
-  getTransactionsByMessageId() {
-    this.logger.warn("getTransactionsByMessageId called on generic TxMonitor");
-    return /* @__PURE__ */ new Map();
   }
   dispose() {
     this.disposed = true;
@@ -49769,13 +49781,13 @@ var TxWriter = class _TxWriter {
         }
       );
       this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
-      const currentBlock = await publicClient.getBlockNumber();
+      const { blockNumber } = await publicClient.getTransactionReceipt({ hash: txHash });
       const txInfo = {
         id: v4_default(),
         txHash,
         chainName: network.name,
         submittedAt: Date.now(),
-        submissionBlock: currentBlock,
+        submissionBlock: blockNumber,
         status: "submitted",
         metadata: {
           functionName: params.functionName,
@@ -49795,8 +49807,8 @@ var TxWriter = class _TxWriter {
   createFinalityCallback(network, params, originalTxInfo) {
     return async (txInfo, isFinalized) => {
       if (isFinalized) {
-        this.logger.info(
-          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is now final`
+        this.logger.debug(
+          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is finalized`
         );
       } else {
         this.logger.warn(
@@ -49807,7 +49819,7 @@ var TxWriter = class _TxWriter {
     };
   }
   async retryTransaction(network, params, originalTxInfo) {
-    this.logger.info(
+    this.logger.debug(
       `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`
     );
     try {
@@ -49822,14 +49834,14 @@ var TxWriter = class _TxWriter {
           defaultGasLimit: this.config.defaultGasLimit
         }
       );
-      this.logger.info(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-      const currentBlock = await publicClient.getBlockNumber();
+      this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
+      const { blockNumber } = await publicClient.getTransactionReceipt({ hash: newTxHash });
       const retryTxInfo = {
         id: v4_default(),
         txHash: newTxHash,
         chainName: network.name,
         submittedAt: Date.now(),
-        submissionBlock: currentBlock,
+        submissionBlock: blockNumber,
         status: "submitted",
         metadata: {
           functionName: params.functionName,

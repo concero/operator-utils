@@ -27,11 +27,6 @@ export interface ITxMonitor {
         txInfo: TransactionInfo,
         onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void,
     ): void;
-    checkTransactionsInRange(
-        network: ConceroNetwork,
-        startBlock: bigint,
-        endBlock: bigint,
-    ): Promise<void>;
     getMonitoredTransactions(chainName?: string): MonitoredTransaction[];
     dispose(): void;
 }

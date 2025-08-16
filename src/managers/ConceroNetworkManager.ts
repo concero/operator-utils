@@ -117,6 +117,11 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         return network;
     }
 
+    public excludeNetwork(networkName: string, reason: string): void {
+        this.activeNetworks = this.activeNetworks.filter(network => network.name !== networkName);
+        this.logger.warn(`Network "${networkName}" excluded from active networks. ${reason}`);
+    }
+
     public getVerifierNetwork(): ConceroNetwork {
         if (this.config.networkMode === 'mainnet') {
             return this.mainnetNetworks['arbitrum'];
@@ -218,9 +223,9 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             const filteredNetworks = this.filterNetworks(this.config.networkMode);
 
             if (networksFetched) {
-                this.activeNetworks = filteredNetworks;
+                this.activeNetworks = [...filteredNetworks];
                 this.logger.debug(
-                    `Networks updated - Active networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(', ')})`,
+                    `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(', ')})`,
                 );
             }
 
