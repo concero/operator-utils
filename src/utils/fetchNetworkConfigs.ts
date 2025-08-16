@@ -70,7 +70,9 @@ export async function fetchNetworkConfigs(
             testnetNetworks,
         };
     } catch (error: unknown) {
-        logger.error(`Failed to fetch ${networkMode} network configurations: ${error instanceof Error ? error.message : String(error)}`);
+        logger.error(
+            `Failed to fetch ${networkMode} network configurations: ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw error;
     }
 }

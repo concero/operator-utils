@@ -57,7 +57,7 @@ describe('BalanceManager', () => {
 
     it('should initialize correctly', async () => {
         await balanceManager.initialize();
-        expect(logger.debug).toHaveBeenCalledWith('BalanceManager initialized');
+        expect(logger.info).toHaveBeenCalledWith('BalanceManager initialized');
     });
 
     it('should dispose correctly', () => {

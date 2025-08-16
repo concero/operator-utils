@@ -30,7 +30,19 @@ describe('ViemClientManager', () => {
         (viem.fallback as jest.Mock).mockReturnValue({});
         (utils.createCustomHttpTransport as jest.Mock).mockReturnValue({});
 
-        viemClientManager = ViemClientManager.createInstance(logger, rpcManager, {});
+        viemClientManager = ViemClientManager.createInstance(logger, rpcManager, {
+            fallbackTransportOptions: {
+                retryCount: 3,
+                retryDelay: 1000,
+                timeout: 10000,
+            },
+            httpTransportConfig: {
+                timeout: 10000,
+                batch: true,
+                retryCount: 3,
+                retryDelay: 1000,
+            },
+        });
     });
 
     afterEach(() => {
