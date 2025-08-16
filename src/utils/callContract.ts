@@ -12,6 +12,12 @@ import { INonceManager } from '../types/managers';
 export interface CallContractConfig {
     simulateTx: boolean;
     defaultGasLimit?: bigint;
+    txReceiptOptions: {
+        confirmations?: number;
+        retryCount?: number;
+        retryDelay?: number;
+        timeout?: number;
+    };
 }
 
 async function executeTransaction(
@@ -46,7 +52,13 @@ async function executeTransaction(
 
     await publicClient.waitForTransactionReceipt({
         hash: txHash as Hash,
-        confirmations: (confirmations as IConfirmations)[chainId.toString()] ?? undefined,
+        confirmations:
+            config.txReceiptOptions.confirmations ??
+            (confirmations as IConfirmations)[chainId.toString()] ??
+            undefined,
+        retryCount: config.txReceiptOptions.retryCount,
+        retryDelay: config.txReceiptOptions.retryDelay,
+        timeout: config.txReceiptOptions.timeout,
     });
 
     return txHash as Hash;

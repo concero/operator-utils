@@ -31,6 +31,7 @@ describe('TxWriter', () => {
             dryRun: false,
             simulateTx: true,
             defaultGasLimit: 100000n,
+            txReceiptOptions: {},
         });
     });
 
@@ -68,6 +69,7 @@ describe('TxWriter', () => {
                 dryRun: true,
                 simulateTx: true,
                 defaultGasLimit: 100000n,
+                txReceiptOptions: {},
             },
         );
 
@@ -99,6 +101,50 @@ describe('TxWriter', () => {
 
         await expect(txWriter.callContract(mockConceroNetwork, params)).rejects.toThrow(
             'Contract error',
+        );
+    });
+
+    it('should pass txReceiptOptions to callContract utility', async () => {
+        const callContractMock = callContractUtil.callContract as jest.Mock;
+        callContractMock.mockResolvedValue('0x123');
+
+        const txReceiptOptions = {
+            confirmations: 5,
+            timeout: 30000,
+        };
+
+        const txWriterWithReceiptOptions = TxWriter.createInstance(
+            logger,
+            viemClientManager,
+            txMonitor,
+            nonceManager,
+            {
+                dryRun: false,
+                simulateTx: true,
+                defaultGasLimit: 100000n,
+                txReceiptOptions,
+            },
+        );
+
+        const params: SimulateContractParameters = {
+            address: '0x456',
+            abi: [],
+            functionName: 'testFunction',
+            args: [],
+        };
+
+        await txWriterWithReceiptOptions.callContract(mockConceroNetwork, params);
+
+        expect(callContractMock).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            params,
+            expect.anything(),
+            expect.objectContaining({
+                simulateTx: true,
+                defaultGasLimit: 100000n,
+                txReceiptOptions,
+            }),
         );
     });
 });

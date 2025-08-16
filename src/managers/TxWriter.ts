@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { SimulateContractParameters } from 'viem';
+import { Hash, SimulateContractParameters } from 'viem';
 
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
@@ -81,11 +81,15 @@ export class TxWriter implements ITxWriter {
                 {
                     simulateTx: this.config.simulateTx,
                     defaultGasLimit: this.config.defaultGasLimit,
+                    txReceiptOptions: this.config.txReceiptOptions,
                 },
             );
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
-            const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: txHash });
+            const { blockNumber } = await publicClient.waitForTransactionReceipt({
+                hash: txHash,
+                ...this.config.txReceiptOptions,
+            });
 
             const txInfo = {
                 id: uuidv4(),
@@ -107,7 +111,7 @@ export class TxWriter implements ITxWriter {
 
             return txHash;
         } catch (error) {
-            this.logger.error(`[${network.name}] Contract call failed:`, error);
+            this.logger.error(`[${network.name}] Contract call failed: ${error}`);
             throw error;
         }
     }
@@ -152,12 +156,14 @@ export class TxWriter implements ITxWriter {
                 {
                     simulateTx: this.config.simulateTx,
                     defaultGasLimit: this.config.defaultGasLimit,
+                    txReceiptOptions: this.config.txReceiptOptions,
                 },
             );
             this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
 
             const { blockNumber } = await publicClient.waitForTransactionReceipt({
                 hash: newTxHash,
+                ...this.config.txReceiptOptions,
             });
 
             const retryTxInfo = {

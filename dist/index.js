@@ -44144,7 +44144,7 @@ var BlockManager = class _BlockManager {
         await this.processBlockRange(startBlock, this.latestBlock);
       }
     } catch (error) {
-      this.logger.error(`${this.network.name}: Error in poll cycle:`, error);
+      this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
     } finally {
       if (this.isPolling && !this.isDisposed) {
         this.pollingTimeout = setTimeout(() => this.poll(), this.pollingIntervalMs);
@@ -44169,8 +44169,7 @@ var BlockManager = class _BlockManager {
           await handler.onBlockRange(startBlock, endBlock);
         } catch (error) {
           this.logger.error(
-            `${this.network.name}: Error in block range handler ${handler.id}:`,
-            error
+            `${this.network.name}: Error in block range handler ${handler.id}: ${error}`
           );
           if (handler.onError) {
             handler.onError(error);
@@ -44328,7 +44327,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       await super.initialize();
       this.logger.debug("Initialized");
     } catch (error) {
-      this.logger.error("Failed to initialize", error);
+      this.logger.error(`Failed to initialize: ${error}`);
       throw error;
     }
   }
@@ -48254,7 +48253,10 @@ async function executeTransaction(publicClient, walletClient, params, nonceManag
   }
   await publicClient.waitForTransactionReceipt({
     hash: txHash,
-    confirmations: confirmations_default[chainId.toString()] ?? void 0
+    confirmations: config.txReceiptOptions.confirmations ?? confirmations_default[chainId.toString()] ?? void 0,
+    retryCount: config.txReceiptOptions.retryCount,
+    retryDelay: config.txReceiptOptions.retryDelay,
+    timeout: config.txReceiptOptions.timeout
   });
   return txHash;
 }
@@ -49851,11 +49853,15 @@ var TxWriter = class _TxWriter {
         this.nonceManager,
         {
           simulateTx: this.config.simulateTx,
-          defaultGasLimit: this.config.defaultGasLimit
+          defaultGasLimit: this.config.defaultGasLimit,
+          txReceiptOptions: this.config.txReceiptOptions
         }
       );
       this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
-      const { blockNumber } = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      const { blockNumber } = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        ...this.config.txReceiptOptions
+      });
       const txInfo = {
         id: v4_default(),
         txHash,
@@ -49874,7 +49880,7 @@ var TxWriter = class _TxWriter {
       );
       return txHash;
     } catch (error) {
-      this.logger.error(`[${network.name}] Contract call failed:`, error);
+      this.logger.error(`[${network.name}] Contract call failed: ${error}`);
       throw error;
     }
   }
@@ -49905,12 +49911,14 @@ var TxWriter = class _TxWriter {
         this.nonceManager,
         {
           simulateTx: this.config.simulateTx,
-          defaultGasLimit: this.config.defaultGasLimit
+          defaultGasLimit: this.config.defaultGasLimit,
+          txReceiptOptions: this.config.txReceiptOptions
         }
       );
       this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
       const { blockNumber } = await publicClient.waitForTransactionReceipt({
-        hash: newTxHash
+        hash: newTxHash,
+        ...this.config.txReceiptOptions
       });
       const retryTxInfo = {
         id: v4_default(),

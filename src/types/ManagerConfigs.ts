@@ -42,6 +42,12 @@ export interface TxWriterConfig extends BaseManagerConfig {
     dryRun: boolean;
     simulateTx: boolean;
     defaultGasLimit?: bigint;
+    txReceiptOptions: {
+        confirmations?: number;
+        retryCount?: number;
+        retryDelay?: number;
+        timeout?: number;
+    };
 }
 
 /** Configuration for TxMonitor */

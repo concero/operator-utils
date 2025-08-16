@@ -142,7 +142,7 @@ export class BlockManager implements IBlockManager {
                 await this.processBlockRange(startBlock, this.latestBlock);
             }
         } catch (error) {
-            this.logger.error(`${this.network.name}: Error in poll cycle:`, error);
+            this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
         } finally {
             if (this.isPolling && !this.isDisposed) {
                 this.pollingTimeout = setTimeout(() => this.poll(), this.pollingIntervalMs);
@@ -174,8 +174,7 @@ export class BlockManager implements IBlockManager {
                     await handler.onBlockRange(startBlock, endBlock);
                 } catch (error) {
                     this.logger.error(
-                        `${this.network.name}: Error in block range handler ${handler.id}:`,
-                        error,
+                        `${this.network.name}: Error in block range handler ${handler.id}: ${error}`,
                     );
                     if (handler.onError) {
                         handler.onError(error);

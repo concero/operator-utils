@@ -148,7 +148,7 @@ export class BlockManagerRegistry
             await super.initialize();
             this.logger.debug('Initialized');
         } catch (error) {
-            this.logger.error('Failed to initialize', error);
+            this.logger.error(`Failed to initialize: ${error}`);
             throw error;
         }
     }
