@@ -44227,7 +44227,9 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     try {
       await this.updateBlockManagers(networks);
     } catch (error) {
-      this.logger.error(`Failed to sync BlockManagers after network update: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to sync BlockManagers after network update: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   }
@@ -44240,7 +44242,9 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       const { publicClient } = this.viemClientManager.getClients(network);
       return await this.createBlockManager(network, publicClient);
     } catch (error) {
-      this.logger.warn(`Failed to create BlockManager for network ${network.name}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.warn(
+        `Failed to create BlockManager for network ${network.name}: ${error instanceof Error ? error.message : String(error)}`
+      );
       this.networkManager.excludeNetwork(
         network.name,
         `Failed to create BlockManager: ${error}`
@@ -47753,11 +47757,15 @@ var HttpClient = class _HttpClient extends ManagerBase {
         if (config && config.__retryCount < this.config.maxRetries) {
           config.__retryCount = config.__retryCount || 0;
           config.__retryCount += 1;
-          logger.warn(`Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`);
+          logger.warn(
+            `Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`
+          );
           await new Promise((resolve) => setTimeout(resolve, this.config.retryDelay));
           return this.axiosInstance(config);
         }
-        logger.error(`Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`);
+        logger.error(
+          `Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`
+        );
         throw new AppError("FailedHTTPRequest" /* FailedHTTPRequest */, error);
       }
     );
@@ -47780,7 +47788,9 @@ var HttpClient = class _HttpClient extends ManagerBase {
       );
     }
     try {
-      this.logger.debug(`${method} request to ${url2} with config: ${JSON.stringify(config)} ${body ? `and body: ${JSON.stringify(body)}` : ""}`);
+      this.logger.debug(
+        `${method} request to ${url2} with config: ${JSON.stringify(config)} ${body ? `and body: ${JSON.stringify(body)}` : ""}`
+      );
       const response = await this.axiosInstance.request({
         method,
         url: url2,
@@ -47789,7 +47799,9 @@ var HttpClient = class _HttpClient extends ManagerBase {
       });
       return response.data;
     } catch (error) {
-      this.logger.error(`Request failed for ${url2} with error: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Request failed for ${url2} with error: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw new AppError("FailedHTTPRequest" /* FailedHTTPRequest */, error);
     }
   }
@@ -47823,7 +47835,9 @@ var DeploymentFetcher = class {
       }
       return this.parseDeployments(deployments, patterns);
     } catch (error) {
-      this.logger.error(`Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw new Error(
         `Failed to fetch deployments: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -48113,7 +48127,9 @@ async function fetchNetworkConfigs(logger, httpClient, networkMode = "testnet", 
       testnetNetworks
     };
   } catch (error) {
-    logger.error(`Failed to fetch ${networkMode} network configurations: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `Failed to fetch ${networkMode} network configurations: ${error instanceof Error ? error.message : String(error)}`
+    );
     throw error;
   }
 }
@@ -48286,7 +48302,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       this.initialized = true;
       this.logger.debug("Initialized");
     } catch (error) {
-      this.logger.error(`Failed to initialize networks: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to initialize networks: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   }
@@ -48417,9 +48435,13 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
           }
           networksFetched = true;
         } catch (error) {
-          this.logger.warn(`Failed to fetch network configurations. Will retry on next update cycle: ${error instanceof Error ? error.message : String(error)}`);
+          this.logger.warn(
+            `Failed to fetch network configurations. Will retry on next update cycle: ${error instanceof Error ? error.message : String(error)}`
+          );
           if (Object.keys(this.allNetworks).length === 0) {
-            this.logger.error("No network configurations available. Unable to initialize services.");
+            this.logger.error(
+              "No network configurations available. Unable to initialize services."
+            );
           }
         }
       }
@@ -48435,7 +48457,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
         await this.notifyListeners();
       }
     } catch (error) {
-      this.logger.error(`Failed to update networks: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to update networks: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
   async notifyListeners() {
@@ -48443,7 +48467,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       try {
         await listener.onNetworksUpdated(this.activeNetworks);
       } catch (error) {
-        this.logger.error(`Error in network update listener: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error(
+          `Error in network update listener: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -48455,7 +48481,9 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
         await listener.onNetworksUpdated(this.activeNetworks);
         this.logger.debug(`Completed initial update for ${listener.constructor.name}`);
       } catch (error) {
-        this.logger.error(`Error in initial update for ${listener.constructor.name}: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error(
+          `Error in initial update for ${listener.constructor.name}: ${error instanceof Error ? error.message : String(error)}`
+        );
         throw error;
       }
     }
@@ -48865,7 +48893,9 @@ var RpcManager = class _RpcManager extends ManagerBase {
       }
       this.logger.debug(`Updated RPCs for ${activeNetworkRpcs.length} active networks`);
     } catch (error) {
-      this.logger.error(`Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   }
@@ -48890,7 +48920,9 @@ var RpcManager = class _RpcManager extends ManagerBase {
         }
       }
     } catch (err) {
-      this.logger.error(`Failed to update RPCs after network update: ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.error(
+        `Failed to update RPCs after network update: ${err instanceof Error ? err.message : String(err)}`
+      );
       throw err;
     }
   }
@@ -49123,7 +49155,9 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
         this.clients.set(network.name, newClient);
         this.logger.debug(`Updated clients for chain ${network.name}`);
       } catch (error) {
-        this.logger.error(`Failed to update clients for chain ${network.name}: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error(
+          `Failed to update clients for chain ${network.name}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
@@ -49226,7 +49260,9 @@ var TxMonitor = class _TxMonitor {
       }
       await this.notifySubscribers(monitor, network, true);
     } catch (error) {
-      this.logger.error(`Error checking transaction ${tx.txHash}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error checking transaction ${tx.txHash}: ${error instanceof Error ? error.message : String(error)}`
+      );
       await this.notifySubscribers(monitor, network, false);
     }
   }
@@ -49297,7 +49333,9 @@ var TxMonitor = class _TxMonitor {
         await this.checkNetworkTransactions(networkName, endBlock);
       },
       onError: (error) => {
-        this.logger.error(`Block monitoring error for ${networkName}: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.error(
+          `Block monitoring error for ${networkName}: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     });
     this.networkSubscriptions.set(networkName, unsubscribe);
@@ -49602,10 +49640,14 @@ var TxReader = class _TxReader {
       } else {
         if (o.status === "fulfilled") {
           o.watcher.callback(o.value, o.watcher.network).catch(
-            (err) => this.logger.error(`single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`)
+            (err) => this.logger.error(
+              `single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`
+            )
           );
         } else {
-          this.logger.error(`readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`);
+          this.logger.error(
+            `readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`
+          );
         }
       }
     }
@@ -49625,7 +49667,9 @@ var TxReader = class _TxReader {
       try {
         await cb({ bulkId, results, errors });
       } catch (e) {
-        this.logger.error(`bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.error(
+          `bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
   }
@@ -49700,7 +49744,9 @@ var TxReader = class _TxReader {
           (e) => this.logger.error(`fetchLogs failed (${id})`, e)
         );
     } catch (e) {
-      this.logger.error(`fetchLogs failed (${id}): ${e instanceof Error ? e.message : String(e)}`);
+      this.logger.error(
+        `fetchLogs failed (${id}): ${e instanceof Error ? e.message : String(e)}`
+      );
     }
   }
   async getLogs(q, n) {
@@ -49714,7 +49760,9 @@ var TxReader = class _TxReader {
         ...q.args && { args: q.args }
       });
     } catch (e) {
-      this.logger.error(`getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`);
+      this.logger.error(
+        `getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`
+      );
       return [];
     }
   }
