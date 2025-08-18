@@ -49878,7 +49878,6 @@ var TxWriter = class _TxWriter {
           defaultGasLimit: this.config.defaultGasLimit
         }
       );
-      this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
       const retryCallback = this.createRetryCallback(network, params);
       if (ensureTxFinality) {
         this.txMonitor.ensureTxFinality(
