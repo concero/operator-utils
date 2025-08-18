@@ -47756,13 +47756,13 @@ var HttpClient = class _HttpClient extends ManagerBase {
         if (config && config.__retryCount < this.config.maxRetries) {
           config.__retryCount = config.__retryCount || 0;
           config.__retryCount += 1;
-          logger.warn(
+          logger.debug(
             `Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`
           );
           await new Promise((resolve) => setTimeout(resolve, this.config.retryDelay));
           return this.axiosInstance(config);
         }
-        logger.error(
+        logger.debug(
           `Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`
         );
         throw new AppError("FailedHTTPRequest" /* FailedHTTPRequest */, error);
@@ -47798,7 +47798,7 @@ var HttpClient = class _HttpClient extends ManagerBase {
       });
       return response.data;
     } catch (error) {
-      this.logger.error(
+      this.logger.debug(
         `Request failed for ${url2} with error: ${error instanceof Error ? error.message : String(error)}`
       );
       throw new AppError("FailedHTTPRequest" /* FailedHTTPRequest */, error);
@@ -48065,7 +48065,7 @@ function createCustomHttpTransport(url2, config) {
         logger.debug(`${args.method} \u2190 OK`);
         return result;
       } catch (err) {
-        logger.error(`${args.method} \u2190 ERROR: ${err?.message ?? String(err)}`);
+        logger.debug(`${args.method} \u2190 ERROR: ${err?.message ?? String(err)}`);
         throw err;
       }
     };
@@ -48178,7 +48178,7 @@ async function asyncRetry(fn, options = {}) {
       return await fn();
     } catch (error) {
       lastError = error;
-      if (await isRetryableError(error) && attempt < maxRetries) {
+      if (isRetryableError(error) && attempt < maxRetries) {
         ++attempt;
         logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
         await sleep(delayMs);
@@ -48202,7 +48202,7 @@ async function executeTransaction(publicClient, walletClient, params, nonceManag
   let txHash;
   if (config.simulateTx) {
     const { request } = await publicClient.simulateContract(params);
-    txHash = await walletClient.writeContract({ request });
+    txHash = await walletClient.writeContract(request);
   } else {
     const nonce = await nonceManager.consume({
       address,
@@ -48220,7 +48220,7 @@ async function executeTransaction(publicClient, walletClient, params, nonceManag
 }
 async function callContract(publicClient, walletClient, params, nonceManager, config) {
   try {
-    const isRetryableError = async (error) => {
+    const isRetryableError = (error) => {
       if (isNonceError(error)) {
         nonceManager.reset({
           chainId: publicClient.chain.id,
@@ -48230,7 +48230,7 @@ async function callContract(publicClient, walletClient, params, nonceManager, co
       }
       return false;
     };
-    return asyncRetry(
+    const txHash = await asyncRetry(
       () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
       {
         maxRetries: 20,
@@ -48238,7 +48238,12 @@ async function callContract(publicClient, walletClient, params, nonceManager, co
         isRetryableError
       }
     );
+    if (!txHash) {
+      throw new AppError("ContractCallError" /* ContractCallError */, new Error("All attempts exhausted"));
+    }
+    return txHash;
   } catch (error) {
+    if (error instanceof AppError) throw error;
     throw new AppError("ContractCallError" /* ContractCallError */, error);
   }
 }
