@@ -206,7 +206,6 @@ export class TxMonitor implements ITxMonitor {
                     monitor.finalityBlockNumber = inclusionBlockNumber + finalityBlocks;
                 }
 
-                // Only verify finality when we've crossed the finality block
                 if (currentBlock >= monitor.finalityBlockNumber) {
                     const currentReceipt = await publicClient
                         .getTransactionReceipt({

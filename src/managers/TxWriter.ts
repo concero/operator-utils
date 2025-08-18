@@ -83,6 +83,7 @@ export class TxWriter implements ITxWriter {
                     defaultGasLimit: this.config.defaultGasLimit,
                 },
             );
+
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
             const retryCallback = this.createRetryCallback(network, params);

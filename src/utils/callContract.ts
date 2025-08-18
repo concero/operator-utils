@@ -56,9 +56,18 @@ export async function callContract(
 ): Promise<Hash> {
     try {
         const isRetryableError = async (error: any) => {
-            return isNonceError(error) || isWaitingForReceiptError(error);
+            if (isNonceError(error)) {
+                nonceManager.reset({
+                    chainId: publicClient.chain!.id,
+                    address: walletClient.account!.address,
+                });
+                return true;
+            }
+
+            return false;
         };
 
+        // reset nonce if nonce error
         return asyncRetry<Hash>(
             () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
             {
