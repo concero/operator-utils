@@ -4,7 +4,7 @@ import { sleep } from './sleep';
 export interface RetryOptions {
     maxRetries?: number;
     delayMs?: number;
-    isRetryableError?: (error: any) => Promise<boolean>;
+    isRetryableError?: (error: any) => boolean;
 }
 
 export async function asyncRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
@@ -19,7 +19,7 @@ export async function asyncRetry<T>(fn: () => Promise<T>, options: RetryOptions 
             return await fn();
         } catch (error) {
             lastError = error;
-            if ((await isRetryableError(error)) && attempt < maxRetries) {
+            if (isRetryableError(error) && attempt < maxRetries) {
                 ++attempt;
 
                 logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);

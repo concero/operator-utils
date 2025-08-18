@@ -28,7 +28,7 @@ export function createCustomHttpTransport(
                 logger.debug(`${args.method} ← OK`);
                 return result;
             } catch (err: any) {
-                logger.error(`${args.method} ← ERROR: ${err?.message ?? String(err)}`);
+                logger.debug(`${args.method} ← ERROR: ${err?.message ?? String(err)}`);
                 throw err;
             }
         };

@@ -1,12 +1,10 @@
 import { AppError } from './AppError';
 import { asyncRetry } from './asyncRetry';
-import { isNonceError, isWaitingForReceiptError } from './viemErrorParser';
+import { isNonceError } from './viemErrorParser';
 
 import { Hash, type PublicClient, type SimulateContractParameters, type WalletClient } from 'viem';
 
 import { AppErrorEnum } from '../constants';
-import confirmations from '../constants/confirmations.json';
-import { IConfirmations } from '../types/Confirmations';
 import { INonceManager } from '../types/managers';
 
 export interface CallContractConfig {
@@ -27,7 +25,7 @@ async function executeTransaction(
     let txHash: string;
     if (config.simulateTx) {
         const { request } = await publicClient.simulateContract(params);
-        txHash = await walletClient.writeContract({ request } as any);
+        txHash = await walletClient.writeContract(request as any);
     } else {
         const nonce = await nonceManager.consume({
             address,
@@ -55,7 +53,7 @@ export async function callContract(
     config: CallContractConfig,
 ): Promise<Hash> {
     try {
-        const isRetryableError = async (error: any) => {
+        const isRetryableError = (error: any) => {
             if (isNonceError(error)) {
                 nonceManager.reset({
                     chainId: publicClient.chain!.id,
@@ -63,12 +61,10 @@ export async function callContract(
                 });
                 return true;
             }
-
             return false;
         };
 
-        // reset nonce if nonce error
-        return asyncRetry<Hash>(
+        const txHash = await asyncRetry<Hash>(
             () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
             {
                 maxRetries: 20,
@@ -76,7 +72,14 @@ export async function callContract(
                 isRetryableError,
             },
         );
+
+        if (!txHash) {
+            throw new AppError(AppErrorEnum.ContractCallError, new Error('All attempts exhausted'));
+        }
+
+        return txHash;
     } catch (error) {
+        if (error instanceof AppError) throw error;
         throw new AppError(AppErrorEnum.ContractCallError, error as Error);
     }
 }

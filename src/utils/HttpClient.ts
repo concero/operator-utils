@@ -58,7 +58,7 @@ export class HttpClient extends ManagerBase {
                     config.__retryCount = config.__retryCount || 0;
                     config.__retryCount += 1;
 
-                    logger.warn(
+                    logger.debug(
                         `Retrying request to ${config.url}. Attempt ${config.__retryCount} of ${this.config.maxRetries}. Error: ${error.message}`,
                     );
 
@@ -67,7 +67,7 @@ export class HttpClient extends ManagerBase {
                     return this.axiosInstance!(config);
                 }
 
-                logger.error(
+                logger.debug(
                     `Request to ${config?.url} failed after ${config?.__retryCount || 0} attempts. Error: ${error.message}`,
                 );
                 throw new AppError(AppErrorEnum.FailedHTTPRequest, error);
@@ -114,7 +114,7 @@ export class HttpClient extends ManagerBase {
 
             return response.data;
         } catch (error) {
-            this.logger.error(
+            this.logger.debug(
                 `Request failed for ${url} with error: ${error instanceof Error ? error.message : String(error)}`,
             );
             throw new AppError(AppErrorEnum.FailedHTTPRequest, error);

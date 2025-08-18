@@ -48221,9 +48221,6 @@ async function asyncRetry(fn, options = {}) {
 function isNonceError(error) {
   return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError);
 }
-function isWaitingForReceiptError(error) {
-  return error instanceof TransactionNotFoundError || error instanceof WaitForTransactionReceiptTimeoutError;
-}
 
 // src/utils/callContract.ts
 async function executeTransaction(publicClient, walletClient, params, nonceManager, config) {
@@ -48251,7 +48248,14 @@ async function executeTransaction(publicClient, walletClient, params, nonceManag
 async function callContract(publicClient, walletClient, params, nonceManager, config) {
   try {
     const isRetryableError = async (error) => {
-      return isNonceError(error) || isWaitingForReceiptError(error);
+      if (isNonceError(error)) {
+        nonceManager.reset({
+          chainId: publicClient.chain.id,
+          address: walletClient.account.address
+        });
+        return true;
+      }
+      return false;
     };
     return asyncRetry(
       () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
