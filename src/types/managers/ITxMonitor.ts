@@ -1,32 +1,26 @@
 import { ConceroNetwork } from '../ConceroNetwork';
 
-export interface TransactionInfo {
-    id: string;
-    txHash: string;
-    chainName: string;
-    submittedAt: number;
-    submissionBlock: bigint | null;
-    status: string;
-    metadata?: {
-        functionName?: string;
-        contractAddress?: string;
-        [key: string]: any;
-    };
-}
-
-export interface MonitoredTransaction {
-    txHash: string;
-    chainName: string;
-    submittedAt: number;
-    blockNumber: bigint | null;
-    status: string;
-}
-
 export interface ITxMonitor {
     ensureTxFinality(
-        txInfo: TransactionInfo,
-        onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void,
+        txHash: string,
+        chainName: string,
+        onFinalityCallback: (txHash: string, isFinalized: boolean) => void,
     ): void;
-    getMonitoredTransactions(chainName?: string): MonitoredTransaction[];
+    ensureTxInclusion(
+        txHash: string,
+        chainName: string,
+        onTxIncluded: (
+            txHash: string,
+            networkName: string,
+            blockNumber: bigint,
+            isIncluded: boolean,
+        ) => void,
+        confirmations?: number,
+    ): void;
+    getMonitoredTransactions(chainName?: string): Array<{
+        txHash: string;
+        chainName: string;
+        status: 'pending';
+    }>;
     dispose(): void;
 }

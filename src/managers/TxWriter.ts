@@ -1,5 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
-import { Hash, SimulateContractParameters } from 'viem';
+import { SimulateContractParameters } from 'viem';
 
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
@@ -61,6 +60,7 @@ export class TxWriter implements ITxWriter {
     public async callContract(
         network: ConceroNetwork,
         params: SimulateContractParameters,
+        ensureTxFinality = false,
     ): Promise<string> {
         try {
             const { walletClient, publicClient } = this.viemClientManager.getClients(network);
@@ -81,33 +81,27 @@ export class TxWriter implements ITxWriter {
                 {
                     simulateTx: this.config.simulateTx,
                     defaultGasLimit: this.config.defaultGasLimit,
-                    txReceiptOptions: this.config.txReceiptOptions,
                 },
             );
             this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
 
-            const { blockNumber } = await publicClient.waitForTransactionReceipt({
-                hash: txHash,
-                ...this.config.txReceiptOptions,
-            });
+            const retryCallback = this.createRetryCallback(network, params);
 
-            const txInfo = {
-                id: uuidv4(),
-                txHash,
-                chainName: network.name,
-                submittedAt: Date.now(),
-                submissionBlock: blockNumber,
-                status: 'submitted',
-                metadata: {
-                    functionName: params.functionName,
-                    contractAddress: params.address,
-                },
-            };
-
-            this.txMonitor.ensureTxFinality(
-                txInfo,
-                this.createFinalityCallback(network, params, txInfo),
-            );
+            if (ensureTxFinality) {
+                this.txMonitor.ensureTxFinality(
+                    txHash,
+                    network.name,
+                    (hash: string, isFinalized: boolean) => retryCallback(hash, isFinalized),
+                );
+            } else {
+                this.txMonitor.ensureTxInclusion(
+                    txHash,
+                    network.name,
+                    (hash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) =>
+                        retryCallback(hash, isIncluded),
+                    1,
+                );
+            }
 
             return txHash;
         } catch (error) {
@@ -116,22 +110,38 @@ export class TxWriter implements ITxWriter {
         }
     }
 
-    private createFinalityCallback(
+    private createRetryCallback(
         network: ConceroNetwork,
         params: SimulateContractParameters,
-        originalTxInfo: any,
-    ): (txInfo: any, isFinalized: boolean) => void {
-        return async (txInfo: any, isFinalized: boolean): Promise<void> => {
-            if (isFinalized) {
-                this.logger.debug(
-                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is finalized`,
-                );
-            } else {
-                this.logger.warn(
-                    `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) failed - attempting retry`,
-                );
+    ): (txHash: string, success: boolean) => void {
+        return async (txHash: string, success: boolean): Promise<void> => {
+            if (success) {
+                this.logger.debug(`[${network.name}] Transaction ${txHash} completed successfully`);
+                return;
+            }
 
-                await this.retryTransaction(network, params, originalTxInfo);
+            this.logger.warn(
+                `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`,
+            );
+
+            // Reset nonce for failed transaction
+            const { publicClient } = this.viemClientManager.getClients(network);
+            const chainId = publicClient.chain!.id;
+            const walletClient = this.viemClientManager.getClients(network).walletClient;
+            const address = walletClient.account!.address;
+
+            this.nonceManager.reset({ chainId, address });
+            this.logger.debug(
+                `[${network.name}] Reset nonce for address ${address} after transaction failure`,
+            );
+
+            try {
+                await this.retryTransaction(network, params);
+            } catch (error) {
+                this.logger.error(
+                    `[${network.name}] Retry failed for transaction ${txHash}:`,
+                    error,
+                );
             }
         };
     }
@@ -139,57 +149,8 @@ export class TxWriter implements ITxWriter {
     private async retryTransaction(
         network: ConceroNetwork,
         params: SimulateContractParameters,
-        originalTxInfo: any,
-    ): Promise<void> {
-        this.logger.debug(
-            `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`,
-        );
-
-        try {
-            const { walletClient, publicClient } = this.viemClientManager.getClients(network);
-
-            const newTxHash = await callContract(
-                publicClient,
-                walletClient,
-                params,
-                this.nonceManager,
-                {
-                    simulateTx: this.config.simulateTx,
-                    defaultGasLimit: this.config.defaultGasLimit,
-                    txReceiptOptions: this.config.txReceiptOptions,
-                },
-            );
-            this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-
-            const { blockNumber } = await publicClient.waitForTransactionReceipt({
-                hash: newTxHash,
-                ...this.config.txReceiptOptions,
-            });
-
-            const retryTxInfo = {
-                id: uuidv4(),
-                txHash: newTxHash,
-                chainName: network.name,
-                submittedAt: Date.now(),
-                submissionBlock: blockNumber,
-                status: 'submitted',
-                metadata: {
-                    functionName: params.functionName,
-                    contractAddress: params.address,
-                },
-            };
-
-            this.txMonitor.ensureTxFinality(
-                retryTxInfo,
-                this.createFinalityCallback(network, params, retryTxInfo),
-            );
-        } catch (error) {
-            this.logger.error(
-                `[${network.name}] Failed to retry transaction ${originalTxInfo.txHash}:`,
-                error,
-            );
-            // TODO: What if retry fails?
-        }
+    ): Promise<string> {
+        return this.callContract(network, params, true);
     }
 
     public dispose(): void {

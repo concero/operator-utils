@@ -56,7 +56,7 @@ describe('TxWriter', () => {
 
         expect(txHash).toBe('0x123');
         expect(callContractMock).toHaveBeenCalled();
-        expect(txMonitor.ensureTxFinality).toHaveBeenCalled();
+        expect(txMonitor.ensureTxInclusion).toHaveBeenCalled();
     });
 
     it('should handle dry run mode', async () => {
@@ -104,16 +104,11 @@ describe('TxWriter', () => {
         );
     });
 
-    it('should pass txReceiptOptions to callContract utility', async () => {
+    it('should pass simplified config to callContract utility', async () => {
         const callContractMock = callContractUtil.callContract as jest.Mock;
         callContractMock.mockResolvedValue('0x123');
 
-        const txReceiptOptions = {
-            confirmations: 5,
-            timeout: 30000,
-        };
-
-        const txWriterWithReceiptOptions = TxWriter.createInstance(
+        const txWriterWithConfig = TxWriter.createInstance(
             logger,
             viemClientManager,
             txMonitor,
@@ -122,7 +117,6 @@ describe('TxWriter', () => {
                 dryRun: false,
                 simulateTx: true,
                 defaultGasLimit: 100000n,
-                txReceiptOptions,
             },
         );
 
@@ -133,7 +127,7 @@ describe('TxWriter', () => {
             args: [],
         };
 
-        await txWriterWithReceiptOptions.callContract(mockConceroNetwork, params);
+        await txWriterWithConfig.callContract(mockConceroNetwork, params);
 
         expect(callContractMock).toHaveBeenCalledWith(
             expect.anything(),
@@ -143,8 +137,52 @@ describe('TxWriter', () => {
             expect.objectContaining({
                 simulateTx: true,
                 defaultGasLimit: 100000n,
-                txReceiptOptions,
             }),
         );
+    });
+
+    it('should use inclusion monitoring by default (ensureTxFinality=false)', async () => {
+        const callContractMock = callContractUtil.callContract as jest.Mock;
+        callContractMock.mockResolvedValue('0x123');
+
+        const params: SimulateContractParameters = {
+            address: '0x456',
+            abi: [],
+            functionName: 'testFunction',
+            args: [],
+        };
+
+        const txHash = await txWriter.callContract(mockConceroNetwork, params, false);
+
+        expect(txHash).toBe('0x123');
+        expect(txMonitor.ensureTxInclusion).toHaveBeenCalledWith(
+            '0x123',
+            'test-network',
+            expect.any(Function),
+            1,
+        );
+        expect(txMonitor.ensureTxFinality).not.toHaveBeenCalled();
+    });
+
+    it('should use finality monitoring when ensureTxFinality=true', async () => {
+        const callContractMock = callContractUtil.callContract as jest.Mock;
+        callContractMock.mockResolvedValue('0x123');
+
+        const params: SimulateContractParameters = {
+            address: '0x456',
+            abi: [],
+            functionName: 'testFunction',
+            args: [],
+        };
+
+        const txHash = await txWriter.callContract(mockConceroNetwork, params, true);
+
+        expect(txHash).toBe('0x123');
+        expect(txMonitor.ensureTxFinality).toHaveBeenCalledWith(
+            '0x123',
+            'test-network',
+            expect.any(Function),
+        );
+        expect(txMonitor.ensureTxInclusion).not.toHaveBeenCalled();
     });
 });

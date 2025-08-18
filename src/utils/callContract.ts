@@ -12,12 +12,6 @@ import { INonceManager } from '../types/managers';
 export interface CallContractConfig {
     simulateTx: boolean;
     defaultGasLimit?: bigint;
-    txReceiptOptions: {
-        confirmations?: number;
-        retryCount?: number;
-        retryDelay?: number;
-        timeout?: number;
-    };
 }
 
 async function executeTransaction(
@@ -50,17 +44,6 @@ async function executeTransaction(
         txHash = await walletClient.writeContract(paramsToSend as any);
     }
 
-    await publicClient.waitForTransactionReceipt({
-        hash: txHash as Hash,
-        confirmations:
-            config.txReceiptOptions.confirmations ??
-            (confirmations as IConfirmations)[chainId.toString()] ??
-            undefined,
-        retryCount: config.txReceiptOptions.retryCount,
-        retryDelay: config.txReceiptOptions.retryDelay,
-        timeout: config.txReceiptOptions.timeout,
-    });
-
     return txHash as Hash;
 }
 
@@ -73,16 +56,7 @@ export async function callContract(
 ): Promise<Hash> {
     try {
         const isRetryableError = async (error: any) => {
-            if (isNonceError(error) || isWaitingForReceiptError(error)) {
-                const chainId = publicClient.chain!.id;
-                const address = walletClient.account!.address;
-
-                nonceManager.reset({ chainId, address });
-
-                return true;
-            }
-
-            return false;
+            return isNonceError(error) || isWaitingForReceiptError(error);
         };
 
         return asyncRetry<Hash>(

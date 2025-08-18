@@ -21,6 +21,7 @@ export class MockViemClientManager implements IViemClientManager {
             getBlockNumber: jest.fn().mockResolvedValue(1000n),
             getLogs: jest.fn().mockResolvedValue([]),
             getTransaction: jest.fn().mockResolvedValue({ blockNumber: 100n }),
+            getTransactionReceipt: jest.fn().mockResolvedValue({ blockNumber: 100n }),
         } as unknown as PublicClient,
         account: {
             address: '0x0',

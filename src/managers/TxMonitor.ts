@@ -6,22 +6,26 @@ import {
     IConceroNetworkManager,
     ITxMonitor,
     IViemClientManager,
-    MonitoredTransaction,
-    TransactionInfo,
 } from '../types/managers';
 
-enum TransactionStatus {
-    Pending = 'pending',
-    Confirmed = 'confirmed',
-    Finalized = 'finalized',
-    Dropped = 'dropped',
-    Reorged = 'reorged',
-    Failed = 'failed',
+interface Subscriber {
+    id: string;
+    finalityCallback?: (txHash: string, isFinalized: boolean) => void;
+    inclusionCallback?: (
+        txHash: string,
+        networkName: string,
+        blockNumber: bigint,
+        isIncluded: boolean,
+    ) => void;
 }
 
 interface TransactionMonitor {
-    transaction: MonitoredTransaction;
-    subscribers: Map<string, (txInfo: TransactionInfo, isFinalized: boolean) => void>;
+    txHash: string;
+    chainName: string;
+    subscribers: Map<string, Subscriber>;
+    type: 'inclusion' | 'finality';
+    requiredConfirmations: number; // Used for both inclusion and finality, depending on type
+    inclusionBlockNumber?: bigint;
     finalityBlockNumber?: bigint;
 }
 
@@ -78,126 +82,192 @@ export class TxMonitor implements ITxMonitor {
     }
 
     public ensureTxFinality(
-        txInfo: TransactionInfo,
-        onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void,
+        txHash: string,
+        chainName: string,
+        onFinalityCallback: (txHash: string, isFinalized: boolean) => void,
     ): void {
-        const existingMonitor = this.monitors.get(txInfo.txHash);
+        const existingMonitor = this.monitors.get(txHash);
+        const subscriberId = this.generateSubscriberId();
 
         if (existingMonitor) {
-            existingMonitor.subscribers.set(txInfo.id, onFinalityCallback);
+            existingMonitor.subscribers.set(subscriberId, {
+                id: subscriberId,
+                finalityCallback: onFinalityCallback,
+            });
             this.logger.debug(
-                `Added subscriber ${txInfo.id} to existing monitor for tx ${txInfo.txHash}`,
+                `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`,
             );
             return;
         }
 
-        // Create new monitor
-        const monitoredTx: MonitoredTransaction = {
-            txHash: txInfo.txHash,
-            chainName: txInfo.chainName,
-            submittedAt: txInfo.submittedAt,
-            blockNumber: txInfo.submissionBlock,
-            status: TransactionStatus.Pending,
+        const monitor: TransactionMonitor = {
+            txHash,
+            chainName,
+            subscribers: new Map(),
+            type: 'finality',
+            requiredConfirmations: 1,
         };
+
+        monitor.subscribers.set(subscriberId, {
+            id: subscriberId,
+            finalityCallback: onFinalityCallback,
+        });
+
+        this.subscribeToNetwork(chainName);
+
+        this.monitors.set(txHash, monitor);
+        this.logger.debug(`Started monitoring tx ${txHash} on ${chainName} for finality`);
+    }
+
+    public ensureTxInclusion(
+        txHash: string,
+        chainName: string,
+        onTxIncluded: (
+            txHash: string,
+            networkName: string,
+            blockNumber: bigint,
+            isIncluded: boolean,
+        ) => void,
+        confirmations = 1,
+    ): void {
+        const existingMonitor = this.monitors.get(txHash);
+        const subscriberId = this.generateSubscriberId();
+
+        if (existingMonitor) {
+            existingMonitor.subscribers.set(subscriberId, {
+                id: subscriberId,
+                inclusionCallback: onTxIncluded,
+            });
+            this.logger.debug(
+                `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`,
+            );
+            return;
+        }
 
         const monitor: TransactionMonitor = {
-            transaction: monitoredTx,
+            txHash,
+            chainName,
             subscribers: new Map(),
-            finalityBlockNumber: undefined,
+            type: 'inclusion',
+            requiredConfirmations: confirmations,
         };
 
-        monitor.subscribers.set(txInfo.id, onFinalityCallback);
+        monitor.subscribers.set(subscriberId, {
+            id: subscriberId,
+            inclusionCallback: onTxIncluded,
+        });
 
-        this.subscribeToNetwork(txInfo.chainName);
+        this.subscribeToNetwork(chainName);
 
-        this.monitors.set(txInfo.txHash, monitor);
+        this.monitors.set(txHash, monitor);
         this.logger.debug(
-            `Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName} with subscriber ${txInfo.id}`,
+            `Started monitoring tx ${txHash} on ${chainName} for inclusion with ${confirmations} confirmations`,
         );
     }
 
-    private async checkTransactionFinality(
+    private generateSubscriberId(): string {
+        return Math.random().toString(36).substring(2, 15);
+    }
+
+    private async checkTransactionStatus(
         monitor: TransactionMonitor,
         currentBlock: bigint,
-        finalityConfirmations: bigint,
+        finalityBlocks: bigint,
         network: ConceroNetwork,
     ): Promise<void> {
-        const tx = monitor.transaction;
-
         try {
             const { publicClient } = this.viemClientManager.getClients(network);
-            const txInfo = await publicClient.getTransaction({
-                hash: tx.txHash as `0x${string}`,
-            });
 
-            if (!txInfo) {
-                await this.notifySubscribers(monitor, network, false);
-                return;
-            }
+            let inclusionBlockNumber = monitor.inclusionBlockNumber;
+            if (!inclusionBlockNumber) {
+                const receipt = await publicClient
+                    .getTransactionReceipt({
+                        hash: monitor.txHash as `0x${string}`,
+                    })
+                    .catch(() => null);
 
-            if (!tx.blockNumber && txInfo.blockNumber) {
-                tx.blockNumber = txInfo.blockNumber;
-                this.logger.debug(
-                    `Transaction ${tx.txHash} included in block ${txInfo.blockNumber}`,
-                );
-            }
-
-            if (tx.blockNumber && txInfo.blockNumber && tx.blockNumber !== txInfo.blockNumber) {
-                this.logger.warn(
-                    `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`,
-                );
-                tx.blockNumber = txInfo.blockNumber;
-                monitor.finalityBlockNumber = txInfo.blockNumber + finalityConfirmations;
-
-                this.logger.debug(
-                    `Transaction ${tx.txHash} finality block recalculated to ${monitor.finalityBlockNumber} after reorg`,
-                );
-
-                if (monitor.finalityBlockNumber && currentBlock < monitor.finalityBlockNumber) {
+                if (!receipt) {
                     return;
                 }
+
+                inclusionBlockNumber = receipt.blockNumber;
+                monitor.inclusionBlockNumber = inclusionBlockNumber;
             }
 
-            await this.notifySubscribers(monitor, network, true);
+            if (monitor.type === 'inclusion') {
+                const confirmations = currentBlock - inclusionBlockNumber + 1n;
+
+                if (confirmations >= BigInt(monitor.requiredConfirmations)) {
+                    this.notifyInclusionSubscribers(monitor, inclusionBlockNumber);
+                    this.removeMonitor(monitor.txHash);
+                }
+            } else if (monitor.type === 'finality') {
+                if (!monitor.finalityBlockNumber) {
+                    monitor.finalityBlockNumber = inclusionBlockNumber + finalityBlocks;
+                }
+
+                // Only verify finality when we've crossed the finality block
+                if (currentBlock >= monitor.finalityBlockNumber) {
+                    const currentReceipt = await publicClient
+                        .getTransactionReceipt({
+                            hash: monitor.txHash as `0x${string}`,
+                        })
+                        .catch(() => null);
+
+                    if (currentReceipt && currentReceipt.blockNumber === inclusionBlockNumber) {
+                        this.notifyFinalitySubscribers(monitor, true);
+                        this.removeMonitor(monitor.txHash);
+                    } else {
+                        this.notifyFinalitySubscribers(monitor, false);
+                        this.removeMonitor(monitor.txHash);
+                    }
+                }
+            }
         } catch (error) {
             this.logger.error(
-                `Error checking transaction ${tx.txHash}: ${error instanceof Error ? error.message : String(error)}`,
+                `Error checking transaction ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
             );
 
-            await this.notifySubscribers(monitor, network, false);
+            if (monitor.type === 'finality') {
+                this.notifyFinalitySubscribers(monitor, false);
+            } else {
+                this.notifyInclusionSubscribers(monitor, 0n, false);
+            }
+            this.removeMonitor(monitor.txHash);
         }
     }
 
-    private async notifySubscribers(
-        monitor: TransactionMonitor,
-        network: ConceroNetwork,
-        isFinalized: boolean,
-    ): Promise<void> {
-        const tx = monitor.transaction;
-
-        const txStatus = isFinalized ? TransactionStatus.Finalized : TransactionStatus.Failed;
+    private notifyFinalitySubscribers(monitor: TransactionMonitor, isFinalized: boolean): void {
         this.logger.debug(
-            `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`,
+            `Transaction ${monitor.txHash} ${isFinalized ? 'finalized' : 'failed/dropped'} - notifying finality subscribers`,
         );
 
-        const txResult: TransactionInfo = {
-            id: '', // Will be set per subscriber
-            txHash: tx.txHash,
-            chainName: tx.chainName,
-            submittedAt: tx.submittedAt,
-            submissionBlock: tx.blockNumber,
-            status: txStatus,
-        };
-
-        monitor.subscribers.forEach((callback, subscriberId) => {
-            const txForSubscriber: TransactionInfo = {
-                ...txResult,
-                id: subscriberId,
-            };
-            callback(txForSubscriber, isFinalized);
+        monitor.subscribers.forEach(subscriber => {
+            if (subscriber.finalityCallback) {
+                subscriber.finalityCallback(monitor.txHash, isFinalized);
+            }
         });
+    }
 
-        await this.removeMonitor(tx.txHash);
+    private notifyInclusionSubscribers(
+        monitor: TransactionMonitor,
+        blockNumber: bigint,
+        isIncluded = true,
+    ): void {
+        this.logger.debug(
+            `Transaction ${monitor.txHash} ${isIncluded ? 'included' : 'dropped'} at block ${blockNumber} - notifying inclusion subscribers`,
+        );
+
+        monitor.subscribers.forEach(subscriber => {
+            if (subscriber.inclusionCallback) {
+                subscriber.inclusionCallback(
+                    monitor.txHash,
+                    monitor.chainName,
+                    blockNumber,
+                    isIncluded,
+                );
+            }
+        });
     }
 
     private getNetwork(chainName: string): ConceroNetwork | undefined {
@@ -208,32 +278,20 @@ export class TxMonitor implements ITxMonitor {
         const network = this.getNetwork(networkName);
         if (!network) return;
 
-        const networkMonitors = Array.from(this.monitors.values()).filter(
-            monitor => monitor.transaction.chainName === networkName,
+        const activeMonitors = Array.from(this.monitors.values()).filter(
+            monitor => monitor.chainName === networkName,
         );
 
-        const finalityConfirmations = BigInt(
+        const finalityBlocks = BigInt(
             network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
         );
 
-        for (const monitor of networkMonitors) {
-            if (!this.monitors.has(monitor.transaction.txHash)) {
+        for (const monitor of activeMonitors) {
+            if (!this.monitors.has(monitor.txHash)) {
                 continue;
             }
 
-            if (!monitor.finalityBlockNumber && monitor.transaction.blockNumber) {
-                monitor.finalityBlockNumber =
-                    monitor.transaction.blockNumber + finalityConfirmations;
-            }
-
-            if (monitor.finalityBlockNumber && endBlock >= monitor.finalityBlockNumber) {
-                await this.checkTransactionFinality(
-                    monitor,
-                    endBlock,
-                    finalityConfirmations,
-                    network,
-                );
-            }
+            await this.checkTransactionStatus(monitor, endBlock, finalityBlocks, network);
         }
     }
 
@@ -264,22 +322,21 @@ export class TxMonitor implements ITxMonitor {
     }
 
     private async removeMonitor(txHash: string): Promise<void> {
-        const monitor = this.monitors.get(txHash);
-        if (!monitor) return;
-
         this.monitors.delete(txHash);
     }
 
-    public getMonitoredTransactions(chainName?: string): MonitoredTransaction[] {
-        const transactions: MonitoredTransaction[] = [];
-
-        for (const monitor of this.monitors.values()) {
-            if (!chainName || monitor.transaction.chainName === chainName) {
-                transactions.push(monitor.transaction);
-            }
-        }
-
-        return transactions;
+    public getMonitoredTransactions(chainName?: string): Array<{
+        txHash: string;
+        chainName: string;
+        status: 'pending';
+    }> {
+        return Array.from(this.monitors.values())
+            .filter(monitor => !chainName || monitor.chainName === chainName)
+            .map(monitor => ({
+                txHash: monitor.txHash,
+                chainName: monitor.chainName,
+                status: 'pending',
+            }));
     }
 
     public dispose(): void {

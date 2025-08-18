@@ -1,5 +1,5 @@
 import { TxMonitor } from '@/managers/TxMonitor';
-import { IBlockManagerRegistry, IConceroNetworkManager, TransactionInfo } from '@/types/managers';
+import { IBlockManagerRegistry, IConceroNetworkManager } from '@/types/managers';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
@@ -43,55 +43,44 @@ describe('TxMonitor', () => {
 
     it('should monitor a transaction for finality', async () => {
         const onFinality = jest.fn();
-        const txInfo: TransactionInfo = {
-            id: 'tx-1',
-            txHash: '0x123',
-            chainName: 'test-network',
-            submittedAt: Date.now(),
-            submissionBlock: 100n,
-            status: 'submitted',
-        };
+        const txHash = '0x123';
+        const chainName = 'test-network';
 
-        txMonitor.ensureTxFinality(txInfo, onFinality);
+        txMonitor.ensureTxFinality(txHash, chainName, onFinality);
 
         expect(blockManagerRegistry.getBlockManager).toHaveBeenCalledWith('test-network');
         expect(mockWatchBlocks).toHaveBeenCalled();
 
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 
-        // Simulate transaction confirmation
-        const mockGetTransaction =
-            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
-        (mockGetTransaction as jest.Mock).mockResolvedValue({ blockNumber: 100n });
+        // Simulate transaction receipt
+        const mockGetTransactionReceipt =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransactionReceipt;
+        (mockGetTransactionReceipt as jest.Mock).mockResolvedValue({ blockNumber: 100n });
 
         // Simulate new blocks until finality
         await onBlockRange(100n, 110n);
 
-        expect(onFinality).toHaveBeenCalledWith(expect.anything(), true);
+        expect(onFinality).toHaveBeenCalledWith(txHash, true);
     });
 
     it('should handle transaction not found', async () => {
         const onFinality = jest.fn();
-        const txInfo: TransactionInfo = {
-            id: 'tx-1',
-            txHash: '0x123',
-            chainName: 'test-network',
-            submittedAt: Date.now(),
-            submissionBlock: 100n,
-            status: 'submitted',
-        };
+        const txHash = '0x123';
+        const chainName = 'test-network';
 
-        txMonitor.ensureTxFinality(txInfo, onFinality);
+        txMonitor.ensureTxFinality(txHash, chainName, onFinality);
 
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 
         // Simulate transaction not found
-        const mockGetTransaction =
-            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransaction;
-        (mockGetTransaction as jest.Mock).mockResolvedValue(null);
+        const mockGetTransactionReceipt =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransactionReceipt;
+        (mockGetTransactionReceipt as jest.Mock).mockResolvedValue(null);
 
         await onBlockRange(100n, 110n);
 
-        expect(onFinality).toHaveBeenCalledWith(expect.anything(), false);
+        // When transaction is not found, callback is not called immediately
+        expect(onFinality).not.toHaveBeenCalled();
     });
 });

@@ -4,7 +4,7 @@ import { jest } from '@jest/globals';
 
 export class MockTxMonitor implements ITxMonitor {
     ensureTxFinality = jest.fn();
-    checkTransactionsInRange = jest.fn().mockResolvedValue(undefined);
+    ensureTxInclusion = jest.fn();
     getMonitoredTransactions = jest.fn().mockReturnValue([]);
     dispose = jest.fn();
 }

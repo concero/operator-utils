@@ -48225,11 +48225,6 @@ function isWaitingForReceiptError(error) {
   return error instanceof TransactionNotFoundError || error instanceof WaitForTransactionReceiptTimeoutError;
 }
 
-// src/constants/confirmations.json
-var confirmations_default = {
-  "1270": 3
-};
-
 // src/utils/callContract.ts
 async function executeTransaction(publicClient, walletClient, params, nonceManager, config) {
   const chainId = publicClient.chain.id;
@@ -48251,25 +48246,12 @@ async function executeTransaction(publicClient, walletClient, params, nonceManag
     };
     txHash = await walletClient.writeContract(paramsToSend);
   }
-  await publicClient.waitForTransactionReceipt({
-    hash: txHash,
-    confirmations: config.txReceiptOptions.confirmations ?? confirmations_default[chainId.toString()] ?? void 0,
-    retryCount: config.txReceiptOptions.retryCount,
-    retryDelay: config.txReceiptOptions.retryDelay,
-    timeout: config.txReceiptOptions.timeout
-  });
   return txHash;
 }
 async function callContract(publicClient, walletClient, params, nonceManager, config) {
   try {
     const isRetryableError = async (error) => {
-      if (isNonceError(error) || isWaitingForReceiptError(error)) {
-        const chainId = publicClient.chain.id;
-        const address = walletClient.account.address;
-        nonceManager.reset({ chainId, address });
-        return true;
-      }
-      return false;
+      return isNonceError(error) || isWaitingForReceiptError(error);
     };
     return asyncRetry(
       () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
@@ -49229,95 +49211,140 @@ var TxMonitor = class _TxMonitor {
     }
     return _TxMonitor.instance;
   }
-  ensureTxFinality(txInfo, onFinalityCallback) {
-    const existingMonitor = this.monitors.get(txInfo.txHash);
+  ensureTxFinality(txHash, chainName, onFinalityCallback) {
+    const existingMonitor = this.monitors.get(txHash);
+    const subscriberId = this.generateSubscriberId();
     if (existingMonitor) {
-      existingMonitor.subscribers.set(txInfo.id, onFinalityCallback);
+      existingMonitor.subscribers.set(subscriberId, {
+        id: subscriberId,
+        finalityCallback: onFinalityCallback
+      });
       this.logger.debug(
-        `Added subscriber ${txInfo.id} to existing monitor for tx ${txInfo.txHash}`
+        `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`
       );
       return;
     }
-    const monitoredTx = {
-      txHash: txInfo.txHash,
-      chainName: txInfo.chainName,
-      submittedAt: txInfo.submittedAt,
-      blockNumber: txInfo.submissionBlock,
-      status: "pending" /* Pending */
-    };
     const monitor = {
-      transaction: monitoredTx,
+      txHash,
+      chainName,
       subscribers: /* @__PURE__ */ new Map(),
-      finalityBlockNumber: void 0
+      type: "finality",
+      requiredConfirmations: 1
     };
-    monitor.subscribers.set(txInfo.id, onFinalityCallback);
-    this.subscribeToNetwork(txInfo.chainName);
-    this.monitors.set(txInfo.txHash, monitor);
+    monitor.subscribers.set(subscriberId, {
+      id: subscriberId,
+      finalityCallback: onFinalityCallback
+    });
+    this.subscribeToNetwork(chainName);
+    this.monitors.set(txHash, monitor);
+    this.logger.debug(`Started monitoring tx ${txHash} on ${chainName} for finality`);
+  }
+  ensureTxInclusion(txHash, chainName, onTxIncluded, confirmations = 1) {
+    const existingMonitor = this.monitors.get(txHash);
+    const subscriberId = this.generateSubscriberId();
+    if (existingMonitor) {
+      existingMonitor.subscribers.set(subscriberId, {
+        id: subscriberId,
+        inclusionCallback: onTxIncluded
+      });
+      this.logger.debug(
+        `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`
+      );
+      return;
+    }
+    const monitor = {
+      txHash,
+      chainName,
+      subscribers: /* @__PURE__ */ new Map(),
+      type: "inclusion",
+      requiredConfirmations: confirmations
+    };
+    monitor.subscribers.set(subscriberId, {
+      id: subscriberId,
+      inclusionCallback: onTxIncluded
+    });
+    this.subscribeToNetwork(chainName);
+    this.monitors.set(txHash, monitor);
     this.logger.debug(
-      `Started monitoring tx ${txInfo.txHash} on ${txInfo.chainName} with subscriber ${txInfo.id}`
+      `Started monitoring tx ${txHash} on ${chainName} for inclusion with ${confirmations} confirmations`
     );
   }
-  async checkTransactionFinality(monitor, currentBlock, finalityConfirmations, network) {
-    const tx = monitor.transaction;
+  generateSubscriberId() {
+    return Math.random().toString(36).substring(2, 15);
+  }
+  async checkTransactionStatus(monitor, currentBlock, finalityBlocks, network) {
     try {
       const { publicClient } = this.viemClientManager.getClients(network);
-      const txInfo = await publicClient.getTransaction({
-        hash: tx.txHash
-      });
-      if (!txInfo) {
-        await this.notifySubscribers(monitor, network, false);
-        return;
-      }
-      if (!tx.blockNumber && txInfo.blockNumber) {
-        tx.blockNumber = txInfo.blockNumber;
-        this.logger.debug(
-          `Transaction ${tx.txHash} included in block ${txInfo.blockNumber}`
-        );
-      }
-      if (tx.blockNumber && txInfo.blockNumber && tx.blockNumber !== txInfo.blockNumber) {
-        this.logger.warn(
-          `Transaction ${tx.txHash} block changed from ${tx.blockNumber} to ${txInfo.blockNumber} (reorg detected)`
-        );
-        tx.blockNumber = txInfo.blockNumber;
-        monitor.finalityBlockNumber = txInfo.blockNumber + finalityConfirmations;
-        this.logger.debug(
-          `Transaction ${tx.txHash} finality block recalculated to ${monitor.finalityBlockNumber} after reorg`
-        );
-        if (monitor.finalityBlockNumber && currentBlock < monitor.finalityBlockNumber) {
+      let inclusionBlockNumber = monitor.inclusionBlockNumber;
+      if (!inclusionBlockNumber) {
+        const receipt = await publicClient.getTransactionReceipt({
+          hash: monitor.txHash
+        }).catch(() => null);
+        if (!receipt) {
           return;
         }
+        inclusionBlockNumber = receipt.blockNumber;
+        monitor.inclusionBlockNumber = inclusionBlockNumber;
       }
-      await this.notifySubscribers(monitor, network, true);
+      if (monitor.type === "inclusion") {
+        const confirmations = currentBlock - inclusionBlockNumber + 1n;
+        if (confirmations >= BigInt(monitor.requiredConfirmations)) {
+          this.notifyInclusionSubscribers(monitor, inclusionBlockNumber);
+          this.removeMonitor(monitor.txHash);
+        }
+      } else if (monitor.type === "finality") {
+        if (!monitor.finalityBlockNumber) {
+          monitor.finalityBlockNumber = inclusionBlockNumber + finalityBlocks;
+        }
+        if (currentBlock >= monitor.finalityBlockNumber) {
+          const currentReceipt = await publicClient.getTransactionReceipt({
+            hash: monitor.txHash
+          }).catch(() => null);
+          if (currentReceipt && currentReceipt.blockNumber === inclusionBlockNumber) {
+            this.notifyFinalitySubscribers(monitor, true);
+            this.removeMonitor(monitor.txHash);
+          } else {
+            this.notifyFinalitySubscribers(monitor, false);
+            this.removeMonitor(monitor.txHash);
+          }
+        }
+      }
     } catch (error) {
       this.logger.error(
-        `Error checking transaction ${tx.txHash}: ${error instanceof Error ? error.message : String(error)}`
+        `Error checking transaction ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`
       );
-      await this.notifySubscribers(monitor, network, false);
+      if (monitor.type === "finality") {
+        this.notifyFinalitySubscribers(monitor, false);
+      } else {
+        this.notifyInclusionSubscribers(monitor, 0n, false);
+      }
+      this.removeMonitor(monitor.txHash);
     }
   }
-  async notifySubscribers(monitor, network, isFinalized) {
-    const tx = monitor.transaction;
-    const txStatus = isFinalized ? "finalized" /* Finalized */ : "failed" /* Failed */;
+  notifyFinalitySubscribers(monitor, isFinalized) {
     this.logger.debug(
-      `Transaction ${tx.txHash} ${txStatus} on ${network.name} - notifying subscribers`
+      `Transaction ${monitor.txHash} ${isFinalized ? "finalized" : "failed/dropped"} - notifying finality subscribers`
     );
-    const txResult = {
-      id: "",
-      // Will be set per subscriber
-      txHash: tx.txHash,
-      chainName: tx.chainName,
-      submittedAt: tx.submittedAt,
-      submissionBlock: tx.blockNumber,
-      status: txStatus
-    };
-    monitor.subscribers.forEach((callback, subscriberId) => {
-      const txForSubscriber = {
-        ...txResult,
-        id: subscriberId
-      };
-      callback(txForSubscriber, isFinalized);
+    monitor.subscribers.forEach((subscriber) => {
+      if (subscriber.finalityCallback) {
+        subscriber.finalityCallback(monitor.txHash, isFinalized);
+      }
     });
-    await this.removeMonitor(tx.txHash);
+  }
+  notifyInclusionSubscribers(monitor, blockNumber, isIncluded = true) {
+    this.logger.debug(
+      `Transaction ${monitor.txHash} ${isIncluded ? "included" : "dropped"} at block ${blockNumber} - notifying inclusion subscribers`
+    );
+    monitor.subscribers.forEach((subscriber) => {
+      if (subscriber.inclusionCallback) {
+        subscriber.inclusionCallback(
+          monitor.txHash,
+          monitor.chainName,
+          blockNumber,
+          isIncluded
+        );
+      }
+    });
   }
   getNetwork(chainName) {
     return this.networkManager.getNetworkByName(chainName);
@@ -49325,27 +49352,17 @@ var TxMonitor = class _TxMonitor {
   async checkNetworkTransactions(networkName, endBlock) {
     const network = this.getNetwork(networkName);
     if (!network) return;
-    const networkMonitors = Array.from(this.monitors.values()).filter(
-      (monitor) => monitor.transaction.chainName === networkName
+    const activeMonitors = Array.from(this.monitors.values()).filter(
+      (monitor) => monitor.chainName === networkName
     );
-    const finalityConfirmations = BigInt(
+    const finalityBlocks = BigInt(
       network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations()
     );
-    for (const monitor of networkMonitors) {
-      if (!this.monitors.has(monitor.transaction.txHash)) {
+    for (const monitor of activeMonitors) {
+      if (!this.monitors.has(monitor.txHash)) {
         continue;
       }
-      if (!monitor.finalityBlockNumber && monitor.transaction.blockNumber) {
-        monitor.finalityBlockNumber = monitor.transaction.blockNumber + finalityConfirmations;
-      }
-      if (monitor.finalityBlockNumber && endBlock >= monitor.finalityBlockNumber) {
-        await this.checkTransactionFinality(
-          monitor,
-          endBlock,
-          finalityConfirmations,
-          network
-        );
-      }
+      await this.checkTransactionStatus(monitor, endBlock, finalityBlocks, network);
     }
   }
   subscribeToNetwork(networkName) {
@@ -49371,18 +49388,14 @@ var TxMonitor = class _TxMonitor {
     this.logger.debug(`Subscribed to blocks for network ${networkName}`);
   }
   async removeMonitor(txHash) {
-    const monitor = this.monitors.get(txHash);
-    if (!monitor) return;
     this.monitors.delete(txHash);
   }
   getMonitoredTransactions(chainName) {
-    const transactions = [];
-    for (const monitor of this.monitors.values()) {
-      if (!chainName || monitor.transaction.chainName === chainName) {
-        transactions.push(monitor.transaction);
-      }
-    }
-    return transactions;
+    return Array.from(this.monitors.values()).filter((monitor) => !chainName || monitor.chainName === chainName).map((monitor) => ({
+      txHash: monitor.txHash,
+      chainName: monitor.chainName,
+      status: "pending"
+    }));
   }
   dispose() {
     this.disposed = true;
@@ -49836,7 +49849,7 @@ var TxWriter = class _TxWriter {
   async initialize() {
     this.logger.info("Initialized");
   }
-  async callContract(network, params) {
+  async callContract(network, params, ensureTxFinality = false) {
     try {
       const { walletClient, publicClient } = this.viemClientManager.getClients(network);
       if (this.config.dryRun) {
@@ -49853,95 +49866,60 @@ var TxWriter = class _TxWriter {
         this.nonceManager,
         {
           simulateTx: this.config.simulateTx,
-          defaultGasLimit: this.config.defaultGasLimit,
-          txReceiptOptions: this.config.txReceiptOptions
+          defaultGasLimit: this.config.defaultGasLimit
         }
       );
       this.logger.debug(`[${network.name}] Contract call transaction hash: ${txHash}`);
-      const { blockNumber } = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        ...this.config.txReceiptOptions
-      });
-      const txInfo = {
-        id: v4_default(),
-        txHash,
-        chainName: network.name,
-        submittedAt: Date.now(),
-        submissionBlock: blockNumber,
-        status: "submitted",
-        metadata: {
-          functionName: params.functionName,
-          contractAddress: params.address
-        }
-      };
-      this.txMonitor.ensureTxFinality(
-        txInfo,
-        this.createFinalityCallback(network, params, txInfo)
-      );
+      const retryCallback = this.createRetryCallback(network, params);
+      if (ensureTxFinality) {
+        this.txMonitor.ensureTxFinality(
+          txHash,
+          network.name,
+          (hash2, isFinalized) => retryCallback(hash2, isFinalized)
+        );
+      } else {
+        this.txMonitor.ensureTxInclusion(
+          txHash,
+          network.name,
+          (hash2, networkName, blockNumber, isIncluded) => retryCallback(hash2, isIncluded),
+          1
+        );
+      }
       return txHash;
     } catch (error) {
       this.logger.error(`[${network.name}] Contract call failed: ${error}`);
       throw error;
     }
   }
-  createFinalityCallback(network, params, originalTxInfo) {
-    return async (txInfo, isFinalized) => {
-      if (isFinalized) {
-        this.logger.debug(
-          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) is finalized`
+  createRetryCallback(network, params) {
+    return async (txHash, success) => {
+      if (success) {
+        this.logger.debug(`[${network.name}] Transaction ${txHash} completed successfully`);
+        return;
+      }
+      this.logger.warn(
+        `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`
+      );
+      const { publicClient } = this.viemClientManager.getClients(network);
+      const chainId = publicClient.chain.id;
+      const walletClient = this.viemClientManager.getClients(network).walletClient;
+      const address = walletClient.account.address;
+      this.nonceManager.reset({ chainId, address });
+      this.logger.debug(
+        `[${network.name}] Reset nonce for address ${address} after transaction failure`
+      );
+      try {
+        await this.retryTransaction(network, params);
+      } catch (error) {
+        this.logger.error(
+          `[${network.name}] Retry failed for transaction ${txHash}:`,
+          error
         );
-      } else {
-        this.logger.warn(
-          `[${network.name}] Transaction ${txInfo.txHash} (${txInfo.id}) failed - attempting retry`
-        );
-        await this.retryTransaction(network, params, originalTxInfo);
       }
     };
   }
-  async retryTransaction(network, params, originalTxInfo) {
-    this.logger.debug(
-      `[${network.name}] Retrying transaction ${originalTxInfo.txHash} (${originalTxInfo.id})`
-    );
-    try {
-      const { walletClient, publicClient } = this.viemClientManager.getClients(network);
-      const newTxHash = await callContract(
-        publicClient,
-        walletClient,
-        params,
-        this.nonceManager,
-        {
-          simulateTx: this.config.simulateTx,
-          defaultGasLimit: this.config.defaultGasLimit,
-          txReceiptOptions: this.config.txReceiptOptions
-        }
-      );
-      this.logger.debug(`[${network.name}] Retry successful. New tx hash: ${newTxHash}`);
-      const { blockNumber } = await publicClient.waitForTransactionReceipt({
-        hash: newTxHash,
-        ...this.config.txReceiptOptions
-      });
-      const retryTxInfo = {
-        id: v4_default(),
-        txHash: newTxHash,
-        chainName: network.name,
-        submittedAt: Date.now(),
-        submissionBlock: blockNumber,
-        status: "submitted",
-        metadata: {
-          functionName: params.functionName,
-          contractAddress: params.address
-        }
-      };
-      this.txMonitor.ensureTxFinality(
-        retryTxInfo,
-        this.createFinalityCallback(network, params, retryTxInfo)
-      );
-    } catch (error) {
-      this.logger.error(
-        `[${network.name}] Failed to retry transaction ${originalTxInfo.txHash}:`,
-        error
-      );
-    }
+  async retryTransaction(network, params) {
+    return this.callContract(network, params, true);
   }
   dispose() {
     this.logger.info("Disposed");

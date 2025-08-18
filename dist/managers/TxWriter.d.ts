@@ -15,8 +15,8 @@ export declare class TxWriter implements ITxWriter {
     static createInstance(logger: LoggerInterface, viemClientManager: IViemClientManager, txMonitor: ITxMonitor, nonceManager: INonceManager, config: TxWriterConfig): TxWriter;
     static getInstance(): TxWriter;
     initialize(): Promise<void>;
-    callContract(network: ConceroNetwork, params: SimulateContractParameters): Promise<string>;
-    private createFinalityCallback;
+    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<string>;
+    private createRetryCallback;
     private retryTransaction;
     dispose(): void;
     static dispose(): void;

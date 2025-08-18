@@ -1,6 +1,6 @@
 import { LoggerInterface } from '../types/LoggerInterface';
 import { TxMonitorConfig } from '../types/ManagerConfigs';
-import { IBlockManagerRegistry, IConceroNetworkManager, ITxMonitor, IViemClientManager, MonitoredTransaction, TransactionInfo } from '../types/managers';
+import { IBlockManagerRegistry, IConceroNetworkManager, ITxMonitor, IViemClientManager } from '../types/managers';
 export declare class TxMonitor implements ITxMonitor {
     private static instance;
     private monitors;
@@ -14,14 +14,21 @@ export declare class TxMonitor implements ITxMonitor {
     constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig);
     static createInstance(logger: LoggerInterface, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig): TxMonitor;
     static getInstance(): TxMonitor;
-    ensureTxFinality(txInfo: TransactionInfo, onFinalityCallback: (txInfo: TransactionInfo, isFinalized: boolean) => void): void;
-    private checkTransactionFinality;
-    private notifySubscribers;
+    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, isFinalized: boolean) => void): void;
+    ensureTxInclusion(txHash: string, chainName: string, onTxIncluded: (txHash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
+    private generateSubscriberId;
+    private checkTransactionStatus;
+    private notifyFinalitySubscribers;
+    private notifyInclusionSubscribers;
     private getNetwork;
     private checkNetworkTransactions;
     private subscribeToNetwork;
     private removeMonitor;
-    getMonitoredTransactions(chainName?: string): MonitoredTransaction[];
+    getMonitoredTransactions(chainName?: string): Array<{
+        txHash: string;
+        chainName: string;
+        status: 'pending';
+    }>;
     dispose(): void;
     static dispose(): void;
 }
