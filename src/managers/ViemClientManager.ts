@@ -79,7 +79,6 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         const publicClient = createPublicClient({
             transport,
             chain: chain.viemChain,
-            batch: this.config.httpTransportConfig.batch,
         });
         const walletClient = createWalletClient({
             transport,

@@ -21,28 +21,24 @@ export function createCustomHttpTransport(
             request
                 .clone()
                 .json()
-                .then(rawBody => {
+                .then(body => {
                     try {
-                        const body = JSON.parse(rawBody);
-                        logger.debug(`${body} → ${request.url} params: ${body?.params ?? []}`);
+                        logger.debug(`${JSON.stringify(body)} → ${request.url}`);
                     } catch (e) {
-                        logger.error('Failed to parse raw body json', e);
+                        logger.debug(`Failed to log onFetchRequest: ${e}`);
                     }
                 })
                 .catch(e => logger.debug(e));
         },
-        onFetchResponse: response => {
-            response
-                .json()
-                .then(rawBody => {
-                    try {
-                        const body = JSON.parse(rawBody);
-                        logger.debug(`${body} ← ${response.url} status: ${response.status}`);
-                    } catch (e) {
-                        logger.error(`Failed to parse raw body json: ${e}`);
-                    }
-                })
-                .catch(e => logger.debug(e));
+        onFetchResponse: async response => {
+            try {
+                const body = await response.clone().json();
+                logger.debug(
+                    `${JSON.stringify(body)} ← ${response.url} status: ${response.status}`,
+                );
+            } catch (e) {
+                logger.debug(`Failed to log onFetchResponse: ${e}`);
+            }
         },
     });
 }

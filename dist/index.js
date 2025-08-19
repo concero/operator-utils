@@ -48085,24 +48085,23 @@ function createCustomHttpTransport(url2, config) {
   return http(url2, {
     ...config,
     onFetchRequest: (request) => {
-      request.clone().json().then((rawBody) => {
+      request.clone().json().then((body) => {
         try {
-          const body = JSON.parse(rawBody);
-          logger.debug(`${body} \u2192 ${request.url} params: ${body?.params ?? []}`);
+          logger.debug(`${JSON.stringify(body)} \u2192 ${request.url}`);
         } catch (e) {
-          logger.error("Failed to parse raw body json", e);
+          logger.debug(`Failed to log onFetchRequest: ${e}`);
         }
       }).catch((e) => logger.debug(e));
     },
-    onFetchResponse: (response) => {
-      response.json().then((rawBody) => {
-        try {
-          const body = JSON.parse(rawBody);
-          logger.debug(`${body} \u2190 ${response.url} status: ${response.status}`);
-        } catch (e) {
-          logger.error(`Failed to parse raw body json: ${e}`);
-        }
-      }).catch((e) => logger.debug(e));
+    onFetchResponse: async (response) => {
+      try {
+        const body = await response.clone().json();
+        logger.debug(
+          `${JSON.stringify(body)} \u2190 ${response.url} status: ${response.status}`
+        );
+      } catch (e) {
+        logger.debug(`Failed to log onFetchResponse: ${e}`);
+      }
     }
   });
 }
@@ -49129,8 +49128,7 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
     const transport = this.createTransport(chain);
     const publicClient = createPublicClient({
       transport,
-      chain: chain.viemChain,
-      batch: this.config.httpTransportConfig.batch
+      chain: chain.viemChain
     });
     const walletClient = createWalletClient({
       transport,
