@@ -32,7 +32,7 @@ export function createCustomHttpTransport(
         },
         onFetchResponse: async response => {
             try {
-                const body = await response.clone().json();
+                const body = await response.clone().json(); // TODO: we can receive not only json from rpcs. sometimes it can be text. we have to handle it in future
                 logger.debug(
                     `${JSON.stringify(body)} ← ${response.url} status: ${response.status}`,
                 );
