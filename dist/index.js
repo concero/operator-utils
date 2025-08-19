@@ -48085,14 +48085,24 @@ function createCustomHttpTransport(url2, config) {
   return http(url2, {
     ...config,
     onFetchRequest: (request) => {
-      request.clone().json().then((body) => {
-        logger.debug(`${body} \u2192 ${request.url} params=${body?.params ?? []}`);
+      request.clone().json().then((rawBody) => {
+        try {
+          const body = JSON.parse(rawBody);
+          logger.debug(`${body} \u2192 ${request.url} params: ${body?.params ?? []}`);
+        } catch (e) {
+          logger.error("Failed to parse raw body json", e);
+        }
       }).catch((e) => logger.debug(e));
     },
     onFetchResponse: (response) => {
-      response.json().then((body) => {
-        logger.debug(`${body} \u2190 ${response.url} status: ${response.status}`);
-      });
+      response.json().then((rawBody) => {
+        try {
+          const body = JSON.parse(rawBody);
+          logger.debug(`${body} \u2190 ${response.url} status: ${response.status}`);
+        } catch (e) {
+          logger.error(`Failed to parse raw body json: ${e}`);
+        }
+      }).catch((e) => logger.debug(e));
     }
   });
 }

@@ -21,15 +21,28 @@ export function createCustomHttpTransport(
             request
                 .clone()
                 .json()
-                .then(body => {
-                    logger.debug(`${body} → ${request.url} params=${body?.params ?? []}`);
+                .then(rawBody => {
+                    try {
+                        const body = JSON.parse(rawBody);
+                        logger.debug(`${body} → ${request.url} params: ${body?.params ?? []}`);
+                    } catch (e) {
+                        logger.error('Failed to parse raw body json', e);
+                    }
                 })
                 .catch(e => logger.debug(e));
         },
         onFetchResponse: response => {
-            response.json().then(body => {
-                logger.debug(`${body} ← ${response.url} status: ${response.status}`);
-            });
+            response
+                .json()
+                .then(rawBody => {
+                    try {
+                        const body = JSON.parse(rawBody);
+                        logger.debug(`${body} ← ${response.url} status: ${response.status}`);
+                    } catch (e) {
+                        logger.error(`Failed to parse raw body json: ${e}`);
+                    }
+                })
+                .catch(e => logger.debug(e));
         },
     });
 }
