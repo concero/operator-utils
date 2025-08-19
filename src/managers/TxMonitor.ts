@@ -26,6 +26,7 @@ interface TransactionMonitor {
     type: 'inclusion' | 'finality';
     requiredConfirmations: number; // Used for both inclusion and finality, depending on type
     inclusionBlockNumber?: bigint;
+    inclusionAttempts: number;
     finalityBlockNumber?: bigint;
 }
 
@@ -106,6 +107,7 @@ export class TxMonitor implements ITxMonitor {
             subscribers: new Map(),
             type: 'finality',
             requiredConfirmations: 1,
+            inclusionAttempts: 0,
         };
 
         monitor.subscribers.set(subscriberId, {
@@ -150,6 +152,7 @@ export class TxMonitor implements ITxMonitor {
             subscribers: new Map(),
             type: 'inclusion',
             requiredConfirmations: confirmations,
+            inclusionAttempts: 0,
         };
 
         monitor.subscribers.set(subscriberId, {
@@ -180,6 +183,10 @@ export class TxMonitor implements ITxMonitor {
 
             let inclusionBlockNumber = monitor.inclusionBlockNumber;
             if (!inclusionBlockNumber) {
+                if (monitor.type === 'inclusion') {
+                    monitor.inclusionAttempts++;
+                }
+
                 const receipt = await publicClient
                     .getTransactionReceipt({
                         hash: monitor.txHash as `0x${string}`,
@@ -187,6 +194,15 @@ export class TxMonitor implements ITxMonitor {
                     .catch(() => null);
 
                 if (!receipt) {
+                    // Check if max attempts exceeded for inclusion monitoring
+                    if (monitor.type === 'inclusion' && monitor.inclusionAttempts >= this.config.maxInclusionAttempts) {
+                        this.logger.warn(
+                            `Transaction ${monitor.txHash} not included after ${monitor.inclusionAttempts} attempts - giving up`,
+                        );
+                        this.notifyInclusionSubscribers(monitor, 0n, false);
+                        this.removeMonitor(monitor.txHash);
+                        return;
+                    }
                     return;
                 }
 
