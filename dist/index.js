@@ -27053,9 +27053,9 @@ var require_production = __commonJS({
   }
 });
 
-// node_modules/color-name/index.js
+// node_modules/color-string/node_modules/color-name/index.js
 var require_color_name = __commonJS({
-  "node_modules/color-name/index.js"(exports2, module2) {
+  "node_modules/color-string/node_modules/color-name/index.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -27434,9 +27434,9 @@ var require_color_string = __commonJS({
   }
 });
 
-// node_modules/color/node_modules/color-name/index.js
+// node_modules/color/node_modules/color-convert/node_modules/color-name/index.js
 var require_color_name2 = __commonJS({
-  "node_modules/color/node_modules/color-name/index.js"(exports2, module2) {
+  "node_modules/color/node_modules/color-convert/node_modules/color-name/index.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -48082,22 +48082,19 @@ var Logger = class _Logger extends ManagerBase {
 // src/utils/customHttpTransport.ts
 function createCustomHttpTransport(url2, config) {
   const logger = Logger.getInstance().getLogger("ViemTransport");
-  return (transportConfig) => {
-    const transport = http(url2, config)(transportConfig);
-    const originalRequest = transport.request.bind(transport);
-    transport.request = async (args) => {
-      logger.debug(`${args.method} \u2192 ${url2} params=${JSON.stringify(args.params ?? [])}`);
-      try {
-        const result = await originalRequest(args);
-        logger.debug(`${args.method} \u2190 OK`);
-        return result;
-      } catch (err) {
-        logger.debug(`${args.method} \u2190 ERROR: ${err?.message ?? String(err)}`);
-        throw err;
-      }
-    };
-    return transport;
-  };
+  return http(url2, {
+    ...config,
+    onFetchRequest: (request) => {
+      request.clone().json().then((body) => {
+        logger.debug(`${body} \u2192 ${request.url} params=${body?.params ?? []}`);
+      }).catch((e) => logger.debug(e));
+    },
+    onFetchResponse: (response) => {
+      response.json().then((body) => {
+        logger.debug(`${body} \u2190 ${response.url} status: ${response.status}`);
+      });
+    }
+  });
 }
 
 // src/utils/createViemChain.ts
