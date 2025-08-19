@@ -194,8 +194,10 @@ export class TxMonitor implements ITxMonitor {
                     .catch(() => null);
 
                 if (!receipt) {
-                    // Check if max attempts exceeded for inclusion monitoring
-                    if (monitor.type === 'inclusion' && monitor.inclusionAttempts >= this.config.maxInclusionAttempts) {
+                    if (
+                        monitor.type === 'inclusion' &&
+                        monitor.inclusionAttempts >= this.config.maxInclusionAttempts
+                    ) {
                         this.logger.warn(
                             `Transaction ${monitor.txHash} not included after ${monitor.inclusionAttempts} attempts - giving up`,
                         );
