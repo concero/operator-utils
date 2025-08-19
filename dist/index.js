@@ -27053,9 +27053,9 @@ var require_production = __commonJS({
   }
 });
 
-// node_modules/color-string/node_modules/color-name/index.js
+// node_modules/color-name/index.js
 var require_color_name = __commonJS({
-  "node_modules/color-string/node_modules/color-name/index.js"(exports2, module2) {
+  "node_modules/color-name/index.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -27434,9 +27434,9 @@ var require_color_string = __commonJS({
   }
 });
 
-// node_modules/color/node_modules/color-convert/node_modules/color-name/index.js
+// node_modules/color/node_modules/color-name/index.js
 var require_color_name2 = __commonJS({
-  "node_modules/color/node_modules/color-convert/node_modules/color-name/index.js"(exports2, module2) {
+  "node_modules/color/node_modules/color-name/index.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -49243,7 +49243,8 @@ var TxMonitor = class _TxMonitor {
       chainName,
       subscribers: /* @__PURE__ */ new Map(),
       type: "finality",
-      requiredConfirmations: 1
+      requiredConfirmations: 1,
+      inclusionAttempts: 0
     };
     monitor.subscribers.set(subscriberId, {
       id: subscriberId,
@@ -49271,7 +49272,8 @@ var TxMonitor = class _TxMonitor {
       chainName,
       subscribers: /* @__PURE__ */ new Map(),
       type: "inclusion",
-      requiredConfirmations: confirmations
+      requiredConfirmations: confirmations,
+      inclusionAttempts: 0
     };
     monitor.subscribers.set(subscriberId, {
       id: subscriberId,
@@ -49291,10 +49293,21 @@ var TxMonitor = class _TxMonitor {
       const { publicClient } = this.viemClientManager.getClients(network);
       let inclusionBlockNumber = monitor.inclusionBlockNumber;
       if (!inclusionBlockNumber) {
+        if (monitor.type === "inclusion") {
+          monitor.inclusionAttempts++;
+        }
         const receipt = await publicClient.getTransactionReceipt({
           hash: monitor.txHash
         }).catch(() => null);
         if (!receipt) {
+          if (monitor.type === "inclusion" && monitor.inclusionAttempts >= this.config.maxInclusionAttempts) {
+            this.logger.warn(
+              `Transaction ${monitor.txHash} not included after ${monitor.inclusionAttempts} attempts - giving up`
+            );
+            this.notifyInclusionSubscribers(monitor, 0n, false);
+            this.removeMonitor(monitor.txHash);
+            return;
+          }
           return;
         }
         inclusionBlockNumber = receipt.blockNumber;
