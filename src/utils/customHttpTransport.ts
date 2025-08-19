@@ -16,23 +16,22 @@ export function createCustomHttpTransport(
     const logger = Logger.getInstance().getLogger('ViemTransport');
 
     return transportConfig => {
-        const transport = http(url, config)(transportConfig);
-
-        const originalRequest = transport.request.bind(transport);
-
-        transport.request = async (args: { method: string; params?: unknown }) => {
-            logger.debug(`${args.method} → ${url} params=${JSON.stringify(args.params ?? [])}`);
-
-            try {
-                const result = await originalRequest(args);
-                logger.debug(`${args.method} ← OK`);
-                return result;
-            } catch (err: any) {
-                logger.debug(`${args.method} ← ERROR: ${err?.message ?? String(err)}`);
-                throw err;
-            }
-        };
-
-        return transport;
+        return http(url, {
+            ...config,
+            onFetchRequest: request => {
+                request
+                    .clone()
+                    .json()
+                    .then(body => {
+                        logger.debug(`${body} → ${request.url} params=${body?.params ?? []}`);
+                    })
+                    .catch(e => logger.debug(e));
+            },
+            onFetchResponse: response => {
+                response.json().then(body => {
+                    logger.debug(`${body} ← ${response.url} status: ${response.status}`);
+                });
+            },
+        })(transportConfig);
     };
 }
