@@ -48394,7 +48394,7 @@ async function asyncRetry(fn, options = {}) {
 
 // src/utils/viemErrorParser.ts
 function isNonceError(error) {
-  return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError);
+  return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError) || error instanceof NonceTooHighError || error instanceof NonceTooLowError;
 }
 
 // src/utils/callContract.ts
@@ -49293,7 +49293,13 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
     }
     return fallback(
       rpcUrls.map((url2) => createCustomHttpTransport(url2, this.config.httpTransportConfig)),
-      this.config.fallbackTransportOptions
+      {
+        ...this.config.fallbackTransportOptions,
+        shouldThrow: (error) => {
+          if (isNonceError(error)) return true;
+          return false;
+        }
+      }
     );
   }
   initializeClients(chain) {

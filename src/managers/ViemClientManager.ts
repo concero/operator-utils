@@ -1,4 +1,5 @@
 import { ManagerBase } from './ManagerBase';
+import { isNonceError } from '@/utils/viemErrorParser';
 
 import { PublicClient, WalletClient, createPublicClient, createWalletClient, fallback } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -67,7 +68,13 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
 
         return fallback(
             rpcUrls.map(url => createCustomHttpTransport(url, this.config.httpTransportConfig)),
-            this.config.fallbackTransportOptions,
+            {
+                ...this.config.fallbackTransportOptions,
+                shouldThrow: error => {
+                    if (isNonceError(error)) return true;
+                    return false;
+                },
+            },
         );
     }
 
