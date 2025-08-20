@@ -2,7 +2,6 @@ import { BlockManager } from '@/managers/BlockManager';
 
 import { PublicClient } from 'viem';
 
-import { MockBlockCheckpointManager } from '../mocks/BlockCheckpointManager';
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 
@@ -12,26 +11,17 @@ describe('BlockManager', () => {
     let logger: MockLogger;
     let blockManager: BlockManager;
     let publicClient: jest.Mocked<PublicClient>;
-    let blockCheckpointManager: MockBlockCheckpointManager;
 
     beforeEach(async () => {
         logger = new MockLogger();
         publicClient = {
             getBlockNumber: jest.fn().mockResolvedValue(100n),
         } as any;
-        blockCheckpointManager = new MockBlockCheckpointManager();
 
-        blockManager = await BlockManager.create(
-            mockConceroNetwork,
-            publicClient,
-            blockCheckpointManager,
-            logger,
-            {
-                useCheckpoints: true,
-                pollingIntervalMs: 1000,
-                catchupBatchSize: 10n,
-            },
-        );
+        blockManager = await BlockManager.create(mockConceroNetwork, publicClient, logger, {
+            pollingIntervalMs: 1000,
+            catchupBatchSize: 10,
+        });
     });
 
     afterEach(() => {
@@ -56,8 +46,6 @@ describe('BlockManager', () => {
         await Promise.resolve(); // allow promises to resolve
 
         // This is tricky to test without more fine-grained control
-        // but we can check if the checkpoint manager was called
-        // expect(blockCheckpointManager.updateLastProcessedBlock).toHaveBeenCalledWith('test-network', 105n);
     });
 
     it('should call watchBlocks and unregister', () => {

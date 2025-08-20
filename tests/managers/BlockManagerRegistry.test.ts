@@ -2,7 +2,6 @@ import { BlockManager } from '@/managers/BlockManager';
 import { BlockManagerRegistry } from '@/managers/BlockManagerRegistry';
 import { INetworkManager, IRpcManager } from '@/types/managers';
 
-import { MockBlockCheckpointManager } from '../mocks/BlockCheckpointManager';
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 import { MockViemClientManager } from '../mocks/ViemClientManager';
@@ -12,14 +11,12 @@ jest.mock('@/managers/BlockManager');
 describe('BlockManagerRegistry', () => {
     let logger: MockLogger;
     let blockManagerRegistry: BlockManagerRegistry;
-    let blockCheckpointManager: MockBlockCheckpointManager;
     let networkManager: jest.Mocked<INetworkManager>;
     let viemClientManager: MockViemClientManager;
     let rpcManager: jest.Mocked<IRpcManager>;
 
     beforeEach(() => {
         logger = new MockLogger();
-        blockCheckpointManager = new MockBlockCheckpointManager();
         networkManager = {
             getActiveNetworks: jest.fn().mockReturnValue([mockConceroNetwork]),
         } as any;
@@ -28,15 +25,13 @@ describe('BlockManagerRegistry', () => {
 
         blockManagerRegistry = BlockManagerRegistry.createInstance(
             logger,
-            blockCheckpointManager,
             networkManager,
             viemClientManager,
             rpcManager,
             {
                 blockManagerConfig: {
-                    useCheckpoints: true,
                     pollingIntervalMs: 1000,
-                    catchupBatchSize: 10n,
+                    catchupBatchSize: 10,
                 },
             },
         );

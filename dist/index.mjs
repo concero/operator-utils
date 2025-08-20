@@ -44054,19 +44054,11 @@ var BlockManager = class _BlockManager {
     let initialBlock;
     const staticLogger = logger;
     initialBlock = await publicClient.getBlockNumber();
-    staticLogger.debug(
-      `${network.name}: Starting from current chain tip: ${initialBlock}`
-    );
+    staticLogger.debug(`${network.name}: Starting from current chain tip: ${initialBlock}`);
     staticLogger.debug(
       `${network.name}: Creating new instance with initial block ${initialBlock}`
     );
-    const blockManager = new _BlockManager(
-      initialBlock,
-      network,
-      publicClient,
-      logger,
-      config
-    );
+    const blockManager = new _BlockManager(initialBlock, network, publicClient, logger, config);
     return blockManager;
   }
   async startPolling() {
@@ -44288,16 +44280,11 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     if (this.blockManagers.has(network.name)) {
       return this.blockManagers.get(network.name);
     }
-    const blockManager = await BlockManager.create(
-      network,
-      publicClient,
-      this.logger,
-      {
-        pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,
-        catchupBatchSize: this.config.blockManagerConfig.catchupBatchSize,
-        useCheckpoints: this.config.blockManagerConfig.useCheckpoints
-      }
-    );
+    const blockManager = await BlockManager.create(network, publicClient, this.logger, {
+      pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,
+      catchupBatchSize: this.config.blockManagerConfig.catchupBatchSize,
+      useCheckpoints: this.config.blockManagerConfig.useCheckpoints
+    });
     this.blockManagers.set(network.name, blockManager);
     this.logger.debug(`Created BlockManager for network ${network.name}`);
     return blockManager;
