@@ -155,16 +155,11 @@ export class BlockManagerRegistry
             return this.blockManagers.get(network.name)!;
         }
 
-        const blockManager = await BlockManager.create(
-            network,
-            publicClient,
-            this.logger,
-            {
-                pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,
-                catchupBatchSize: this.config.blockManagerConfig.catchupBatchSize,
-                useCheckpoints: this.config.blockManagerConfig.useCheckpoints,
-            },
-        );
+        const blockManager = await BlockManager.create(network, publicClient, this.logger, {
+            pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,
+            catchupBatchSize: this.config.blockManagerConfig.catchupBatchSize,
+            useCheckpoints: this.config.blockManagerConfig.useCheckpoints,
+        });
 
         this.blockManagers.set(network.name, blockManager);
         this.logger.debug(`Created BlockManager for network ${network.name}`);

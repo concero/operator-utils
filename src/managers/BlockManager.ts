@@ -62,21 +62,13 @@ export class BlockManager implements IBlockManager {
         const staticLogger = logger;
 
         initialBlock = await publicClient.getBlockNumber();
-        staticLogger.debug(
-            `${network.name}: Starting from current chain tip: ${initialBlock}`,
-        );
+        staticLogger.debug(`${network.name}: Starting from current chain tip: ${initialBlock}`);
 
         staticLogger.debug(
             `${network.name}: Creating new instance with initial block ${initialBlock}`,
         );
 
-        const blockManager = new BlockManager(
-            initialBlock,
-            network,
-            publicClient,
-            logger,
-            config,
-        );
+        const blockManager = new BlockManager(initialBlock, network, publicClient, logger, config);
 
         return blockManager;
     }
