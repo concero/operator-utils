@@ -65,7 +65,8 @@ export async function callContract(
         };
 
         const txHash = await asyncRetry<Hash>(
-            () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
+            async () =>
+                executeTransaction(publicClient, walletClient, params, nonceManager, config),
             {
                 maxRetries: 20,
                 delayMs: 1000,
