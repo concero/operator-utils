@@ -18,6 +18,5 @@ export declare class NonceManager extends ManagerBase implements INonceManager {
     set(params: INonceManagerParams, nonce: number): void;
     private fetchNonce;
     private getMutex;
-    private createPublicCLientFromGetNonceParams;
 }
 //# sourceMappingURL=NonceManager.d.ts.map

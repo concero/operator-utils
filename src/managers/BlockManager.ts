@@ -4,7 +4,6 @@ import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { BlockManagerConfig } from '../types/ManagerConfigs';
 import { IBlockManager } from '../types/managers';
-import { IBlockCheckpointManager } from '../types/managers';
 
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
@@ -28,7 +27,6 @@ export class BlockManager implements IBlockManager {
     private latestBlock: bigint | null = null;
     public readonly publicClient: PublicClient;
     private network: ConceroNetwork;
-    private blockCheckpointManager: IBlockCheckpointManager;
     private blockRangeHandlers: Map<string, BlockRangeHandler> = new Map();
 
     protected logger: LoggerInterface;
@@ -43,14 +41,12 @@ export class BlockManager implements IBlockManager {
         initialBlock: bigint,
         network: ConceroNetwork,
         publicClient: PublicClient,
-        blockCheckpointManager: IBlockCheckpointManager,
         logger: LoggerInterface,
         config: BlockManagerConfig,
     ) {
         this.lastProcessedBlockNumber = initialBlock;
         this.publicClient = publicClient;
         this.network = network;
-        this.blockCheckpointManager = blockCheckpointManager;
         this.logger = logger;
         this.config = config;
         this.pollingIntervalMs = config.pollingIntervalMs;
@@ -59,32 +55,16 @@ export class BlockManager implements IBlockManager {
     static async create(
         network: ConceroNetwork,
         publicClient: PublicClient,
-        blockCheckpointManager: IBlockCheckpointManager,
         logger: LoggerInterface,
         config: BlockManagerConfig,
     ): Promise<BlockManager> {
         let initialBlock: bigint;
         const staticLogger = logger;
 
-        if (!config.useCheckpoints) {
-            initialBlock = await publicClient.getBlockNumber();
-            staticLogger.debug(
-                `${network.name}: Checkpoints disabled. Starting from current chain tip: ${initialBlock}`,
-            );
-        } else {
-            const savedBlock = await blockCheckpointManager.getCheckpoint(network);
-            if (savedBlock !== undefined) {
-                staticLogger.info(
-                    `${network.name}: Resuming from previously saved block ${savedBlock}`,
-                );
-                initialBlock = savedBlock;
-            } else {
-                initialBlock = await publicClient.getBlockNumber();
-                staticLogger.debug(
-                    `${network.name}: No checkpoint found. Starting from current chain tip: ${initialBlock}`,
-                );
-            }
-        }
+        initialBlock = await publicClient.getBlockNumber();
+        staticLogger.debug(
+            `${network.name}: Starting from current chain tip: ${initialBlock}`,
+        );
 
         staticLogger.debug(
             `${network.name}: Creating new instance with initial block ${initialBlock}`,
@@ -94,7 +74,6 @@ export class BlockManager implements IBlockManager {
             initialBlock,
             network,
             publicClient,
-            blockCheckpointManager,
             logger,
             config,
         );
@@ -186,13 +165,9 @@ export class BlockManager implements IBlockManager {
     }
 
     /**
-     * Update the last processed block checkpoint
+     * Update the last processed block
      */
     private async updateLastProcessedBlock(blockNumber: bigint): Promise<void> {
-        // this.logger.debug(
-        //     `${this.network.name}: Updating last processed block to ${blockNumber} (previous: ${this.lastProcessedBlockNumber})`,
-        // );
-        await this.blockCheckpointManager.updateLastProcessedBlock(this.network.name, blockNumber);
         this.lastProcessedBlockNumber = blockNumber;
     }
 

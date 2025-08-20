@@ -3,7 +3,6 @@ import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { BlockManagerConfig } from '../types/ManagerConfigs';
 import { IBlockManager } from '../types/managers';
-import { IBlockCheckpointManager } from '../types/managers';
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
  * It handles both the polling for new blocks and notifying registered handlers about block ranges.
@@ -18,7 +17,6 @@ export declare class BlockManager implements IBlockManager {
     private latestBlock;
     readonly publicClient: PublicClient;
     private network;
-    private blockCheckpointManager;
     private blockRangeHandlers;
     protected logger: LoggerInterface;
     private config;
@@ -27,7 +25,7 @@ export declare class BlockManager implements IBlockManager {
     private pollingIntervalMs;
     private pollingTimeout;
     private constructor();
-    static create(network: ConceroNetwork, publicClient: PublicClient, blockCheckpointManager: IBlockCheckpointManager, logger: LoggerInterface, config: BlockManagerConfig): Promise<BlockManager>;
+    static create(network: ConceroNetwork, publicClient: PublicClient, logger: LoggerInterface, config: BlockManagerConfig): Promise<BlockManager>;
     startPolling(): Promise<void>;
     private stopPolling;
     private poll;
@@ -39,7 +37,7 @@ export declare class BlockManager implements IBlockManager {
      */
     private processBlockRange;
     /**
-     * Update the last processed block checkpoint
+     * Update the last processed block
      */
     private updateLastProcessedBlock;
     /**

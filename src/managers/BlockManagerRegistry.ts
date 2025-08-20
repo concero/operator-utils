@@ -7,7 +7,6 @@ import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { BlockManagerRegistryConfig } from '../types/ManagerConfigs';
 import {
-    IBlockCheckpointManager,
     IBlockManagerRegistry,
     INetworkManager,
     IRpcManager,
@@ -21,7 +20,6 @@ export class BlockManagerRegistry
 {
     private static instance: BlockManagerRegistry;
     private blockManagers: Map<string, BlockManager> = new Map();
-    private blockCheckpointManager: IBlockCheckpointManager;
     private networkManager: INetworkManager;
     private viemClientManager: IViemClientManager;
     private rpcManager: IRpcManager;
@@ -30,7 +28,6 @@ export class BlockManagerRegistry
 
     private constructor(
         logger: LoggerInterface,
-        blockCheckpointManager: IBlockCheckpointManager,
         networkManager: INetworkManager,
         viemClientManager: IViemClientManager,
         rpcManager: IRpcManager,
@@ -38,7 +35,6 @@ export class BlockManagerRegistry
     ) {
         super();
         this.logger = logger;
-        this.blockCheckpointManager = blockCheckpointManager;
         this.networkManager = networkManager;
         this.viemClientManager = viemClientManager;
         this.rpcManager = rpcManager;
@@ -115,7 +111,6 @@ export class BlockManagerRegistry
     //TODO: attempt to refactor createInstance to a base class
     public static createInstance(
         logger: LoggerInterface,
-        blockCheckpointManager: IBlockCheckpointManager,
         networkManager: INetworkManager,
         viemClientManager: IViemClientManager,
         rpcManager: IRpcManager,
@@ -123,7 +118,6 @@ export class BlockManagerRegistry
     ): BlockManagerRegistry {
         BlockManagerRegistry.instance = new BlockManagerRegistry(
             logger,
-            blockCheckpointManager,
             networkManager,
             viemClientManager,
             rpcManager,
@@ -164,7 +158,6 @@ export class BlockManagerRegistry
         const blockManager = await BlockManager.create(
             network,
             publicClient,
-            this.blockCheckpointManager,
             this.logger,
             {
                 pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,

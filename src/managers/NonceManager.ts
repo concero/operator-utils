@@ -77,7 +77,10 @@ export class NonceManager extends ManagerBase implements INonceManager {
     }
 
     private async fetchNonce(params: IGetNonceParams) {
-        const publicClient = this.createPublicCLientFromGetNonceParams(params);
+        const publicClient = createPublicClient({
+            transport: () => params.client.transport,
+            chain: params.client.chain,
+        });
         return await publicClient.getTransactionCount({ address: params.address });
     }
 
@@ -86,12 +89,5 @@ export class NonceManager extends ManagerBase implements INonceManager {
             this.mutexMap[chainId] = new Mutex();
         }
         return this.mutexMap[chainId];
-    }
-
-    private createPublicCLientFromGetNonceParams(params: IGetNonceParams) {
-        return createPublicClient({
-            transport: () => params.client.transport,
-            chain: params.client.chain,
-        });
     }
 }
