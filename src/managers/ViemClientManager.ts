@@ -1,5 +1,4 @@
 import { ManagerBase } from './ManagerBase';
-import { isNonceError } from '@/utils/viemErrorParser';
 
 import { PublicClient, WalletClient, createPublicClient, createWalletClient, fallback } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -10,6 +9,7 @@ import { LoggerInterface } from '../types/LoggerInterface';
 import { ViemClientManagerConfig } from '../types/ManagerConfigs';
 import { IRpcManager, NetworkUpdateListener } from '../types/managers';
 import { createCustomHttpTransport, getEnvVar } from '../utils';
+import { isNonceError } from '../utils/viemErrorParser';
 
 export interface ViemClients {
     walletClient: WalletClient;
