@@ -83,6 +83,9 @@ export class DeploymentFetcher implements IDeploymentFetcher {
     private convertToNetworkName(capture: string): string {
         // Convert from ETHEREUM or ARBITRUM_SEPOLIA to camelCase
         const parts = capture.toLowerCase().split('_');
+
+        if (parts.length == 1) return parts[0];
+
         return (
             parts[parts.length - 2] +
             parts

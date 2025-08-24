@@ -25,13 +25,13 @@ describe('DeploymentFetcher', () => {
 
     it('should fetch and parse deployments', async () => {
         const deploymentText = `
-ETHEREUM_CONTRACT_A=0x123
-ARBITRUM_SEPOLIA_CONTRACT_B=0x456
+CONTRACT_A_ETHEREUM=0x123
+CONTRACT_B_ARBITRUM_SEPOLIA=0x456
 RANDOM_VAR=abc
 `;
         mockHttpGet.mockResolvedValue(deploymentText);
 
-        const patterns = [/^([A-Z_]+)_CONTRACT_A$/, /^([A-Z_]+)_CONTRACT_B$/];
+        const patterns = [/CONTRACT_A_(.+)/, /CONTRACT_B_(.+)/];
 
         const deployments = await deploymentFetcher.getDeployments(
             'http://test.com/deployments',
@@ -40,7 +40,7 @@ RANDOM_VAR=abc
 
         expect(deployments).toHaveLength(2);
         expect(deployments).toContainEqual({
-            key: 'ETHEREUM_CONTRACT_A',
+            key: 'CONTRACT_A_ETHEREUM',
             value: '0x123',
             networkName: 'ethereum',
         });
