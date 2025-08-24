@@ -40,7 +40,7 @@ RANDOM_VAR=abc
 
         expect(deployments).toHaveLength(2);
         expect(deployments).toContainEqual({
-            key: 'CONTRACT_A_ETHEREUM',
+            key: 'ETHEREUM_CONTRACT_A',
             value: '0x123',
             networkName: 'ethereum',
         });
