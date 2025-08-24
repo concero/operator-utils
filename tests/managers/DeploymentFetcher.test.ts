@@ -40,12 +40,12 @@ RANDOM_VAR=abc
 
         expect(deployments).toHaveLength(2);
         expect(deployments).toContainEqual({
-            key: 'ETHEREUM_CONTRACT_A',
+            key: 'CONTRACT_A_ETHEREUM',
             value: '0x123',
             networkName: 'ethereum',
         });
         expect(deployments).toContainEqual({
-            key: 'ARBITRUM_SEPOLIA_CONTRACT_B',
+            key: 'CONTRACT_B_ARBITRUM_SEPOLIA',
             value: '0x456',
             networkName: 'arbitrumSepolia',
         });
