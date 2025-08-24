@@ -84,9 +84,9 @@ export class DeploymentFetcher implements IDeploymentFetcher {
         // Convert from ETHEREUM or ARBITRUM_SEPOLIA to camelCase
         const parts = capture.toLowerCase().split('_');
         return (
-            parts[0] +
+            parts[parts.length - 2] +
             parts
-                .slice(1)
+                .slice(parts.length - 1)
                 .map(part => part.charAt(0).toUpperCase() + part.slice(1))
                 .join('')
         );
