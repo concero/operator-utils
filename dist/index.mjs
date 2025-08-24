@@ -48001,6 +48001,7 @@ var DeploymentFetcher = class {
   }
   convertToNetworkName(capture) {
     const parts = capture.toLowerCase().split("_");
+    if (parts.length == 1) return parts[0];
     return parts[parts.length - 2] + parts.slice(parts.length - 1).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   }
 };
