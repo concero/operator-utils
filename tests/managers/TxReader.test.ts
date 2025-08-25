@@ -31,7 +31,6 @@ describe('TxReader', () => {
     });
 
     afterEach(() => {
-        TxReader.dispose();
         jest.clearAllMocks();
     });
 

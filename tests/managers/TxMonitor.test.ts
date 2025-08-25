@@ -37,8 +37,9 @@ describe('TxMonitor', () => {
     });
 
     afterEach(() => {
-        TxMonitor.dispose();
         jest.clearAllMocks();
+        // Reset the singleton instance to prevent state leakage between tests
+        (TxMonitor as any).instance = undefined;
     });
 
     it('should monitor a transaction for finality', async () => {
@@ -70,6 +71,9 @@ describe('TxMonitor', () => {
         const chainName = 'test-network';
 
         txMonitor.ensureTxFinality(txHash, chainName, onFinality);
+
+        expect(blockManagerRegistry.getBlockManager).toHaveBeenCalledWith('test-network');
+        expect(mockWatchBlocks).toHaveBeenCalled();
 
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 

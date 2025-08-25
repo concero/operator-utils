@@ -36,7 +36,6 @@ describe('TxWriter', () => {
     });
 
     afterEach(() => {
-        TxWriter.dispose();
         NonceManager.dispose();
         jest.clearAllMocks();
     });
