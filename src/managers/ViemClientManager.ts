@@ -23,6 +23,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
     private clients: Map<string, ViemClients> = new Map();
     private rpcManager: IRpcManager;
     private logger: LoggerInterface;
+    private account: PrivateKeyAccount;
 
     private config: ViemClientManagerConfig;
 
@@ -55,6 +56,9 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
     public async initialize(): Promise<void> {
         if (this.initialized) return;
 
+        const privateKey = getEnvVar('OPERATOR_PRIVATE_KEY');
+        this.account = privateKeyToAccount(`0x${privateKey}`);
+
         await super.initialize();
         this.logger.debug('Initialized');
     }
@@ -79,8 +83,6 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
     }
 
     private initializeClients(chain: ConceroNetwork): ViemClients {
-        const privateKey = getEnvVar('OPERATOR_PRIVATE_KEY');
-        const account = privateKeyToAccount(`0x${privateKey}`);
         const transport = this.createTransport(chain);
 
         const publicClient = createPublicClient({
@@ -90,13 +92,13 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         const walletClient = createWalletClient({
             transport,
             chain: chain.viemChain,
-            account,
+            account: this.account,
         });
 
         return {
             publicClient,
             walletClient,
-            account,
+            account: this.account,
         };
     }
 
@@ -126,12 +128,9 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         return newClients;
     }
 
-    // hook from NetworkManager
     public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {
-        // Create a set of active network names for efficient lookup
         const activeNetworkNames = new Set(networks.map(n => n.name));
 
-        // Remove clients for networks that are no longer active
         const currentNetworkNames = Array.from(this.clients.keys());
         for (const networkName of currentNetworkNames) {
             if (!activeNetworkNames.has(networkName)) {
@@ -140,7 +139,6 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
             }
         }
 
-        // Update clients for active networks
         await this.updateClientsForNetworks(networks);
     }
 
@@ -156,12 +154,5 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
                 );
             }
         }
-    }
-
-    public override dispose(): void {
-        this.clients.clear();
-        super.dispose();
-        ViemClientManager.instance = undefined as any;
-        this.logger.debug('Disposed');
     }
 }

@@ -90,7 +90,8 @@ export class TxWriter implements ITxWriter {
                 this.txMonitor.ensureTxFinality(
                     txHash,
                     network.name,
-                    (hash: string, isFinalized: boolean) => retryCallback(hash, isFinalized),
+                    (hash: string, chainName: string, isFinalized: boolean) =>
+                        retryCallback(hash, isFinalized),
                 );
             } else {
                 this.txMonitor.ensureTxInclusion(
@@ -150,13 +151,5 @@ export class TxWriter implements ITxWriter {
         params: SimulateContractParameters,
     ): Promise<string> {
         return this.callContract(network, params, true);
-    }
-
-    public dispose(): void {
-        this.logger.info('Disposed');
-    }
-
-    public static dispose(): void {
-        TxWriter.instance = undefined;
     }
 }

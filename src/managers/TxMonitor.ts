@@ -10,7 +10,7 @@ import {
 
 interface Subscriber {
     id: string;
-    finalityCallback?: (txHash: string, isFinalized: boolean) => void;
+    finalityCallback?: (txHash: string, chainName: string, isFinalized: boolean) => void;
     inclusionCallback?: (
         txHash: string,
         networkName: string,
@@ -26,8 +26,8 @@ interface TransactionMonitor {
     type: 'inclusion' | 'finality';
     requiredConfirmations: number; // Used for both inclusion and finality, depending on type
     inclusionBlockNumber?: bigint;
-    inclusionAttempts: number;
     finalityBlockNumber?: bigint;
+    startTime: number;
 }
 
 export class TxMonitor implements ITxMonitor {
@@ -85,7 +85,7 @@ export class TxMonitor implements ITxMonitor {
     public ensureTxFinality(
         txHash: string,
         chainName: string,
-        onFinalityCallback: (txHash: string, isFinalized: boolean) => void,
+        onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
     ): void {
         const existingMonitor = this.monitors.get(txHash);
         const subscriberId = this.generateSubscriberId();
@@ -107,7 +107,7 @@ export class TxMonitor implements ITxMonitor {
             subscribers: new Map(),
             type: 'finality',
             requiredConfirmations: 1,
-            inclusionAttempts: 0,
+            startTime: Date.now(),
         };
 
         monitor.subscribers.set(subscriberId, {
@@ -152,7 +152,7 @@ export class TxMonitor implements ITxMonitor {
             subscribers: new Map(),
             type: 'inclusion',
             requiredConfirmations: confirmations,
-            inclusionAttempts: 0,
+            startTime: Date.now(),
         };
 
         monitor.subscribers.set(subscriberId, {
@@ -179,14 +179,38 @@ export class TxMonitor implements ITxMonitor {
         network: ConceroNetwork,
     ): Promise<void> {
         try {
+            const elapsedTime = Date.now() - monitor.startTime;
+
+            if (
+                monitor.type === 'inclusion' &&
+                this.config.maxInclusionWait &&
+                elapsedTime >= this.config.maxInclusionWait
+            ) {
+                this.logger.warn(
+                    `Transaction ${monitor.txHash} inclusion monitoring timed out after ${elapsedTime}ms`,
+                );
+                this.notifyInclusionSubscribers(monitor, 0n, false);
+                this.removeMonitor(monitor.txHash);
+                return;
+            }
+
+            if (
+                monitor.type === 'finality' &&
+                this.config.maxFinalityWait &&
+                elapsedTime >= this.config.maxFinalityWait
+            ) {
+                this.logger.warn(
+                    `Transaction ${monitor.txHash} finality monitoring timed out after ${elapsedTime}ms`,
+                );
+                this.notifyFinalitySubscribers(monitor, false);
+                this.removeMonitor(monitor.txHash);
+                return;
+            }
+
             const { publicClient } = this.viemClientManager.getClients(network);
 
             let inclusionBlockNumber = monitor.inclusionBlockNumber;
             if (!inclusionBlockNumber) {
-                if (monitor.type === 'inclusion') {
-                    monitor.inclusionAttempts++;
-                }
-
                 const receipt = await publicClient
                     .getTransactionReceipt({
                         hash: monitor.txHash as `0x${string}`,
@@ -194,17 +218,6 @@ export class TxMonitor implements ITxMonitor {
                     .catch(() => null);
 
                 if (!receipt) {
-                    if (
-                        monitor.type === 'inclusion' &&
-                        monitor.inclusionAttempts >= this.config.maxInclusionAttempts
-                    ) {
-                        this.logger.warn(
-                            `Transaction ${monitor.txHash} not included after ${monitor.inclusionAttempts} attempts - giving up`,
-                        );
-                        this.notifyInclusionSubscribers(monitor, 0n, false);
-                        this.removeMonitor(monitor.txHash);
-                        return;
-                    }
                     return;
                 }
 
@@ -261,7 +274,7 @@ export class TxMonitor implements ITxMonitor {
 
         monitor.subscribers.forEach(subscriber => {
             if (subscriber.finalityCallback) {
-                subscriber.finalityCallback(monitor.txHash, isFinalized);
+                subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
             }
         });
     }
@@ -354,25 +367,5 @@ export class TxMonitor implements ITxMonitor {
                 chainName: monitor.chainName,
                 status: 'pending',
             }));
-    }
-
-    public dispose(): void {
-        this.disposed = true;
-
-        for (const [networkName, unsubscribe] of this.networkSubscriptions) {
-            unsubscribe();
-            this.logger.debug(`Unsubscribed from blocks for network ${networkName} during dispose`);
-        }
-
-        this.networkSubscriptions.clear();
-        this.monitors.clear();
-        this.logger.info('Disposed');
-    }
-
-    public static dispose(): void {
-        if (TxMonitor.instance) {
-            TxMonitor.instance.dispose();
-            TxMonitor.instance = undefined;
-        }
     }
 }

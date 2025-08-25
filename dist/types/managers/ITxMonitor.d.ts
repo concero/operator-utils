@@ -1,5 +1,5 @@
 export interface ITxMonitor {
-    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, isFinalized: boolean) => void): void;
+    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
     ensureTxInclusion(txHash: string, chainName: string, onTxIncluded: (txHash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
     getMonitoredTransactions(chainName?: string): Array<{
         txHash: string;

@@ -66,8 +66,6 @@ export declare class TxReader implements ITxReader {
     private withTimeout;
     private fetchLogsForWatcher;
     getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]>;
-    dispose(): void;
-    static dispose(): void;
 }
 export {};
 //# sourceMappingURL=TxReader.d.ts.map

@@ -4,7 +4,7 @@ export interface ITxMonitor {
     ensureTxFinality(
         txHash: string,
         chainName: string,
-        onFinalityCallback: (txHash: string, isFinalized: boolean) => void,
+        onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
     ): void;
     ensureTxInclusion(
         txHash: string,

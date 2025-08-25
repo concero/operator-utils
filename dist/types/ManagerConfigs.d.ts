@@ -47,7 +47,8 @@ export interface TxWriterConfig extends BaseManagerConfig {
 }
 /** Configuration for TxMonitor */
 export interface TxMonitorConfig extends BaseManagerConfig {
-    maxInclusionAttempts: number;
+    maxInclusionWait?: number;
+    maxFinalityWait?: number;
 }
 /** Configuration for NonceManager */
 export interface NonceManagerConfig extends BaseManagerConfig {

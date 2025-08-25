@@ -14,7 +14,7 @@ export declare class TxMonitor implements ITxMonitor {
     constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig);
     static createInstance(logger: LoggerInterface, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig): TxMonitor;
     static getInstance(): TxMonitor;
-    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, isFinalized: boolean) => void): void;
+    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
     ensureTxInclusion(txHash: string, chainName: string, onTxIncluded: (txHash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
     private generateSubscriberId;
     private checkTransactionStatus;
@@ -29,7 +29,5 @@ export declare class TxMonitor implements ITxMonitor {
         chainName: string;
         status: 'pending';
     }>;
-    dispose(): void;
-    static dispose(): void;
 }
 //# sourceMappingURL=TxMonitor.d.ts.map

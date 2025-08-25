@@ -15,6 +15,7 @@ export declare class ViemClientManager extends ManagerBase implements NetworkUpd
     private clients;
     private rpcManager;
     private logger;
+    private account;
     private config;
     private constructor();
     static createInstance(logger: LoggerInterface, rpcManager: IRpcManager, config: ViemClientManagerConfig): ViemClientManager;
@@ -25,6 +26,5 @@ export declare class ViemClientManager extends ManagerBase implements NetworkUpd
     getClients(chain: ConceroNetwork): ViemClients;
     onNetworksUpdated(networks: ConceroNetwork[]): Promise<void>;
     updateClientsForNetworks(networks: ConceroNetwork[]): Promise<void>;
-    dispose(): void;
 }
 //# sourceMappingURL=ViemClientManager.d.ts.map

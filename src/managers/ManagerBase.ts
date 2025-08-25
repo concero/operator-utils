@@ -6,7 +6,6 @@ export abstract class ManagerBase {
             return;
         }
         try {
-            // Subclasses can implement additional initialization logic here
             this.initialized = true;
         } catch (error) {
             throw error;
@@ -14,7 +13,6 @@ export abstract class ManagerBase {
     }
 
     public dispose(): void {
-        // Subclasses can override this method to dispose additional resources
         this.initialized = false;
     }
 }

@@ -61,7 +61,7 @@ describe('TxMonitor', () => {
         // Simulate new blocks until finality
         await onBlockRange(100n, 110n);
 
-        expect(onFinality).toHaveBeenCalledWith(txHash, true);
+        expect(onFinality).toHaveBeenCalledWith(txHash, chainName, true);
     });
 
     it('should handle transaction not found', async () => {

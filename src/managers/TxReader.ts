@@ -485,17 +485,4 @@ export class TxReader implements ITxReader {
             return [];
         }
     }
-
-    public dispose(): void {
-        for (const w of this.logWatchers.values()) w.unwatch();
-        if (this.globalReadInterval) clearInterval(this.globalReadInterval);
-        this.logWatchers.clear();
-        this.readContractWatchers.clear();
-        this.methodWatchers.clear();
-        this.bulkCallbacks.clear();
-    }
-
-    public static dispose(): void {
-        TxReader.instance = undefined;
-    }
 }
