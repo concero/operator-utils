@@ -25,7 +25,5 @@ export declare class BlockManagerRegistry extends ManagerBase implements IBlockM
     getAllBlockManagers(): BlockManager[];
     getAllManagedNetworks(): string[];
     getLatestBlockForChain(networkName: string): Promise<bigint | null>;
-    dispose(): void;
-    static dispose(): void;
 }
 //# sourceMappingURL=BlockManagerRegistry.d.ts.map

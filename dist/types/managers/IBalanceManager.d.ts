@@ -10,7 +10,6 @@ export interface BalanceManagerConfig {
 }
 export interface IBalanceManager {
     initialize(): Promise<void>;
-    dispose(): void;
     registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
     deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;
     beginWatching(): void;

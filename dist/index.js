@@ -43829,17 +43829,6 @@ var BalanceManager = class extends ManagerBase {
     if (this.initialized) return;
     this.logger.info("BalanceManager initialized");
   }
-  dispose() {
-    this.clearTokenWatchers();
-    this.nativeBalances.clear();
-    this.tokenBalances.clear();
-    this.registeredTokens.clear();
-    this.registeredNativeBalances.clear();
-    this.tokenWatchers.clear();
-    this.nativeWatchers.clear();
-    super.dispose();
-    this.logger.debug("BalanceManager disposed");
-  }
   registerToken(network, tokenSymbol, tokenAddress) {
     if (tokenAddress === zeroAddress) {
       this.registeredNativeBalances.add(network.name);
@@ -44333,22 +44322,6 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       return null;
     }
     return blockManager.getLatestBlock();
-  }
-  dispose() {
-    if (this.initialized) {
-      for (const [networkName, blockManager] of this.blockManagers.entries()) {
-        if ("dispose" in blockManager) {
-          blockManager.dispose();
-        }
-        this.logger.debug(`Disposed BlockManager for ${networkName}`);
-      }
-      this.blockManagers.clear();
-      super.dispose();
-      this.logger.debug("Disposed");
-    }
-  }
-  static dispose() {
-    _BlockManagerRegistry.instance = void 0;
   }
 };
 
@@ -47759,16 +47732,6 @@ var HttpClient = class _HttpClient extends ManagerBase {
       }
     );
   }
-  dispose() {
-    this.axiosInstance = void 0;
-    super.dispose();
-  }
-  static disposeInstances() {
-    if (_HttpClient.instance) {
-      _HttpClient.instance.dispose();
-      _HttpClient.instance = void 0;
-    }
-  }
   async request(method, url2, config = {}, body) {
     if (!this.initialized || !this.axiosInstance) {
       throw new AppError(
@@ -47924,9 +47887,6 @@ var LogBatcher = class {
       this.timer = void 0;
     }
     this.flushFn(batch);
-  }
-  dispose() {
-    this.flushNow();
   }
   sizeOf(item) {
     let size5 = 0;
@@ -48571,13 +48531,6 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       networks = networks.filter((network) => whitelistedIds.includes(network.id));
     }
     return networks;
-  }
-  dispose() {
-    this.updateListeners = [];
-    super.dispose();
-  }
-  static dispose() {
-    _ConceroNetworkManager.instance = void 0;
   }
 };
 

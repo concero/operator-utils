@@ -12,8 +12,6 @@ export declare class HttpClient extends ManagerBase {
     static getInstance(): HttpClient;
     initialize(): Promise<void>;
     private setupAxiosInstance;
-    dispose(): void;
-    static disposeInstances(): void;
     private request;
     get<T>(url: string, config?: AxiosRequestConfig): Promise<T>;
     post<T>(url: string, body: any, config?: AxiosRequestConfig): Promise<T>;

@@ -37,7 +37,5 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     private createNetworkConfig;
     private getTestingNetworks;
     private filterNetworks;
-    dispose(): void;
-    static dispose(): void;
 }
 //# sourceMappingURL=ConceroNetworkManager.d.ts.map

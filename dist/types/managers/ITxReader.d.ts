@@ -41,6 +41,5 @@ export interface ITxReader {
         remove(watcherId: string): boolean;
     };
     initialize(): Promise<void>;
-    dispose(): void;
 }
 //# sourceMappingURL=ITxReader.d.ts.map

@@ -6,6 +6,5 @@ export interface ITxMonitor {
         chainName: string;
         status: 'pending';
     }>;
-    dispose(): void;
 }
 //# sourceMappingURL=ITxMonitor.d.ts.map
