@@ -11,8 +11,4 @@ export abstract class ManagerBase {
             throw error;
         }
     }
-
-    public dispose(): void {
-        this.initialized = false;
-    }
 }

@@ -94,14 +94,26 @@ export interface ViemClientManagerConfig extends BaseManagerConfig {
     };
 }
 
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
+export interface LoggerInterface {
+    error(message: unknown, ...meta: unknown[]): void;
+    warn(message: unknown, ...meta: unknown[]): void;
+    info(message: unknown, ...meta: unknown[]): void;
+    debug(message: unknown, ...meta: unknown[]): void;
+}
 /** Configuration for Logger */
 export interface LoggerConfig extends BaseManagerConfig {
     logDir: string;
     logMaxSize: string;
     logMaxFiles: string | number;
-    logLevelDefault: string;
-    logLevelsGranular: Record<string, string>;
+    logLevelDefault: LogLevel;
+    logLevelsGranular: Record<string, LogLevel>;
     enableConsoleTransport?: boolean;
+    enableFileTransport?: boolean;
+    batchFlushIntervalMs?: number; // applied when file transport is enabled
+    batchMaxItems?: number;
+    batchMaxBytes?: number;
 }
 
 /** Configuration for HttpClient */
