@@ -70,5 +70,4 @@ export interface ITxReader {
     };
 
     initialize(): Promise<void>;
-    dispose(): void;
 }

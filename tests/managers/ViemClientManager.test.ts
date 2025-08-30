@@ -46,7 +46,6 @@ describe('ViemClientManager', () => {
     });
 
     afterEach(() => {
-        viemClientManager.dispose();
         jest.clearAllMocks();
     });
 

@@ -193,26 +193,4 @@ export class BlockManagerRegistry
 
         return blockManager.getLatestBlock();
     }
-
-    public override dispose(): void {
-        if (this.initialized) {
-            // this.networkManager.unregisterUpdateListener(this);
-
-            // Properly dispose all block managers
-            for (const [networkName, blockManager] of this.blockManagers.entries()) {
-                if ('dispose' in blockManager) {
-                    (blockManager as any).dispose();
-                }
-                this.logger.debug(`Disposed BlockManager for ${networkName}`);
-            }
-
-            this.blockManagers.clear();
-            super.dispose();
-            this.logger.debug('Disposed');
-        }
-    }
-
-    public static dispose(): void {
-        BlockManagerRegistry.instance = undefined as any;
-    }
 }

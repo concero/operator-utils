@@ -4,7 +4,6 @@ import { ConceroNetwork } from '../ConceroNetwork';
 
 export interface IConceroNetworkManager {
     initialize(): Promise<void>;
-    dispose(): void;
     getMainnetNetworks(): Record<string, ConceroNetwork>;
     getTestnetNetworks(): Record<string, ConceroNetwork>;
     getAllNetworks(): Record<string, ConceroNetwork>;

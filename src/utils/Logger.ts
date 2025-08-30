@@ -43,10 +43,6 @@ class LogBatcher {
         this.flushFn(batch);
     }
 
-    dispose() {
-        this.flushNow();
-    }
-
     private sizeOf(item: BatchItem): number {
         let size = 0;
         try {

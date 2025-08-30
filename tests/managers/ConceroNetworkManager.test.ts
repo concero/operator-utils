@@ -43,7 +43,6 @@ describe('ConceroNetworkManager', () => {
     });
 
     afterEach(() => {
-        ConceroNetworkManager.dispose();
         jest.clearAllMocks();
     });
 

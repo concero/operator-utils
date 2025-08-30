@@ -9,5 +9,4 @@ export interface ITxWriter {
         ensureTxFinality?: boolean,
     ): Promise<string>;
     initialize(): Promise<void>;
-    dispose(): void;
 }

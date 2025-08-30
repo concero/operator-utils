@@ -60,10 +60,6 @@ describe('BalanceManager', () => {
         expect(logger.info).toHaveBeenCalledWith('BalanceManager initialized');
     });
 
-    it('should dispose correctly', () => {
-        balanceManager.dispose();
-        expect(logger.debug).toHaveBeenCalledWith('BalanceManager disposed');
-    });
 
     it('should register and deregister a native token', () => {
         balanceManager.registerToken(mockConceroNetwork, 'NATIVE', zeroAddress);

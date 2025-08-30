@@ -38,7 +38,6 @@ describe('TxMonitor', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
-        // Reset the singleton instance to prevent state leakage between tests
         (TxMonitor as any).instance = undefined;
     });
 

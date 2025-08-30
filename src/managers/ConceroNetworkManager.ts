@@ -339,13 +339,4 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
 
         return networks;
     }
-
-    public dispose(): void {
-        this.updateListeners = [];
-        super.dispose();
-    }
-
-    public static dispose(): void {
-        ConceroNetworkManager.instance = undefined as any;
-    }
 }

@@ -75,18 +75,6 @@ export class HttpClient extends ManagerBase {
         );
     }
 
-    public dispose(): void {
-        this.axiosInstance = undefined;
-        super.dispose();
-    }
-
-    public static disposeInstances(): void {
-        if (HttpClient.instance) {
-            HttpClient.instance.dispose();
-            HttpClient.instance = undefined;
-        }
-    }
-
     private async request<T>(
         method: 'GET' | 'POST',
         url: string,

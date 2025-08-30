@@ -30,7 +30,6 @@ describe('RpcManager', () => {
     });
 
     afterEach(() => {
-        RpcManager.dispose();
         jest.clearAllMocks();
     });
 

@@ -38,7 +38,6 @@ describe('BlockManagerRegistry', () => {
     });
 
     afterEach(() => {
-        BlockManagerRegistry.dispose();
         jest.clearAllMocks();
     });
 

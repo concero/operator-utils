@@ -53,17 +53,6 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         this.logger.info('BalanceManager initialized');
     }
 
-    public dispose(): void {
-        this.clearTokenWatchers();
-        this.nativeBalances.clear();
-        this.tokenBalances.clear();
-        this.registeredTokens.clear();
-        this.registeredNativeBalances.clear();
-        this.tokenWatchers.clear();
-        this.nativeWatchers.clear();
-        super.dispose();
-        this.logger.debug('BalanceManager disposed');
-    }
 
     public registerToken(
         network: ConceroNetwork,
