@@ -1,15 +1,10 @@
 import { ManagerBase } from '../managers/ManagerBase';
-import { LoggerConfig } from '../types/ManagerConfigs';
-export interface LoggerInterface {
-    error(message: any, ...meta: any[]): void;
-    warn(message: any, ...meta: any[]): void;
-    info(message: any, ...meta: any[]): void;
-    debug(message: any, ...meta: any[]): void;
-}
+import { LoggerConfig, LoggerInterface } from '../types/ManagerConfigs';
 export declare class Logger extends ManagerBase {
-    private static instance;
+    private static instance?;
     private baseLogger;
     private consumerLoggers;
+    private batchers;
     private config;
     private constructor();
     static createInstance(config: LoggerConfig): Logger;
@@ -19,6 +14,7 @@ export declare class Logger extends ManagerBase {
     initialize(): Promise<void>;
     getLogger(consumerName?: string): LoggerInterface;
     private createConsumerLogger;
-    dispose(): void;
+    private flushBatch;
+    private shouldBatch;
 }
 //# sourceMappingURL=Logger.d.ts.map

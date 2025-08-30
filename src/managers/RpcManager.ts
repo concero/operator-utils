@@ -92,46 +92,49 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
     }
 
     public async updateRpcs(networks: ConceroNetwork[]): Promise<void> {
-    if (this.config.networkMode === 'localhost') {
-        this.logger.debug('Skipping RPC updates in localhost mode');
-        return;
-    }
-
-    try {
-        const activeNetworkNames = new Set(networks.map(n => n.name));
-        this.cleanupInactiveNetworks(activeNetworkNames);
-
-        const networksNeedingRemoteRpcs = networks.filter(
-            n => !this.config.rpcOverrides?.[n.name]?.length
-        );
-
-        let remoteRpcData: Record<string, { rpcUrls: string[]; chainSelector: string | number }> = {};
-
-        if (networksNeedingRemoteRpcs.length > 0) {
-            const url = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
-            const response = await this.httpClient.get<typeof remoteRpcData>(url);
-
-            if (!response) {
-                throw new Error('Failed to fetch RPC data');
-            }
-            remoteRpcData = response;
+        if (this.config.networkMode === 'localhost') {
+            this.logger.debug('Skipping RPC updates in localhost mode');
+            return;
         }
 
-        for (const network of networks) {
-            this.rpcUrls[network.name] = this.applyRpcConfiguration(
-                network.name,
-                remoteRpcData[network.name]?.rpcUrls || []
+        try {
+            const activeNetworkNames = new Set(networks.map(n => n.name));
+            this.cleanupInactiveNetworks(activeNetworkNames);
+
+            const networksNeedingRemoteRpcs = networks.filter(
+                n => !this.config.rpcOverrides?.[n.name]?.length,
             );
-        }
 
-        this.logger.debug(`Updated RPCs for ${networks.length} active networks`);
-    } catch (error) {
-        this.logger.error(
-            `Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        throw error;
+            let remoteRpcData: Record<
+                string,
+                { rpcUrls: string[]; chainSelector: string | number }
+            > = {};
+
+            if (networksNeedingRemoteRpcs.length > 0) {
+                const url = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
+                const response = await this.httpClient.get<typeof remoteRpcData>(url);
+
+                if (!response) {
+                    throw new Error('Failed to fetch RPC data');
+                }
+                remoteRpcData = response;
+            }
+
+            for (const network of networks) {
+                this.rpcUrls[network.name] = this.applyRpcConfiguration(
+                    network.name,
+                    remoteRpcData[network.name]?.rpcUrls || [],
+                );
+            }
+
+            this.logger.debug(`Updated RPCs for ${networks.length} active networks`);
+        } catch (error) {
+            this.logger.error(
+                `Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            throw error;
+        }
     }
-}
 
     public getRpcsForNetwork(networkName: string): string[] {
         if (this.config.networkMode === 'localhost') {

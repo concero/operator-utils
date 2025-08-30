@@ -36787,9 +36787,6 @@ var ManagerBase = class {
       throw error;
     }
   }
-  dispose() {
-    this.initialized = false;
-  }
 };
 
 // node_modules/viem/_esm/utils/getAction.js
@@ -47869,55 +47866,99 @@ var localhostViemChain = defineChain({
 // src/utils/Logger.ts
 var import_winston = __toESM(require_winston());
 var import_winston_daily_rotate_file = __toESM(require_winston_daily_rotate_file());
+var LogBatcher = class {
+  constructor(flushFn, intervalMs, maxItems, maxBytes) {
+    this.flushFn = flushFn;
+    this.intervalMs = intervalMs;
+    this.maxItems = maxItems;
+    this.maxBytes = maxBytes;
+    this.buffer = [];
+    this.byteEstimate = 0;
+  }
+  enqueue(item) {
+    this.buffer.push(item);
+    this.byteEstimate += this.sizeOf(item);
+    if (this.buffer.length >= this.maxItems || this.byteEstimate >= this.maxBytes) {
+      this.flushNow();
+      return;
+    }
+    if (!this.timer) {
+      this.timer = setTimeout(() => this.flushNow(), this.intervalMs);
+      if (this.timer.unref) this.timer.unref();
+    }
+  }
+  flushNow() {
+    if (!this.buffer.length) return;
+    const batch = this.buffer;
+    this.buffer = [];
+    this.byteEstimate = 0;
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = void 0;
+    }
+    this.flushFn(batch);
+  }
+  dispose() {
+    this.flushNow();
+  }
+  sizeOf(item) {
+    let size5 = 0;
+    try {
+      size5 += typeof item.message === "string" ? item.message.length : JSON.stringify(item.message).length;
+    } catch {
+      size5 += 64;
+    }
+    for (const m of item.meta) {
+      try {
+        size5 += typeof m === "string" ? m.length : JSON.stringify(m).length;
+      } catch {
+        size5 += 64;
+      }
+    }
+    return size5 + 16;
+  }
+};
 var Logger = class _Logger extends ManagerBase {
-  constructor(config) {
+  constructor(cfg) {
     super();
     this.consumerLoggers = /* @__PURE__ */ new Map();
-    this.config = config;
+    this.batchers = /* @__PURE__ */ new Map();
+    this.config = {
+      enableConsoleTransport: cfg.enableConsoleTransport ?? true,
+      enableFileTransport: cfg.enableFileTransport ?? false,
+      batchFlushIntervalMs: cfg.batchFlushIntervalMs ?? 200,
+      batchMaxItems: cfg.batchMaxItems ?? 50,
+      batchMaxBytes: cfg.batchMaxBytes ?? 64 * 1024,
+      ...cfg
+    };
     this.baseLogger = this.createBaseLogger();
   }
   static createInstance(config) {
-    if (!_Logger.instance) {
-      _Logger.instance = new _Logger(config);
-    }
+    if (!_Logger.instance) _Logger.instance = new _Logger(config);
     return _Logger.instance;
   }
   static getInstance() {
-    if (!_Logger.instance) {
+    if (!_Logger.instance)
       throw new Error("Logger is not initialized. Call createInstance() first.");
-    }
     return _Logger.instance;
   }
   safeStringify(obj, indent) {
-    return JSON.stringify(
-      obj,
-      (key, value) => {
-        if (typeof value === "bigint") {
-          return `${value}n`;
-        }
-        return value;
-      },
-      indent
-    );
+    return JSON.stringify(obj, (_k, v) => typeof v === "bigint" ? `${v}n` : v, indent);
   }
   createBaseLogger() {
-    const logFormat = import_winston.default.format.combine(
+    const consoleFormat = import_winston.default.format.combine(
       import_winston.default.format.colorize({ level: true }),
-      import_winston.default.format.timestamp({
-        format: "MM-DD HH:mm:ss"
-      }),
-      import_winston.default.format.printf(({ level, message, timestamp, consumer, ...meta }) => {
+      import_winston.default.format.timestamp({ format: "MM-DD HH:mm:ss" }),
+      import_winston.default.format.printf(({ level, message, timestamp, consumer, ...rest }) => {
         const prefix = consumer ? `${consumer}` : "";
-        const formattedMessage = typeof message === "object" ? this.safeStringify(message, 2) : message;
-        const formattedMeta = meta && Object.keys(meta).length ? this.safeStringify(meta, 2) : "";
-        return `${timestamp} ${level} ${prefix}: ${formattedMessage} ${formattedMeta}`.trim();
+        const msg = typeof message === "object" ? this.safeStringify(message, 2) : String(message);
+        const meta = rest && Object.keys(rest).length ? this.safeStringify(rest, 2) : "";
+        return `${timestamp} ${level} ${prefix}: ${msg} ${meta}`.trim();
       })
     );
-    const logger = import_winston.default.createLogger({
-      level: "debug",
-      // Allow all logs through at base logger level
-      format: import_winston.default.format.json(),
-      transports: [
+    const transports = [];
+    if (this.config.enableFileTransport) {
+      transports.push(
         new import_winston_daily_rotate_file.default({
           level: "debug",
           dirname: this.config.logDir,
@@ -47934,17 +47975,21 @@ var Logger = class _Logger extends ManagerBase {
           maxSize: this.config.logMaxSize,
           maxFiles: this.config.logMaxFiles
         })
-      ]
-    });
+      );
+    }
     if (this.config.enableConsoleTransport) {
-      logger.add(
+      transports.push(
         new import_winston.default.transports.Console({
           level: "debug",
-          format: logFormat
+          format: consoleFormat
         })
       );
     }
-    return logger;
+    return import_winston.default.createLogger({
+      level: "debug",
+      format: import_winston.default.format.combine(import_winston.default.format.timestamp(), import_winston.default.format.json()),
+      transports
+    });
   }
   async initialize() {
     if (this.initialized) return;
@@ -47952,70 +47997,59 @@ var Logger = class _Logger extends ManagerBase {
     this.getLogger("Logger").info("Initialized");
   }
   getLogger(consumerName) {
-    const cacheKey2 = consumerName || "__default__";
-    if (this.consumerLoggers.has(cacheKey2)) {
-      return this.consumerLoggers.get(cacheKey2);
-    }
+    const key = consumerName || "__default__";
+    const existing = this.consumerLoggers.get(key);
+    if (existing) return existing;
     const logger = this.createConsumerLogger(consumerName);
-    this.consumerLoggers.set(cacheKey2, logger);
+    this.consumerLoggers.set(key, logger);
+    if (this.shouldBatch()) {
+      const batcher = new LogBatcher(
+        (items) => this.flushBatch(items, consumerName),
+        this.config.batchFlushIntervalMs,
+        this.config.batchMaxItems,
+        this.config.batchMaxBytes
+      );
+      this.batchers.set(key, batcher);
+    }
     return logger;
   }
   createConsumerLogger(consumerName) {
-    const getLogLevel = () => {
-      if (!consumerName) {
-        return this.config.logLevelDefault;
+    const levelFor = () => (consumerName ? this.config.logLevelsGranular[consumerName] : this.config.logLevelDefault) || this.config.logLevelDefault;
+    const rank = { error: 0, warn: 1, info: 2, debug: 3 };
+    const shouldLog = (lvl) => rank[lvl] <= rank[levelFor()];
+    const write = (lvl, message, meta) => {
+      const metaObj = consumerName ? { consumer: consumerName } : {};
+      if (this.shouldBatch() && lvl !== "error") {
+        const batcher = this.batchers.get(consumerName || "__default__");
+        batcher.enqueue({ level: lvl, message, meta: [metaObj] });
+        return;
       }
-      return this.config.logLevelsGranular[consumerName] || this.config.logLevelDefault;
+      this.baseLogger[lvl](message, metaObj);
     };
-    const logLevelValue = {
-      error: 0,
-      warn: 1,
-      info: 2,
-      debug: 3
-    };
-    const shouldLog = (messageLevel) => {
-      const configuredLevel = getLogLevel();
-      const configLevelValue = logLevelValue[configuredLevel] || 2;
-      const messageLevelValue = logLevelValue[messageLevel] || 0;
-      return messageLevelValue <= configLevelValue;
-    };
-    const logLevel = getLogLevel();
     return {
-      error: (message, ...meta) => {
-        this.baseLogger.error(
-          message,
-          consumerName ? { consumer: consumerName, ...meta } : meta
-        );
-      },
+      error: (message, ...meta) => write("error", message, meta),
       warn: (message, ...meta) => {
-        if (shouldLog("warn")) {
-          this.baseLogger.warn(
-            message,
-            consumerName ? { consumer: consumerName, ...meta } : meta
-          );
-        }
+        if (shouldLog("warn")) write("warn", message, meta);
       },
       info: (message, ...meta) => {
-        if (shouldLog("info")) {
-          this.baseLogger.info(
-            message,
-            consumerName ? { consumer: consumerName, ...meta } : meta
-          );
-        }
+        if (shouldLog("info")) write("info", message, meta);
       },
       debug: (message, ...meta) => {
-        if (shouldLog("debug")) {
-          this.baseLogger.debug(
-            message,
-            consumerName ? { consumer: consumerName, ...meta } : meta
-          );
-        }
+        if (shouldLog("debug")) write("debug", message, meta);
       }
     };
   }
-  dispose() {
-    this.consumerLoggers.clear();
-    super.dispose();
+  flushBatch(items, consumerName) {
+    if (!items.length) return;
+    for (const { level, message } of items) {
+      const metaObj = {
+        ...consumerName ? { consumer: consumerName } : {}
+      };
+      this.baseLogger[level](message, metaObj);
+    }
+  }
+  shouldBatch() {
+    return this.config.enableFileTransport === true;
   }
 };
 
@@ -48815,9 +48849,6 @@ var RpcManager = class _RpcManager extends ManagerBase {
     }
     return _RpcManager.instance;
   }
-  static dispose() {
-    _RpcManager.instance = void 0;
-  }
   async initialize() {
     if (this.initialized) return;
     await super.initialize();
@@ -48831,30 +48862,57 @@ var RpcManager = class _RpcManager extends ManagerBase {
   async updateRpcsForNetworks(networks) {
     await this.updateRpcs(networks);
   }
+  applyRpcConfiguration(networkName, freshRemoteRpcs) {
+    const overrides = this.config.rpcOverrides?.[networkName];
+    if (overrides && overrides.length > 0) {
+      return [...overrides];
+    }
+    const extensions = this.config.rpcExtensions?.[networkName];
+    if (!extensions || extensions.length === 0) {
+      return freshRemoteRpcs;
+    }
+    const uniqueRpcs = /* @__PURE__ */ new Set([...freshRemoteRpcs, ...extensions]);
+    return Array.from(uniqueRpcs);
+  }
+  cleanupInactiveNetworks(activeNetworkNames) {
+    const networksToRemove = [];
+    for (const networkName in this.rpcUrls) {
+      if (!activeNetworkNames.has(networkName)) {
+        networksToRemove.push(networkName);
+      }
+    }
+    for (const networkName of networksToRemove) {
+      delete this.rpcUrls[networkName];
+      this.logger.debug(`Cleaned up inactive network: ${networkName}`);
+    }
+  }
   async updateRpcs(networks) {
     if (this.config.networkMode === "localhost") {
       this.logger.debug("Skipping RPC updates in localhost mode");
       return;
     }
     try {
-      const url2 = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
-      const response = await this.httpClient.get(url2);
-      if (!response) {
-        throw new Error("Failed to fetch RPC data");
-      }
       const activeNetworkNames = new Set(networks.map((n) => n.name));
-      const currentNetworkNames = Object.keys(this.rpcUrls);
-      for (const networkName of currentNetworkNames) {
-        if (!activeNetworkNames.has(networkName)) {
-          delete this.rpcUrls[networkName];
-          this.logger.debug(`Removed RPCs for inactive network: ${networkName}`);
+      this.cleanupInactiveNetworks(activeNetworkNames);
+      const networksNeedingRemoteRpcs = networks.filter(
+        (n) => !this.config.rpcOverrides?.[n.name]?.length
+      );
+      let remoteRpcData = {};
+      if (networksNeedingRemoteRpcs.length > 0) {
+        const url2 = `${this.config.conceroRpcsUrl}/${this.config.networkMode}.json`;
+        const response = await this.httpClient.get(url2);
+        if (!response) {
+          throw new Error("Failed to fetch RPC data");
         }
+        remoteRpcData = response;
       }
-      const activeNetworkRpcs = Object.entries(response).filter(([networkName]) => activeNetworkNames.has(networkName)).map(([networkName, data]) => [networkName, data.rpcUrls || []]);
-      for (const [networkName, rpcUrls] of activeNetworkRpcs) {
-        this.rpcUrls[networkName] = rpcUrls;
+      for (const network of networks) {
+        this.rpcUrls[network.name] = this.applyRpcConfiguration(
+          network.name,
+          remoteRpcData[network.name]?.rpcUrls || []
+        );
       }
-      this.logger.debug(`Updated RPCs for ${activeNetworkRpcs.length} active networks`);
+      this.logger.debug(`Updated RPCs for ${networks.length} active networks`);
     } catch (error) {
       this.logger.error(
         `Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`
