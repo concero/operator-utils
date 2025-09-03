@@ -8,3 +8,4 @@ export { AppError } from './AppError';
 export { createViemChain, type ChainDefinition } from './createViemChain';
 export { callContract } from './callContract';
 export { getGranularLogLevels } from './getGranularLogLevels';
+export { safeRequireJson } from './safeRequireJson';

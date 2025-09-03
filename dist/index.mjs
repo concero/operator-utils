@@ -48260,6 +48260,15 @@ function getGranularLogLevels() {
   return logLevels;
 }
 
+// src/utils/safeRequireJson.ts
+function safeRequireJson(filePath) {
+  try {
+    return __require(filePath);
+  } catch {
+    return {};
+  }
+}
+
 // src/managers/ConceroNetworkManager.ts
 var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   constructor(logger, httpClient, config) {
@@ -49938,7 +49947,8 @@ export {
   fetchNetworkConfigs,
   getEnvVar,
   getGranularLogLevels,
-  localhostViemChain
+  localhostViemChain,
+  safeRequireJson
 };
 /*! Bundled license information:
 

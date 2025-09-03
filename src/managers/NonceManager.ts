@@ -46,15 +46,6 @@ export class NonceManager extends ManagerBase implements INonceManager {
         return NonceManager.instance;
     }
 
-    private async getOrLoadNonce(networkName: string): Promise<number> {
-        let nonce = this.noncesMap[networkName];
-        if (nonce === null || nonce === undefined) {
-            nonce = await this.fetchNonce(networkName);
-            this.noncesMap[networkName] = nonce;
-        }
-        return nonce;
-    }
-
     public async get(networkName: string): Promise<number> {
         const mutex = this.getMutex(networkName);
         return mutex.runExclusive(async () => {
@@ -84,15 +75,6 @@ export class NonceManager extends ManagerBase implements INonceManager {
         });
     }
 
-    public async increment(networkName: string): Promise<void> {
-        const mutex = this.getMutex(networkName);
-        return mutex.runExclusive(async () => {
-            const nonce = await this.getOrLoadNonce(networkName);
-            this.set(networkName, nonce + 1);
-            this.logger.debug(`Incremented nonce for network ${networkName} to ${nonce + 1}`);
-        });
-    }
-
     public async decrement(networkName: string): Promise<void> {
         const mutex = this.getMutex(networkName);
         return mutex.runExclusive(async () => {
@@ -110,6 +92,15 @@ export class NonceManager extends ManagerBase implements INonceManager {
 
     private set(networkName: string, nonce: number): void {
         this.noncesMap[networkName] = nonce;
+    }
+
+    private async getOrLoadNonce(networkName: string): Promise<number> {
+        let nonce = this.noncesMap[networkName];
+        if (nonce === null || nonce === undefined) {
+            nonce = await this.fetchNonce(networkName);
+            this.noncesMap[networkName] = nonce;
+        }
+        return nonce;
     }
 
     private async fetchNonce(networkName: string): Promise<number> {

@@ -36733,7 +36733,8 @@ __export(index_exports, {
   fetchNetworkConfigs: () => fetchNetworkConfigs,
   getEnvVar: () => getEnvVar,
   getGranularLogLevels: () => getGranularLogLevels,
-  localhostViemChain: () => localhostViemChain
+  localhostViemChain: () => localhostViemChain,
+  safeRequireJson: () => safeRequireJson
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -48287,6 +48288,15 @@ function getGranularLogLevels() {
   return logLevels;
 }
 
+// src/utils/safeRequireJson.ts
+function safeRequireJson(filePath) {
+  try {
+    return require(filePath);
+  } catch {
+    return {};
+  }
+}
+
 // src/managers/ConceroNetworkManager.ts
 var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   constructor(logger, httpClient, config) {
@@ -49966,7 +49976,8 @@ var TxWriter = class _TxWriter {
   fetchNetworkConfigs,
   getEnvVar,
   getGranularLogLevels,
-  localhostViemChain
+  localhostViemChain,
+  safeRequireJson
 });
 /*! Bundled license information:
 
