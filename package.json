@@ -22,7 +22,8 @@
         "lint:fix": "eslint --config .eslint.config.mjs --fix",
         "format": "prettier --config .prettierrc.json --write \"**/*.{ts,json}\"",
         "check-updates": "npx npm-check-updates",
-        "test": "jest"
+        "test": "jest",
+        "preinstall": "sh validatePackageManager.sh bun"
     },
     "author": "",
     "license": "ISC",
@@ -36,7 +37,7 @@
         "winston-daily-rotate-file": "5.0.0"
     },
     "devDependencies": {
-        "@trivago/prettier-plugin-sort-imports": "5.2.2",
+        "@ianvs/prettier-plugin-sort-imports": "4.7.0",
         "@types/jest": "30.0.0",
         "@types/node": "24.1.0",
         "@typescript-eslint/eslint-plugin": "8.39.1",

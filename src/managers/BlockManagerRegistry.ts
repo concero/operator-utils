@@ -1,18 +1,17 @@
+import { PublicClient } from 'viem';
 import { BlockManager } from './BlockManager';
 import { ManagerBase } from './ManagerBase';
 
-import { PublicClient } from 'viem';
-
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { BlockManagerRegistryConfig } from '../types/ManagerConfigs';
 import {
+    BlockManagerConfig,
+    BlockManagerRegistryConfig,
+    ConceroNetwork,
     IBlockManagerRegistry,
-    INetworkManager,
-    IRpcManager,
+    IConceroNetworkManager,
+    ILogger,
     IViemClientManager,
     NetworkUpdateListener,
-} from '../types/managers/';
+} from '../types';
 
 export class BlockManagerRegistry
     extends ManagerBase
@@ -20,24 +19,21 @@ export class BlockManagerRegistry
 {
     private static instance: BlockManagerRegistry;
     private blockManagers: Map<string, BlockManager> = new Map();
-    private networkManager: INetworkManager;
+    private networkManager: IConceroNetworkManager;
     private viemClientManager: IViemClientManager;
-    private rpcManager: IRpcManager;
-    private logger: LoggerInterface;
-    private config: BlockManagerRegistryConfig;
+    private logger: ILogger;
+    private config: BlockManagerConfig;
 
     private constructor(
-        logger: LoggerInterface,
-        networkManager: INetworkManager,
+        logger: ILogger,
+        networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        rpcManager: IRpcManager,
-        config: BlockManagerRegistryConfig,
+        config: BlockManagerConfig,
     ) {
         super();
         this.logger = logger;
         this.networkManager = networkManager;
         this.viemClientManager = viemClientManager;
-        this.rpcManager = rpcManager;
         this.config = config;
     }
 
@@ -108,19 +104,16 @@ export class BlockManagerRegistry
         }
     }
 
-    //TODO: attempt to refactor createInstance to a base class
     public static createInstance(
-        logger: LoggerInterface,
-        networkManager: INetworkManager,
+        logger: ILogger,
+        networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        rpcManager: IRpcManager,
         config: BlockManagerRegistryConfig,
     ): BlockManagerRegistry {
         BlockManagerRegistry.instance = new BlockManagerRegistry(
             logger,
             networkManager,
             viemClientManager,
-            rpcManager,
             config,
         );
         return BlockManagerRegistry.instance;
@@ -156,9 +149,8 @@ export class BlockManagerRegistry
         }
 
         const blockManager = await BlockManager.create(network, publicClient, this.logger, {
-            pollingIntervalMs: this.config.blockManagerConfig.pollingIntervalMs,
-            catchupBatchSize: this.config.blockManagerConfig.catchupBatchSize,
-            useCheckpoints: this.config.blockManagerConfig.useCheckpoints,
+            pollingIntervalMs: this.config.pollingIntervalMs,
+            catchupBatchSize: this.config.catchupBatchSize,
         });
 
         this.blockManagers.set(network.name, blockManager);

@@ -1,8 +1,6 @@
 import { ManagerBase } from './ManagerBase';
 import { ViemClientManager } from './ViemClientManager';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { NonceManagerConfig } from '../types/ManagerConfigs';
-import { INonceManager } from '../types/managers/INonceManager';
+import { ILogger, INonceManager, NonceManagerConfig } from '../types';
 export declare class NonceManager extends ManagerBase implements INonceManager {
     private static instance;
     private noncesMap;
@@ -10,8 +8,8 @@ export declare class NonceManager extends ManagerBase implements INonceManager {
     private logger;
     private config;
     private viemClientManager;
-    protected constructor(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig);
-    static createInstance(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig): NonceManager;
+    protected constructor(logger: ILogger, viemClientManager: ViemClientManager, config: NonceManagerConfig);
+    static createInstance(logger: ILogger, viemClientManager: ViemClientManager, config: NonceManagerConfig): NonceManager;
     static getInstance(): NonceManager;
     get(networkName: string): Promise<number>;
     consume(networkName: string): Promise<number>;

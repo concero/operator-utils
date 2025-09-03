@@ -558,7 +558,7 @@ import type {
   IDeploymentFetcher,
   ConceroNetwork,
   ChainDefinition,
-  LoggerInterface,
+  ILogger,
   AppErrorEnum
 } from '@concero/operator-utils'
 ```

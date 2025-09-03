@@ -1,11 +1,10 @@
 import { AppError } from './AppError';
-import { LoggerInterface } from './Logger';
-
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 import { AppErrorEnum } from '../constants/appErrors';
 import { ManagerBase } from '../managers';
-import { HttpClientConfig } from '../types/ManagerConfigs';
+import { LoggerInterface } from '../managers/Logger';
+import { HttpClientConfig } from '../types/BaseManagerConfig';
 
 export class HttpClient extends ManagerBase {
     private static instance?: HttpClient;

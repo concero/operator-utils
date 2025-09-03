@@ -1,9 +1,6 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { TxReaderConfig } from '../types/ManagerConfigs';
-import { INetworkManager, IViemClientManager } from '../types/managers';
-import { ITxReader, LogQuery } from '../types/managers/ITxReader';
+import { ConceroNetwork, IConceroNetworkManager, IViemClientManager, TxReaderConfig } from '../types';
+import { ILogger, ITxReader, LogQuery } from '../types/managers';
 type BulkCallback = (payload: {
     bulkId: string;
     results: {
@@ -29,7 +26,7 @@ export declare class TxReader implements ITxReader {
     private globalReadInterval?;
     private readonly watcherIntervalMs;
     private constructor();
-    static createInstance(logger: LoggerInterface, networkManager: INetworkManager, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
+    static createInstance(logger: ILogger, networkManager: IConceroNetworkManager, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
     static getInstance(): TxReader;
     initialize(): Promise<void>;
     logWatcher: {

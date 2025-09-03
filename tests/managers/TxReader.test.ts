@@ -1,8 +1,7 @@
+import { Abi, AbiEvent } from 'viem';
 import { TxReader } from '@/managers/TxReader';
 import { INetworkManager } from '@/types/managers';
-
 import { v4 as uuidv4 } from 'uuid';
-import { Abi, AbiEvent } from 'viem';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';

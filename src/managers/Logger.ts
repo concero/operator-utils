@@ -1,8 +1,8 @@
+import { ManagerBase } from './ManagerBase';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
-import { ManagerBase } from '../managers/ManagerBase';
-import { LogLevel, LoggerConfig, LoggerInterface } from '../types/ManagerConfigs';
+import { LoggerConfig, LoggerInterface, LogLevel } from '../types';
 
 type BatchItem = { level: LogLevel; message: unknown; meta: unknown[] };
 
@@ -69,28 +69,11 @@ export class Logger extends ManagerBase {
     private baseLogger: winston.Logger;
     private consumerLoggers = new Map<string, LoggerInterface>();
     private batchers = new Map<string, LogBatcher>();
-    private config: Required<
-        Pick<
-            LoggerConfig,
-            | 'enableConsoleTransport'
-            | 'enableFileTransport'
-            | 'batchFlushIntervalMs'
-            | 'batchMaxItems'
-            | 'batchMaxBytes'
-        >
-    > &
-        LoggerConfig;
+    private config: LoggerConfig;
 
     private constructor(cfg: LoggerConfig) {
         super();
-        this.config = {
-            enableConsoleTransport: cfg.enableConsoleTransport ?? true,
-            enableFileTransport: cfg.enableFileTransport ?? false,
-            batchFlushIntervalMs: cfg.batchFlushIntervalMs ?? 200,
-            batchMaxItems: cfg.batchMaxItems ?? 50,
-            batchMaxBytes: cfg.batchMaxBytes ?? 64 * 1024,
-            ...cfg,
-        };
+        this.config = cfg;
         this.baseLogger = this.createBaseLogger();
     }
 

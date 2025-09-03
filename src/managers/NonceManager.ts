@@ -1,22 +1,19 @@
 import { ManagerBase } from './ManagerBase';
 import { ViemClientManager } from './ViemClientManager';
-
 import { Mutex } from 'async-mutex';
 
-import { LoggerInterface } from '../types/LoggerInterface';
-import { NonceManagerConfig } from '../types/ManagerConfigs';
-import { INonceManager } from '../types/managers/INonceManager';
+import { ILogger, INonceManager, NonceManagerConfig } from '../types';
 
 export class NonceManager extends ManagerBase implements INonceManager {
     private static instance: NonceManager | null = null;
     private noncesMap: Record<string, number> = {};
     private mutexMap: Record<string, Mutex> = {};
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private config: NonceManagerConfig;
     private viemClientManager: ViemClientManager;
 
     protected constructor(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: ViemClientManager,
         config: NonceManagerConfig,
     ) {
@@ -27,7 +24,7 @@ export class NonceManager extends ManagerBase implements INonceManager {
     }
 
     static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: ViemClientManager,
         config: NonceManagerConfig,
     ): NonceManager {

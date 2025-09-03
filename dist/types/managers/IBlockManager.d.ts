@@ -6,4 +6,8 @@ export interface IBlockManager {
     }): () => void;
     dispose(): void;
 }
+export type BlockManagerConfig = {
+    pollingIntervalMs: number;
+    catchupBatchSize: bigint;
+};
 //# sourceMappingURL=IBlockManager.d.ts.map

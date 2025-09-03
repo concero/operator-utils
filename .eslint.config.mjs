@@ -4,7 +4,7 @@ import pluginPrettier from 'eslint-plugin-prettier';
 
 export default [
     {
-        ignores: ['node_modules', 'cache', 'logs', 'dist', 'tests/**', 'jest.config.ts'],
+        ignores: ['node_modules', 'cache', 'logs', 'dist', 'tests/**', 'jest.globalConfig.ts'],
     },
     {
         files: ['**/*.ts'],

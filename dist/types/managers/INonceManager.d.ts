@@ -7,4 +7,7 @@ export interface INonceManager {
     increment(networkName: string): Promise<void>;
     initialize(): Promise<void>;
 }
+/** Configuration for NonceManager */
+export interface NonceManagerConfig {
+}
 //# sourceMappingURL=INonceManager.d.ts.map

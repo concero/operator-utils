@@ -1,8 +1,6 @@
 import { ManagerBase } from './ManagerBase';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { NetworkManagerConfig } from '../types/ManagerConfigs';
-import { IConceroNetworkManager, NetworkUpdateListener } from '../types/managers';
+import { ConceroNetwork, NetworkManagerConfig } from '../types';
+import { IConceroNetworkManager, ILogger, NetworkUpdateListener } from '../types/';
 import { HttpClient } from '../utils';
 export declare class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance;
@@ -14,9 +12,10 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     private logger;
     private config;
     private httpClient;
+    private isPolling;
     private constructor();
     static getInstance(): ConceroNetworkManager;
-    static createInstance(logger: LoggerInterface, httpClient: HttpClient, config: NetworkManagerConfig): ConceroNetworkManager;
+    static createInstance(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig): ConceroNetworkManager;
     initialize(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
@@ -30,10 +29,9 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     excludeNetwork(networkName: string, reason: string): void;
     getVerifierNetwork(): ConceroNetwork;
     getDefaultFinalityConfirmations(): number;
-    forceUpdate(): Promise<void>;
     private updateNetworks;
     private notifyListeners;
-    triggerInitialUpdates(): Promise<void>;
+    startPolling(): Promise<void>;
     private createNetworkConfig;
     private getTestingNetworks;
     private filterNetworks;

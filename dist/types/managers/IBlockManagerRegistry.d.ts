@@ -6,4 +6,6 @@ export interface IBlockManagerRegistry {
     getAllManagedNetworks(): string[];
     getLatestBlockForChain(networkName: string): Promise<bigint | null>;
 }
+export interface BlockManagerRegistryConfig {
+}
 //# sourceMappingURL=IBlockManagerRegistry.d.ts.map

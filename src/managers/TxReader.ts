@@ -1,11 +1,13 @@
-import { v4 as uuidv4 } from 'uuid';
 import { Abi, AbiEvent, Address, Log } from 'viem';
+import { v4 as uuidv4 } from 'uuid';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { TxReaderConfig } from '../types/ManagerConfigs';
-import { INetworkManager, IViemClientManager } from '../types/managers';
-import { ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers/ITxReader';
+import {
+    ConceroNetwork,
+    IConceroNetworkManager,
+    IViemClientManager,
+    TxReaderConfig,
+} from '../types';
+import { ILogger, ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers';
 
 type Watcher = ReadContractWatcher & {
     timeoutMs?: number;
@@ -43,20 +45,20 @@ export class TxReader implements ITxReader {
     private readonly watcherIntervalMs: number;
 
     private constructor(
-        private readonly logger: LoggerInterface,
-        private readonly networkManager: INetworkManager,
+        private readonly logger: ILogger,
+        private readonly networkManager: IConceroNetworkManager,
         private readonly viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ) {
-        this.watcherIntervalMs = config.watcherIntervalMs ?? 10_000;
+        this.watcherIntervalMs = config.watcherIntervalMs;
         this.logger.debug(
-            `TxReader: Initialized with watcher interval ${this.watcherIntervalMs}ms`,
+            `TxReader: Initialized with watcher interval ${this.watcherIntervalMs} ms`,
         );
     }
 
     public static createInstance(
-        logger: LoggerInterface,
-        networkManager: INetworkManager,
+        logger: ILogger,
+        networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ): TxReader {

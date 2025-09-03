@@ -10,3 +10,10 @@ export interface ITxWriter {
     ): Promise<string>;
     initialize(): Promise<void>;
 }
+
+/** Configuration for TxWriter */
+export interface TxWriterConfig {
+    dryRun: boolean;
+    simulateTx: boolean;
+    defaultGasLimit?: bigint;
+}

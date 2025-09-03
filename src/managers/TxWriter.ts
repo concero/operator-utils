@@ -1,9 +1,9 @@
 import { SimulateContractParameters } from 'viem';
 
+import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { TxWriterConfig } from '../types/ManagerConfigs';
 import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { ILogger } from '../types/managers/ILogger';
 import { ITxWriter } from '../types/managers/ITxWriter';
 import { callContract } from '../utils';
 
@@ -11,12 +11,12 @@ export class TxWriter implements ITxWriter {
     private static instance: TxWriter | undefined;
     private viemClientManager: IViemClientManager;
     private txMonitor: ITxMonitor;
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private config: TxWriterConfig;
     private nonceManager: INonceManager;
 
     private constructor(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
@@ -30,7 +30,7 @@ export class TxWriter implements ITxWriter {
     }
 
     public static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,

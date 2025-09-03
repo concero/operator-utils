@@ -1,10 +1,7 @@
-import { ManagerBase } from './ManagerBase';
 import { PublicClient, WalletClient } from 'viem';
 import type { PrivateKeyAccount } from 'viem/accounts/types';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { ViemClientManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, IViemClientManager } from '../types/managers';
+import { ManagerBase } from './ManagerBase';
+import { ConceroNetwork, ILogger, IRpcManager, IViemClientManager, ViemClientManagerConfig } from '../types';
 export interface ViemClients {
     walletClient: WalletClient;
     publicClient: PublicClient;
@@ -18,7 +15,7 @@ export declare class ViemClientManager extends ManagerBase implements IViemClien
     private account;
     private config;
     private constructor();
-    static createInstance(logger: LoggerInterface, rpcManager: IRpcManager, config: ViemClientManagerConfig): ViemClientManager;
+    static createInstance(logger: ILogger, rpcManager: IRpcManager, config: ViemClientManagerConfig): ViemClientManager;
     static getInstance(): ViemClientManager;
     initialize(): Promise<void>;
     private createTransport;

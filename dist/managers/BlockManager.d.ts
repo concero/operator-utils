@@ -1,8 +1,5 @@
 import { PublicClient } from 'viem';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { BlockManagerConfig } from '../types/ManagerConfigs';
-import { IBlockManager } from '../types/managers';
+import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
  * It handles both the polling for new blocks and notifying registered handlers about block ranges.
@@ -18,14 +15,14 @@ export declare class BlockManager implements IBlockManager {
     readonly publicClient: PublicClient;
     private network;
     private blockRangeHandlers;
-    protected logger: LoggerInterface;
+    protected logger: ILogger;
     private config;
     private isDisposed;
     private isPolling;
     private pollingIntervalMs;
     private pollingTimeout;
     private constructor();
-    static create(network: ConceroNetwork, publicClient: PublicClient, logger: LoggerInterface, config: BlockManagerConfig): Promise<BlockManager>;
+    static create(network: ConceroNetwork, publicClient: PublicClient, logger: ILogger, config: BlockManagerConfig): Promise<BlockManager>;
     startPolling(): Promise<void>;
     private stopPolling;
     private poll;

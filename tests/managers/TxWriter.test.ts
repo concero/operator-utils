@@ -1,9 +1,8 @@
+import { SimulateContractParameters } from 'viem';
 import { NonceManager } from '@/managers/NonceManager';
 import { TxWriter } from '@/managers/TxWriter';
 import * as callContractUtil from '@/utils/callContract';
-
 import { v4 as uuidv4 } from 'uuid';
-import { SimulateContractParameters } from 'viem';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';

@@ -1,14 +1,14 @@
 import { Hash } from 'viem';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { TxMonitorConfig } from '../types/ManagerConfigs';
 import {
+    ConceroNetwork,
     IBlockManagerRegistry,
     IConceroNetworkManager,
+    ILogger,
     ITxMonitor,
     IViemClientManager,
-} from '../types/managers';
+    TxMonitorConfig,
+} from '../types';
 
 interface Subscriber {
     id: string;
@@ -37,14 +37,14 @@ export class TxMonitor implements ITxMonitor {
     private monitors: Map<string, TransactionMonitor> = new Map();
     private viemClientManager: IViemClientManager;
     private disposed: boolean = false;
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private config: TxMonitorConfig;
     private networkSubscriptions: Map<string, () => void> = new Map();
     private blockManagerRegistry: IBlockManagerRegistry;
     private networkManager: IConceroNetworkManager;
 
     constructor(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: IViemClientManager,
         blockManagerRegistry: IBlockManagerRegistry,
         networkManager: IConceroNetworkManager,
@@ -59,7 +59,7 @@ export class TxMonitor implements ITxMonitor {
     }
 
     public static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: IViemClientManager,
         blockManagerRegistry: IBlockManagerRegistry,
         networkManager: IConceroNetworkManager,

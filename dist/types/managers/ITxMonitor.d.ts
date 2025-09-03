@@ -7,4 +7,9 @@ export interface ITxMonitor {
         status: 'pending';
     }>;
 }
+/** Configuration for TxMonitor */
+export interface TxMonitorConfig {
+    maxInclusionWait?: number;
+    maxFinalityWait?: number;
+}
 //# sourceMappingURL=ITxMonitor.d.ts.map

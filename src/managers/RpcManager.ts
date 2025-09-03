@@ -1,26 +1,25 @@
 import { ConceroNetworkManager } from './ConceroNetworkManager';
 import { ManagerBase } from './ManagerBase';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { RpcManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, NetworkUpdateListener } from '../types/managers';
-import { HttpClient } from '../utils/HttpClient';
+import {
+    ConceroNetwork,
+    ILogger,
+    IRpcManager,
+    NetworkUpdateListener,
+    RpcManagerConfig,
+} from '../types';
+import { HttpClient } from '../utils';
 
 // Watches @concero/rpcs and keeps an updatable list of RPC endpoints for networks
 export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdateListener {
     private static instance: RpcManager;
     private httpClient: HttpClient;
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private config: RpcManagerConfig;
     private rpcUrls: Record<string, string[]> = {};
     private networkManager: ConceroNetworkManager;
 
-    constructor(
-        logger: LoggerInterface,
-        networkManager: ConceroNetworkManager,
-        config: RpcManagerConfig,
-    ) {
+    constructor(logger: ILogger, networkManager: ConceroNetworkManager, config: RpcManagerConfig) {
         super();
         this.httpClient = HttpClient.getInstance();
         this.logger = logger;
@@ -29,7 +28,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
     }
 
     public static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         networkManager: ConceroNetworkManager,
         config: RpcManagerConfig,
     ): RpcManager {

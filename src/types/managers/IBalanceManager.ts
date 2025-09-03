@@ -1,5 +1,3 @@
-import { NetworkUpdateListener } from './NetworkUpdateListener';
-
 import type { Address } from 'viem';
 
 import { ConceroNetwork } from '../ConceroNetwork';
@@ -10,8 +8,8 @@ export interface TokenConfig {
 }
 
 export interface BalanceManagerConfig {
+    pollingIntervalMs: number;
     minAllowances?: Map<string, Map<string, bigint>>; // network → token → minAllowance
-    pollingIntervalMs?: number;
 }
 
 export interface IBalanceManager {

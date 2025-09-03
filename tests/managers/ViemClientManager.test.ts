@@ -1,16 +1,18 @@
+import * as viem from 'viem';
+import * as viemAccounts from 'viem/accounts';
 import { ViemClientManager } from '@/managers/ViemClientManager';
 import { IRpcManager } from '@/types/managers';
 import * as utils from '@/utils';
-
-import * as viem from 'viem';
-import * as viemAccounts from 'viem/accounts';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 
 jest.mock('viem');
 jest.mock('viem/accounts');
-jest.mock('@/utils');
+jest.mock('@/utils', () => ({
+    createCustomHttpTransport: jest.fn(),
+    isNonceError: jest.fn().mockReturnValue(false),
+}));
 
 describe('ViemClientManager', () => {
     let logger: MockLogger;
@@ -23,7 +25,6 @@ describe('ViemClientManager', () => {
             getRpcsForNetwork: jest.fn().mockReturnValue(['http://rpc.com']),
         } as any;
 
-        (utils.getEnvVar as jest.Mock).mockReturnValue('mock-pk');
         (viemAccounts.privateKeyToAccount as jest.Mock).mockReturnValue({ address: '0x123' });
         (viem.createPublicClient as jest.Mock).mockReturnValue({});
         (viem.createWalletClient as jest.Mock).mockReturnValue({});
@@ -31,6 +32,7 @@ describe('ViemClientManager', () => {
         (utils.createCustomHttpTransport as jest.Mock).mockReturnValue({});
 
         viemClientManager = ViemClientManager.createInstance(logger, rpcManager, {
+            operatorPrivateKey: 'mock-pk',
             fallbackTransportOptions: {
                 retryCount: 3,
                 retryDelay: 1000,

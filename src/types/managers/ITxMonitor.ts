@@ -23,3 +23,9 @@ export interface ITxMonitor {
         status: 'pending';
     }>;
 }
+
+/** Configuration for TxMonitor */
+export interface TxMonitorConfig {
+    maxInclusionWait?: number; // Maximum time to wait for inclusion in milliseconds
+    maxFinalityWait?: number; // Maximum time to wait for finality in milliseconds
+}

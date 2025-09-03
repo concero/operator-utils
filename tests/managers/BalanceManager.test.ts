@@ -1,3 +1,4 @@
+import { zeroAddress } from 'viem';
 import { BalanceManager } from '@/managers/BalanceManager';
 import {
     BalanceManagerConfig,
@@ -6,8 +7,6 @@ import {
     IViemClientManager,
     LoggerInterface,
 } from '@/types';
-
-import { zeroAddress } from 'viem';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';

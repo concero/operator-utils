@@ -1,6 +1,6 @@
-import { ManagerBase } from './ManagerBase';
 import type { Address } from 'viem';
-import { BalanceManagerConfig, ConceroNetwork, IBalanceManager, ITxReader, IViemClientManager, LoggerInterface, TokenConfig } from '../types';
+import { ManagerBase } from './ManagerBase';
+import { BalanceManagerConfig, ConceroNetwork, IBalanceManager, ILogger, ITxReader, IViemClientManager, TokenConfig } from '../types';
 export declare abstract class BalanceManager extends ManagerBase implements IBalanceManager {
     private readonly nativeBalances;
     private readonly tokenBalances;
@@ -16,7 +16,7 @@ export declare abstract class BalanceManager extends ManagerBase implements IBal
     private readonly viemClientManager;
     private readonly txReader;
     private readonly logger;
-    protected constructor(logger: LoggerInterface, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
+    protected constructor(logger: ILogger, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
     initialize(): Promise<void>;
     registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
     deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;

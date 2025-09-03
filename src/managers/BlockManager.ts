@@ -1,9 +1,6 @@
 import { PublicClient } from 'viem';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { BlockManagerConfig } from '../types/ManagerConfigs';
-import { IBlockManager } from '../types/managers';
+import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
@@ -29,7 +26,7 @@ export class BlockManager implements IBlockManager {
     private network: ConceroNetwork;
     private blockRangeHandlers: Map<string, BlockRangeHandler> = new Map();
 
-    protected logger: LoggerInterface;
+    protected logger: ILogger;
     private config: BlockManagerConfig;
 
     private isDisposed: boolean = false;
@@ -41,7 +38,7 @@ export class BlockManager implements IBlockManager {
         initialBlock: bigint,
         network: ConceroNetwork,
         publicClient: PublicClient,
-        logger: LoggerInterface,
+        logger: ILogger,
         config: BlockManagerConfig,
     ) {
         this.lastProcessedBlockNumber = initialBlock;
@@ -55,7 +52,7 @@ export class BlockManager implements IBlockManager {
     static async create(
         network: ConceroNetwork,
         publicClient: PublicClient,
-        logger: LoggerInterface,
+        logger: ILogger,
         config: BlockManagerConfig,
     ): Promise<BlockManager> {
         let initialBlock: bigint;
@@ -81,7 +78,7 @@ export class BlockManager implements IBlockManager {
 
         this.isPolling = true;
 
-        await this.performCatchup();
+        // await this.performCatchup();
         await this.poll();
     }
 

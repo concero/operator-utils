@@ -1,6 +1,5 @@
-import { BlockManager } from '@/managers/BlockManager';
-
 import { PublicClient } from 'viem';
+import { BlockManager } from '@/managers/BlockManager';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';

@@ -1,6 +1,6 @@
-import { Logger } from './Logger';
+import { http, Transport } from 'viem';
 
-import { Transport, http } from 'viem';
+import { Logger } from '../managers/Logger';
 
 export interface HttpTransportConfig {
     timeout: number;

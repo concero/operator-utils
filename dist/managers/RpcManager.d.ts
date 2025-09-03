@@ -1,9 +1,6 @@
 import { ConceroNetworkManager } from './ConceroNetworkManager';
 import { ManagerBase } from './ManagerBase';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { RpcManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, NetworkUpdateListener } from '../types/managers';
+import { ConceroNetwork, ILogger, IRpcManager, NetworkUpdateListener, RpcManagerConfig } from '../types';
 export declare class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdateListener {
     private static instance;
     private httpClient;
@@ -11,8 +8,8 @@ export declare class RpcManager extends ManagerBase implements IRpcManager, Netw
     private config;
     private rpcUrls;
     private networkManager;
-    constructor(logger: LoggerInterface, networkManager: ConceroNetworkManager, config: RpcManagerConfig);
-    static createInstance(logger: LoggerInterface, networkManager: ConceroNetworkManager, config: RpcManagerConfig): RpcManager;
+    constructor(logger: ILogger, networkManager: ConceroNetworkManager, config: RpcManagerConfig);
+    static createInstance(logger: ILogger, networkManager: ConceroNetworkManager, config: RpcManagerConfig): RpcManager;
     static getInstance(): RpcManager;
     initialize(): Promise<void>;
     ensureRpcsForNetwork(network: ConceroNetwork): Promise<void>;

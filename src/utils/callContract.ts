@@ -1,20 +1,17 @@
-import { AppError } from './AppError';
-import { asyncRetry } from './asyncRetry';
-import { isNonceError } from './viemErrorParser';
-
 import {
     Hash,
     InsufficientFundsError,
     IntrinsicGasTooHighError,
     IntrinsicGasTooLowError,
-    type PublicClient,
-    type SimulateContractParameters,
     TipAboveFeeCapError,
     TransactionTypeNotSupportedError,
     UserRejectedRequestError,
+    type PublicClient,
+    type SimulateContractParameters,
     type WalletClient,
 } from 'viem';
-import { ContractFunctionExecutionError } from 'viem';
+import { asyncRetry } from './asyncRetry';
+import { isNonceError } from './viemErrorParser';
 
 import { INonceManager } from '../types/managers';
 

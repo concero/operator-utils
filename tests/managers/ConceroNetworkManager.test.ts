@@ -1,14 +1,15 @@
+import * as envUtils from '@/utils/getEnvVars';
+
 import { ConceroNetworkManager } from '@/managers/ConceroNetworkManager';
 import { NetworkUpdateListener } from '@/types/managers';
-import { HttpClient } from '@/utils/HttpClient';
 import * as networkUtils from '@/utils/fetchNetworkConfigs';
-import * as envUtils from '@/utils/getEnvVar';
+import { HttpClient } from '@/utils/HttpClient';
 
 import { MockLogger } from '../mocks/Logger';
 
 jest.mock('@/utils/HttpClient');
 jest.mock('@/utils/fetchNetworkConfigs');
-jest.mock('@/utils/getEnvVar');
+jest.mock('@/utils/getEnvVars');
 
 describe('ConceroNetworkManager', () => {
     let logger: MockLogger;
@@ -19,7 +20,7 @@ describe('ConceroNetworkManager', () => {
         logger = new MockLogger();
         mockHttpClient = new HttpClient(logger, {});
         (HttpClient.getInstance as jest.Mock).mockReturnValue(mockHttpClient);
-        (envUtils.getEnvVar as jest.Mock).mockReturnValue('mock-pk');
+        (envUtils.getEnvString as jest.Mock).mockReturnValue('mock-pk');
 
         const mockFetchNetworkConfigs = networkUtils.fetchNetworkConfigs as jest.Mock;
         mockFetchNetworkConfigs.mockResolvedValue({
@@ -33,10 +34,11 @@ describe('ConceroNetworkManager', () => {
 
         networkManager = ConceroNetworkManager.createInstance(logger, mockHttpClient, {
             networkMode: 'mainnet',
+            operatorPrivateKey: 'mock-pk',
             mainnetUrl: 'http://mainnet.url',
             testnetUrl: 'http://testnet.url',
-            defaultConfirmations: 1,
             defaultFinalityConfirmations: 1,
+            pollingIntervalMs: 60000,
             ignoredNetworkIds: [],
             whitelistedNetworkIds: { mainnet: [], testnet: [] },
         });

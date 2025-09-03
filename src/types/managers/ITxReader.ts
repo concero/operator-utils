@@ -71,3 +71,8 @@ export interface ITxReader {
 
     initialize(): Promise<void>;
 }
+
+/** Configuration for TxReader */
+export interface TxReaderConfig {
+    watcherIntervalMs: number;
+}

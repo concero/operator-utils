@@ -1,6 +1,6 @@
+import { ILogger } from '../types';
 import { IDeploymentFetcher } from '../types/managers';
 import { HttpClient } from '../utils/HttpClient';
-import { LoggerInterface } from '../utils/Logger';
 
 export type DeploymentPattern = RegExp;
 
@@ -13,9 +13,9 @@ export interface ParsedDeployment {
 // Stateless class for fetching and parsing deployments
 export class DeploymentFetcher implements IDeploymentFetcher {
     private httpClient: HttpClient;
-    private logger: LoggerInterface;
+    private logger: ILogger;
 
-    constructor(logger: LoggerInterface) {
+    constructor(logger: ILogger) {
         this.httpClient = HttpClient.getInstance();
         this.logger = logger;
     }

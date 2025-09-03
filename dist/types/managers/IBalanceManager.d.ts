@@ -5,8 +5,8 @@ export interface TokenConfig {
     address: string;
 }
 export interface BalanceManagerConfig {
+    pollingIntervalMs: number;
     minAllowances?: Map<string, Map<string, bigint>>;
-    pollingIntervalMs?: number;
 }
 export interface IBalanceManager {
     initialize(): Promise<void>;

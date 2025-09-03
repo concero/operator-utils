@@ -1,15 +1,16 @@
-import { ManagerBase } from './ManagerBase';
-
-import { PublicClient, WalletClient, createPublicClient, createWalletClient, fallback } from 'viem';
+import { createPublicClient, createWalletClient, fallback, PublicClient, WalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { PrivateKeyAccount } from 'viem/accounts/types';
+import { ManagerBase } from './ManagerBase';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { ViemClientManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, IViemClientManager } from '../types/managers';
-import { createCustomHttpTransport, getEnvVar } from '../utils';
-import { isNonceError } from '../utils/viemErrorParser';
+import {
+    ConceroNetwork,
+    ILogger,
+    IRpcManager,
+    IViemClientManager,
+    ViemClientManagerConfig,
+} from '../types';
+import { createCustomHttpTransport, isNonceError } from '../utils';
 
 export interface ViemClients {
     walletClient: WalletClient;
@@ -21,16 +22,12 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
     private static instance: ViemClientManager;
     private clients: Map<string, ViemClients> = new Map();
     private rpcManager: IRpcManager;
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private account: PrivateKeyAccount;
 
     private config: ViemClientManagerConfig;
 
-    private constructor(
-        logger: LoggerInterface,
-        rpcManager: IRpcManager,
-        config: ViemClientManagerConfig,
-    ) {
+    private constructor(logger: ILogger, rpcManager: IRpcManager, config: ViemClientManagerConfig) {
         super();
         this.rpcManager = rpcManager;
         this.logger = logger;
@@ -38,7 +35,7 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
     }
 
     public static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         rpcManager: IRpcManager,
         config: ViemClientManagerConfig,
     ): ViemClientManager {
@@ -55,8 +52,7 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
     public async initialize(): Promise<void> {
         if (this.initialized) return;
 
-        const privateKey = getEnvVar('OPERATOR_PRIVATE_KEY');
-        this.account = privateKeyToAccount(`0x${privateKey}`);
+        this.account = privateKeyToAccount(`0x${this.config.operatorPrivateKey}`);
 
         await super.initialize();
         this.logger.debug('Initialized');

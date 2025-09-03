@@ -1,10 +1,8 @@
 import { ManagerBase } from './ManagerBase';
 
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { LoggerInterface } from '../types/LoggerInterface';
-import { NetworkManagerConfig } from '../types/ManagerConfigs';
-import { IConceroNetworkManager, NetworkUpdateListener } from '../types/managers';
-import { HttpClient, fetchNetworkConfigs, getEnvVar, localhostViemChain } from '../utils';
+import { ConceroNetwork, NetworkManagerConfig, NetworkType } from '../types';
+import { IConceroNetworkManager, ILogger, NetworkUpdateListener } from '../types/';
+import { fetchNetworkConfigs, HttpClient, localhostViemChain } from '../utils';
 
 export class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance: ConceroNetworkManager;
@@ -15,15 +13,12 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private activeNetworks: ConceroNetwork[] = [];
 
     private updateListeners: NetworkUpdateListener[] = [];
-    private logger: LoggerInterface;
+    private logger: ILogger;
     private config: NetworkManagerConfig;
     private httpClient: HttpClient;
+    private isPolling = false;
 
-    private constructor(
-        logger: LoggerInterface,
-        httpClient: HttpClient,
-        config: NetworkManagerConfig,
-    ) {
+    private constructor(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig) {
         super();
         this.config = config;
         this.logger = logger;
@@ -35,7 +30,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     }
 
     public static createInstance(
-        logger: LoggerInterface,
+        logger: ILogger,
         httpClient: HttpClient,
         config: NetworkManagerConfig,
     ): ConceroNetworkManager {
@@ -152,19 +147,13 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         return this.config.defaultFinalityConfirmations;
     }
 
-    public async forceUpdate(): Promise<void> {
-        await this.updateNetworks();
-    }
-
     private async updateNetworks(): Promise<void> {
         let networksFetched = false;
         try {
-            const operatorPK = getEnvVar('OPERATOR_PRIVATE_KEY');
-
             if (this.config.networkMode === 'localhost') {
                 // In localhost mode, skip fetching remote network configs
                 this.mainnetNetworks = {};
-                const localhostNetworks = this.getTestingNetworks(operatorPK);
+                const localhostNetworks = this.getTestingNetworks(this.config.operatorPrivateKey);
                 this.testnetNetworks = localhostNetworks;
                 this.logger.debug(
                     `Using localhost networks only: ${Object.keys(localhostNetworks).join(', ')}`,
@@ -188,7 +177,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
 
                     if (hasMainnetNetworks) {
                         this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, 'mainnet', [
-                            operatorPK,
+                            this.config.operatorPrivateKey,
                         ]);
                     } else {
                         this.logger.warn(
@@ -198,7 +187,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
 
                     if (hasTestnetNetworks) {
                         this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, 'testnet', [
-                            operatorPK,
+                            this.config.operatorPrivateKey,
                         ]);
                     } else {
                         this.logger.warn(
@@ -252,8 +241,15 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         }
     }
 
-    public async triggerInitialUpdates(): Promise<void> {
-        this.logger.debug('Triggering initial updates for all listeners sequentially');
+    public async startPolling(): Promise<void> {
+        if (this.isPolling) {
+            this.logger.warn('Network polling is already running');
+            return;
+        }
+
+        this.logger.debug(
+            'Starting network polling and triggering initial updates for all listeners',
+        );
 
         for (const listener of this.updateListeners) {
             try {
@@ -264,16 +260,25 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                 this.logger.error(
                     `Error in initial update for ${listener.constructor.name}: ${error instanceof Error ? error.message : String(error)}`,
                 );
-                throw error; // Fail fast if initial updates fail
+                throw error;
             }
         }
 
         this.logger.debug('Completed all initial updates');
+
+        this.isPolling = true;
+        setInterval(async () => {
+            try {
+                await this.updateNetworks();
+            } catch (error) {
+                this.logger.error('Failed to update networks during polling:', error);
+            }
+        }, this.config.pollingIntervalMs);
     }
 
     private createNetworkConfig<T extends string>(
         networks: Record<string, any>,
-        networkType: 'mainnet' | 'testnet' | 'localhost',
+        networkType: NetworkType,
         accounts: string[],
     ): Record<T, ConceroNetwork> {
         return Object.fromEntries(
@@ -285,9 +290,8 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                         name: network.name || networkKey,
                         type: networkType,
                         id: network.chainId,
-                        accounts,
+                        accounts: [this.config.operatorPrivateKey],
                         chainSelector: network.chainSelector || network.chainId.toString(),
-                        confirmations: this.config.defaultConfirmations,
                         viemChain: network.viemChain,
                         finalityConfirmations:
                             network.finalityConfirmations ||
@@ -298,30 +302,28 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         ) as Record<T, ConceroNetwork>;
     }
 
-    private getTestingNetworks(operatorPK: string): Record<string, ConceroNetwork> {
+    private getTestingNetworks(): Record<string, ConceroNetwork> {
         return {
             localhost: {
                 name: 'localhost',
                 type: 'localhost',
                 id: 1,
-                accounts: [operatorPK],
+                accounts: [this.config.operatorPrivateKey],
                 chainSelector: '1',
-                confirmations: this.config.defaultConfirmations,
+                confirmations: 0,
                 viemChain: localhostViemChain,
             },
         };
     }
 
-    private filterNetworks(networkType: 'mainnet' | 'testnet' | 'localhost'): ConceroNetwork[] {
+    private filterNetworks(networkType: NetworkType): ConceroNetwork[] {
         let networks: ConceroNetwork[] = [];
         const ignoredIds = this.config.ignoredNetworkIds || [];
         const whitelistedIds = this.config.whitelistedNetworkIds[networkType] || [];
 
         switch (networkType) {
             case 'localhost':
-                networks = Object.values(
-                    this.getTestingNetworks(getEnvVar('OPERATOR_PRIVATE_KEY')),
-                );
+                networks = Object.values(this.getTestingNetworks(this.config.operatorPrivateKey));
                 break;
             case 'testnet':
                 networks = Object.values(this.testnetNetworks);

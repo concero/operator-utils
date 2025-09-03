@@ -13,21 +13,19 @@ describe('BlockManagerRegistry', () => {
     let blockManagerRegistry: BlockManagerRegistry;
     let networkManager: jest.Mocked<INetworkManager>;
     let viemClientManager: MockViemClientManager;
-    let rpcManager: jest.Mocked<IRpcManager>;
 
     beforeEach(() => {
         logger = new MockLogger();
         networkManager = {
             getActiveNetworks: jest.fn().mockReturnValue([mockConceroNetwork]),
+            excludeNetwork: jest.fn(),
         } as any;
         viemClientManager = new MockViemClientManager();
-        rpcManager = {} as any;
 
         blockManagerRegistry = BlockManagerRegistry.createInstance(
             logger,
             networkManager,
             viemClientManager,
-            rpcManager,
             {
                 blockManagerConfig: {
                     pollingIntervalMs: 1000,

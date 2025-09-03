@@ -1,9 +1,8 @@
+import { Account, PublicClient, WalletClient } from 'viem';
 import { mockConceroNetwork } from './ConceroNetwork';
 import { ConceroNetwork } from '@/types';
 import { IViemClientManager, ViemClients } from '@/types/managers';
-
 import { jest } from '@jest/globals';
-import { Account, PublicClient, WalletClient } from 'viem';
 
 export class MockViemClientManager implements IViemClientManager {
     initialize = jest.fn().mockResolvedValue(undefined);

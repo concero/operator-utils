@@ -1,22 +1,29 @@
-export { type IBlockManager } from './IBlockManager';
-export { type IBlockManagerRegistry } from './IBlockManagerRegistry';
-export { type IDeploymentFetcher } from './IDeploymentFetcher';
-export { type IConceroNetworkManager, type INetworkManager } from './INetworkManager';
+export { type IBlockManager, type BlockManagerConfig } from './IBlockManager';
+export {
+    type IBlockManagerRegistry,
+    type BlockManagerRegistryConfig,
+} from './IBlockManagerRegistry';
+export { type IDeploymentFetcher, type DeploymentManagerConfig } from './IDeploymentFetcher';
+export { type IConceroNetworkManager, type NetworkManagerConfig } from './IConceroNetworkManager';
 export { type INonceManager } from './INonceManager';
-export { type IRpcManager } from './IRpcManager';
-export { type IViemClientManager } from './IViemClientManager';
+export { type IRpcManager, type RpcManagerConfig } from './IRpcManager';
+export { type IViemClientManager, type ViemClientManagerConfig } from './IViemClientManager';
 export { type NetworkUpdateListener } from './NetworkUpdateListener';
 export { type RpcUpdateListener } from './RpcUpdateListener';
-export { type ITxMonitor, type MonitoredTransaction, type TransactionInfo } from './ITxMonitor';
+export { type ITxMonitor, type TxMonitorConfig } from './ITxMonitor';
 export {
     type ITxReader,
+    type TxReaderConfig,
     type LogWatcher,
     type LogQuery,
     type ReadContractWatcher,
 } from './ITxReader';
-export { type ITxWriter } from './ITxWriter';
+export { type ITxWriter, type TxWriterConfig } from './ITxWriter';
 export {
     type IBalanceManager,
     type TokenConfig,
     type BalanceManagerConfig,
 } from './IBalanceManager';
+export { type ILogger, type LoggerConfig, type LoggerInterface, type LogLevel } from './ILogger';
+export { type IHttpClient, type HttpClientConfig } from './IHttpClient';
+export { type NonceManagerConfig } from './INonceManager';

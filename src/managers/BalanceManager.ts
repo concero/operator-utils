@@ -1,16 +1,14 @@
-import { ManagerBase } from './ManagerBase';
-
 import type { Address } from 'viem';
-import { erc20Abi } from 'viem';
-import { zeroAddress } from 'viem';
+import { erc20Abi, zeroAddress } from 'viem';
+import { ManagerBase } from './ManagerBase';
 
 import {
     BalanceManagerConfig,
     ConceroNetwork,
     IBalanceManager,
+    ILogger,
     ITxReader,
     IViemClientManager,
-    LoggerInterface,
     TokenConfig,
 } from '../types';
 
@@ -32,10 +30,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     private readonly viemClientManager: IViemClientManager;
     private readonly txReader: ITxReader;
-    private readonly logger: LoggerInterface;
+    private readonly logger: ILogger;
 
     protected constructor(
-        logger: LoggerInterface,
+        logger: ILogger,
         viemClientManager: IViemClientManager,
         txReader: ITxReader,
         config: BalanceManagerConfig,

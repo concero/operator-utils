@@ -1,5 +1,6 @@
-import { Logger } from './Logger';
 import { sleep } from './sleep';
+
+import { Logger } from '../managers/Logger';
 
 export interface RetryOptions {
     maxRetries?: number;
