@@ -13,6 +13,7 @@ export interface IConceroNetworkManager {
     getVerifierNetwork(): ConceroNetwork | undefined;
     getDefaultFinalityConfirmations(): number;
     startPolling(): Promise<void>;
+    updateNetworks(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
     excludeNetwork(networkName: string, reason: string): void;
