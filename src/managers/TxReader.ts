@@ -386,7 +386,7 @@ export class TxReader implements ITxReader {
 
     private async executeContractBatch(ws: Watcher[]) {
         const network = ws[0].network;
-        const { publicClient } = this.viemClientManager.getClients(network);
+        const { publicClient } = this.viemClientManager.getClients(network.name);
 
         const reads = ws.map(w =>
             publicClient.readContract({
@@ -410,7 +410,7 @@ export class TxReader implements ITxReader {
 
     private async executeMethodBatch(ws: MethodWatcher[]) {
         const network = ws[0].network;
-        const { publicClient } = this.viemClientManager.getClients(network);
+        const { publicClient } = this.viemClientManager.getClients(network.name);
 
         this.logger.debug(`Executing method batch for ${network.name}: ${ws.length} watchers`);
 
@@ -469,7 +469,7 @@ export class TxReader implements ITxReader {
     }
 
     public async getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]> {
-        const { publicClient } = this.viemClientManager.getClients(n);
+        const { publicClient } = this.viemClientManager.getClients(n.name);
         try {
             return await publicClient.getLogs({
                 address: q.address,

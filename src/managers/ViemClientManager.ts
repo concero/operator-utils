@@ -7,18 +7,17 @@ import type { PrivateKeyAccount } from 'viem/accounts/types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { ViemClientManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, NetworkUpdateListener } from '../types/managers';
+import { IRpcManager, IViemClientManager } from '../types/managers';
 import { createCustomHttpTransport, getEnvVar } from '../utils';
 import { isNonceError } from '../utils/viemErrorParser';
 
 export interface ViemClients {
     walletClient: WalletClient;
     publicClient: PublicClient;
-    // TODO: do we really use this account? walletClient already has the account
     account: PrivateKeyAccount;
 }
 // Creates & updates Viem Fallback Clients for each network
-export class ViemClientManager extends ManagerBase implements NetworkUpdateListener {
+export class ViemClientManager extends ManagerBase implements IViemClientManager {
     private static instance: ViemClientManager;
     private clients: Map<string, ViemClients> = new Map();
     private rpcManager: IRpcManager;
@@ -89,6 +88,7 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
             transport,
             chain: chain.viemChain,
         });
+
         const walletClient = createWalletClient({
             transport,
             chain: chain.viemChain,
@@ -102,30 +102,17 @@ export class ViemClientManager extends ManagerBase implements NetworkUpdateListe
         };
     }
 
-    public getClients(chain: ConceroNetwork): ViemClients {
+    public getClients(networkName: string): ViemClients {
         if (!this.initialized) {
-            throw new Error('ViemClientManager not properly initialized');
+            throw new Error('ViemClientManager not initialized');
         }
 
-        if (!chain) {
-            throw new Error('Cannot get clients: chain parameter is undefined or null');
+        const clients = this.clients.get(networkName);
+        if (!clients) {
+            throw new Error(`No clients found for network: ${networkName}`);
         }
 
-        if (!chain.name) {
-            this.logger.error(`Invalid chain object provided: ${JSON.stringify(chain)}`);
-            throw new Error('Cannot get clients: chain.name is missing');
-        }
-
-        const cachedClients = this.clients.get(chain.name);
-        if (cachedClients) {
-            return cachedClients;
-        }
-
-        this.logger.debug(`Creating new clients for chain: ${chain.name} (id: ${chain.id})`);
-        const newClients = this.initializeClients(chain);
-        this.clients.set(chain.name, newClients);
-
-        return newClients;
+        return clients;
     }
 
     public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {

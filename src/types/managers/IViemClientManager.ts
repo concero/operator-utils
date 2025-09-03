@@ -5,7 +5,6 @@ import { ConceroNetwork } from '../ConceroNetwork';
 
 export interface IViemClientManager extends NetworkUpdateListener {
     initialize(): Promise<void>;
-    getClients(chain: ConceroNetwork): ViemClients;
+    getClients(networkName: string): ViemClients;
     updateClientsForNetworks(networks: ConceroNetwork[]): Promise<void>;
-    dispose(): void;
 }

@@ -43776,6 +43776,7 @@ function createWalletClient(parameters) {
 // node_modules/viem/_esm/index.js
 init_abis();
 init_contract();
+init_rpc();
 init_node();
 init_transaction();
 
@@ -43866,7 +43867,7 @@ var BalanceManager = class extends ManagerBase {
     }
   }
   watchNativeBalance(network) {
-    const { account } = this.viemClientManager.getClients(network);
+    const { account } = this.viemClientManager.getClients(network.name);
     const watcherId = this.txReader.methodWatcher.create(
       "getBalance",
       network,
@@ -43879,7 +43880,7 @@ var BalanceManager = class extends ManagerBase {
     return watcherId;
   }
   watchTokenBalance(network, tokenSymbol, tokenAddress) {
-    const { account } = this.viemClientManager.getClients(network);
+    const { account } = this.viemClientManager.getClients(network.name);
     const watcherId = this.txReader.readContractWatcher.create(
       tokenAddress,
       network,
@@ -43929,7 +43930,7 @@ var BalanceManager = class extends ManagerBase {
   }
   async ensureAllowance(networkName, tokenAddress, spenderAddress, requiredAmount) {
     const net = this.findActiveNetwork(networkName);
-    const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+    const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
     if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
     const min = this.getMinAllowance(networkName, tokenAddress);
     const current = await publicClient.readContract({
@@ -43954,7 +43955,7 @@ var BalanceManager = class extends ManagerBase {
   }
   async getAllowance(networkName, tokenAddress, spenderAddress) {
     const net = this.findActiveNetwork(networkName);
-    const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+    const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
     if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
     return await publicClient.readContract({
       address: tokenAddress,
@@ -43976,7 +43977,7 @@ var BalanceManager = class extends ManagerBase {
   async updateNativeBalances(networks) {
     await Promise.all(
       networks.map(async (n) => {
-        const { publicClient, account } = this.viemClientManager.getClients(n);
+        const { publicClient, account } = this.viemClientManager.getClients(n.name);
         const bal = await publicClient.getBalance({ address: account.address });
         this.nativeBalances.set(n.name, bal);
       })
@@ -43984,7 +43985,7 @@ var BalanceManager = class extends ManagerBase {
   }
   async updateTokenBalances(networks) {
     for (const n of networks) {
-      const { publicClient, account } = this.viemClientManager.getClients(n);
+      const { publicClient, account } = this.viemClientManager.getClients(n.name);
       const map = /* @__PURE__ */ new Map();
       for (const cfg of this.getTokenConfigs(n.name)) {
         try {
@@ -44197,7 +44198,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       return this.blockManagers.get(network.name);
     }
     try {
-      const { publicClient } = this.viemClientManager.getClients(network);
+      const { publicClient } = this.viemClientManager.getClients(network.name);
       return await this.createBlockManager(network, publicClient);
     } catch (error) {
       this.logger.warn(
@@ -48136,7 +48137,7 @@ async function sleep(ms) {
 
 // src/utils/asyncRetry.ts
 async function asyncRetry(fn, options = {}) {
-  const { maxRetries = 3, delayMs = 2e3, isRetryableError = () => false } = options;
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
   const logger = Logger.getInstance().getLogger("AsyncRetry");
   let attempt = 0;
   let lastError;
@@ -48145,7 +48146,7 @@ async function asyncRetry(fn, options = {}) {
       return await fn();
     } catch (error) {
       lastError = error;
-      if (isRetryableError(error) && attempt < maxRetries) {
+      if (isRetryableError2(error) && attempt < maxRetries) {
         ++attempt;
         logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
         await sleep(delayMs);
@@ -48159,60 +48160,84 @@ async function asyncRetry(fn, options = {}) {
 
 // src/utils/viemErrorParser.ts
 function isNonceError(error) {
-  return error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError) || error instanceof NonceTooHighError || error instanceof NonceTooLowError;
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const errorTree = extractErrorTree(error);
+  return errorTree.some((node) => isViemNonceError(node) || isStringNonceError(node));
+}
+function extractErrorTree(error) {
+  const nodes = [];
+  const visited = /* @__PURE__ */ new WeakSet();
+  const queue = [error];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object" || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    nodes.push(current);
+    if (current.cause) queue.push(current.cause);
+    if (current.error) queue.push(current.error);
+    if (current.message) queue.push(current.message);
+  }
+  return nodes;
+}
+function isViemNonceError(error) {
+  return error instanceof NonceTooHighError || error instanceof NonceTooLowError || error instanceof ContractFunctionExecutionError && error.cause instanceof TransactionExecutionError && (error.cause.cause instanceof NonceTooHighError || error.cause.cause instanceof NonceTooLowError);
+}
+function isStringNonceError(error) {
+  const NONCE_REGEX = /nonce/i;
+  if (!error.message || typeof error.message !== "string") {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  return NONCE_REGEX.test(message);
 }
 
 // src/utils/callContract.ts
 async function executeTransaction(publicClient, walletClient, params, nonceManager, config) {
-  const chainId = publicClient.chain.id;
-  const address = walletClient.account.address;
-  let txHash;
-  if (config.simulateTx) {
-    const { request } = await publicClient.simulateContract(params);
-    txHash = await walletClient.writeContract(request);
-  } else {
-    const nonce = await nonceManager.consume({
-      address,
-      chainId,
-      client: publicClient
-    });
-    const paramsToSend = {
+  const networkName = publicClient.chain.name;
+  try {
+    const nonce = await nonceManager.consume(networkName);
+    let reqParams = {
       ...config.defaultGasLimit && { gas: config.defaultGasLimit },
       ...params,
       nonce
     };
-    txHash = await walletClient.writeContract(paramsToSend);
+    if (config.simulateTx) {
+      const { request } = await publicClient.simulateContract(reqParams);
+      reqParams = request;
+    }
+    const txHash = await walletClient.writeContract(reqParams);
+    return txHash;
+  } catch (err) {
+    if (err instanceof UserRejectedRequestError || err instanceof InsufficientFundsError || err instanceof IntrinsicGasTooLowError || err instanceof IntrinsicGasTooHighError || err instanceof TipAboveFeeCapError || err instanceof TransactionTypeNotSupportedError) {
+      await nonceManager.decrement(networkName);
+    }
+    if (isNonceError(err)) {
+      await nonceManager.refresh(networkName);
+    }
+    throw err;
+  }
+}
+var isRetryableError = (error) => {
+  if (isNonceError(error)) return true;
+  return false;
+};
+async function callContract(publicClient, walletClient, params, nonceManager, config) {
+  const txHash = await asyncRetry(
+    async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
+    {
+      maxRetries: 10,
+      delayMs: 150,
+      isRetryableError
+    }
+  );
+  if (!txHash) {
+    throw new Error("All attempts exhausted");
   }
   return txHash;
-}
-async function callContract(publicClient, walletClient, params, nonceManager, config) {
-  try {
-    const isRetryableError = (error) => {
-      if (isNonceError(error)) {
-        nonceManager.reset({
-          chainId: publicClient.chain.id,
-          address: walletClient.account.address
-        });
-        return true;
-      }
-      return false;
-    };
-    const txHash = await asyncRetry(
-      async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
-      {
-        maxRetries: 20,
-        delayMs: 1e3,
-        isRetryableError
-      }
-    );
-    if (!txHash) {
-      throw new AppError("ContractCallError" /* ContractCallError */, new Error("All attempts exhausted"));
-    }
-    return txHash;
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError("ContractCallError" /* ContractCallError */, error);
-  }
 }
 
 // src/utils/getGranularLogLevels.ts
@@ -48715,19 +48740,20 @@ var Mutex = class {
 
 // src/managers/NonceManager.ts
 var NonceManager = class _NonceManager extends ManagerBase {
-  constructor(logger, config) {
+  constructor(logger, viemClientManager, config) {
     super();
     this.noncesMap = {};
     this.mutexMap = {};
     this.logger = logger;
+    this.viemClientManager = viemClientManager;
     this.config = config;
   }
   static {
     this.instance = null;
   }
-  static createInstance(logger, config) {
+  static createInstance(logger, viemClientManager, config) {
     if (!_NonceManager.instance) {
-      _NonceManager.instance = new _NonceManager(logger, config);
+      _NonceManager.instance = new _NonceManager(logger, viemClientManager, config);
     }
     return _NonceManager.instance;
   }
@@ -48739,46 +48765,75 @@ var NonceManager = class _NonceManager extends ManagerBase {
     }
     return _NonceManager.instance;
   }
-  static dispose() {
-    _NonceManager.instance = null;
+  async getOrLoadNonce(networkName) {
+    let nonce = this.noncesMap[networkName];
+    if (nonce === null || nonce === void 0) {
+      nonce = await this.fetchNonce(networkName);
+      this.noncesMap[networkName] = nonce;
+    }
+    return nonce;
   }
-  async get(params) {
-    const m = this.getMutex(params.chainId);
-    return m.runExclusive(async () => {
-      if (!this.noncesMap[params.chainId]) {
-        const actualNonce = await this.fetchNonce(params);
-        this.set(params, actualNonce);
-        return actualNonce;
-      }
-      return this.noncesMap[params.chainId];
+  async get(networkName) {
+    const mutex = this.getMutex(networkName);
+    return mutex.runExclusive(async () => {
+      return this.getOrLoadNonce(networkName);
     });
   }
-  async consume(params) {
-    const m = this.getMutex(params.chainId);
-    return m.runExclusive(async () => {
-      const nonce = this.noncesMap[params.chainId] ? this.noncesMap[params.chainId] : await this.fetchNonce(params);
-      this.set(params, nonce + 1);
+  async consume(networkName) {
+    const mutex = this.getMutex(networkName);
+    return mutex.runExclusive(async () => {
+      const nonce = await this.getOrLoadNonce(networkName);
+      this.set(networkName, nonce + 1);
+      this.logger.debug(`Consumed nonce for network ${networkName}: ${nonce}`);
       return nonce;
     });
   }
-  reset(params) {
-    this.set(params, 0);
+  reset(networkName) {
+    this.set(networkName, 0);
   }
-  set(params, nonce) {
-    this.noncesMap[params.chainId] = nonce;
-  }
-  async fetchNonce(params) {
-    const publicClient = createPublicClient({
-      transport: () => params.client.transport,
-      chain: params.client.chain
+  async refresh(networkName) {
+    const mutex = this.getMutex(networkName);
+    return mutex.runExclusive(async () => {
+      const nonce = await this.getOrLoadNonce(networkName);
+      this.set(networkName, nonce);
     });
-    return await publicClient.getTransactionCount({ address: params.address });
   }
-  getMutex(chainId) {
-    if (!this.mutexMap[chainId]) {
-      this.mutexMap[chainId] = new Mutex();
+  async increment(networkName) {
+    const mutex = this.getMutex(networkName);
+    return mutex.runExclusive(async () => {
+      const nonce = await this.getOrLoadNonce(networkName);
+      this.set(networkName, nonce + 1);
+      this.logger.debug(`Incremented nonce for network ${networkName} to ${nonce + 1}`);
+    });
+  }
+  async decrement(networkName) {
+    const mutex = this.getMutex(networkName);
+    return mutex.runExclusive(async () => {
+      const nonce = await this.getOrLoadNonce(networkName);
+      if (nonce > 0) {
+        this.set(networkName, nonce - 1);
+        this.logger.debug(`Decremented nonce for network ${networkName} to ${nonce - 1}`);
+      } else {
+        this.logger.warn(
+          `Nonce for network ${networkName} is already at 0, cannot decrement`
+        );
+      }
+    });
+  }
+  set(networkName, nonce) {
+    this.noncesMap[networkName] = nonce;
+  }
+  async fetchNonce(networkName) {
+    const clients = this.viemClientManager.getClients(networkName);
+    const { publicClient, walletClient } = clients;
+    const address = walletClient.account.address;
+    return await publicClient.getTransactionCount({ address, blockTag: "pending" });
+  }
+  getMutex(networkName) {
+    if (!this.mutexMap[networkName]) {
+      this.mutexMap[networkName] = new Mutex();
     }
-    return this.mutexMap[chainId];
+    return this.mutexMap[networkName];
   }
 };
 
@@ -49095,25 +49150,15 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
       account: this.account
     };
   }
-  getClients(chain) {
+  getClients(networkName) {
     if (!this.initialized) {
-      throw new Error("ViemClientManager not properly initialized");
+      throw new Error("ViemClientManager not initialized");
     }
-    if (!chain) {
-      throw new Error("Cannot get clients: chain parameter is undefined or null");
+    const clients = this.clients.get(networkName);
+    if (!clients) {
+      throw new Error(`No clients found for network: ${networkName}`);
     }
-    if (!chain.name) {
-      this.logger.error(`Invalid chain object provided: ${JSON.stringify(chain)}`);
-      throw new Error("Cannot get clients: chain.name is missing");
-    }
-    const cachedClients = this.clients.get(chain.name);
-    if (cachedClients) {
-      return cachedClients;
-    }
-    this.logger.debug(`Creating new clients for chain: ${chain.name} (id: ${chain.id})`);
-    const newClients = this.initializeClients(chain);
-    this.clients.set(chain.name, newClients);
-    return newClients;
+    return clients;
   }
   async onNetworksUpdated(networks) {
     const activeNetworkNames = new Set(networks.map((n) => n.name));
@@ -49254,7 +49299,7 @@ var TxMonitor = class _TxMonitor {
         this.removeMonitor(monitor.txHash);
         return;
       }
-      const { publicClient } = this.viemClientManager.getClients(network);
+      const { publicClient } = this.viemClientManager.getClients(network.name);
       let inclusionBlockNumber = monitor.inclusionBlockNumber;
       if (!inclusionBlockNumber) {
         const receipt = await publicClient.getTransactionReceipt({
@@ -49367,7 +49412,7 @@ var TxMonitor = class _TxMonitor {
     this.networkSubscriptions.set(networkName, unsubscribe);
     this.logger.debug(`Subscribed to blocks for network ${networkName}`);
   }
-  async removeMonitor(txHash) {
+  removeMonitor(txHash) {
     this.monitors.delete(txHash);
   }
   getMonitoredTransactions(chainName) {
@@ -49690,7 +49735,7 @@ var TxReader = class _TxReader {
   }
   async executeContractBatch(ws) {
     const network = ws[0].network;
-    const { publicClient } = this.viemClientManager.getClients(network);
+    const { publicClient } = this.viemClientManager.getClients(network.name);
     const reads = ws.map(
       (w) => publicClient.readContract({
         address: w.contractAddress,
@@ -49708,7 +49753,7 @@ var TxReader = class _TxReader {
   }
   async executeMethodBatch(ws) {
     const network = ws[0].network;
-    const { publicClient } = this.viemClientManager.getClients(network);
+    const { publicClient } = this.viemClientManager.getClients(network.name);
     this.logger.debug(`Executing method batch for ${network.name}: ${ws.length} watchers`);
     const reads = ws.map((w) => {
       switch (w.method) {
@@ -49756,7 +49801,7 @@ var TxReader = class _TxReader {
     }
   }
   async getLogs(q, n) {
-    const { publicClient } = this.viemClientManager.getClients(n);
+    const { publicClient } = this.viemClientManager.getClients(n.name);
     try {
       return await publicClient.getLogs({
         address: q.address,
@@ -49804,7 +49849,7 @@ var TxWriter = class _TxWriter {
   }
   async callContract(network, params, ensureTxFinality = false) {
     try {
-      const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+      const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
       if (this.config.dryRun) {
         this.logger.info(
           `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`
@@ -49852,14 +49897,8 @@ var TxWriter = class _TxWriter {
       this.logger.warn(
         `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`
       );
-      const { publicClient } = this.viemClientManager.getClients(network);
-      const chainId = publicClient.chain.id;
-      const walletClient = this.viemClientManager.getClients(network).walletClient;
-      const address = walletClient.account.address;
-      this.nonceManager.reset({ chainId, address });
-      this.logger.debug(
-        `[${network.name}] Reset nonce for address ${address} after transaction failure`
-      );
+      this.nonceManager.reset(network.name);
+      this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
       try {
         await this.retryTransaction(network, params);
       } catch (error) {

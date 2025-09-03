@@ -63,7 +63,7 @@ export class TxWriter implements ITxWriter {
         ensureTxFinality = false,
     ): Promise<string> {
         try {
-            const { walletClient, publicClient } = this.viemClientManager.getClients(network);
+            const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
 
             if (this.config.dryRun) {
                 this.logger.info(
@@ -124,16 +124,8 @@ export class TxWriter implements ITxWriter {
                 `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`,
             );
 
-            // Reset nonce for failed transaction
-            const { publicClient } = this.viemClientManager.getClients(network);
-            const chainId = publicClient.chain!.id;
-            const walletClient = this.viemClientManager.getClients(network).walletClient;
-            const address = walletClient.account!.address;
-
-            this.nonceManager.reset({ chainId, address });
-            this.logger.debug(
-                `[${network.name}] Reset nonce for address ${address} after transaction failure`,
-            );
+            this.nonceManager.reset(network.name);
+            this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
 
             try {
                 await this.retryTransaction(network, params);

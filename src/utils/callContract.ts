@@ -2,9 +2,20 @@ import { AppError } from './AppError';
 import { asyncRetry } from './asyncRetry';
 import { isNonceError } from './viemErrorParser';
 
-import { Hash, type PublicClient, type SimulateContractParameters, type WalletClient } from 'viem';
+import {
+    Hash,
+    InsufficientFundsError,
+    IntrinsicGasTooHighError,
+    IntrinsicGasTooLowError,
+    type PublicClient,
+    type SimulateContractParameters,
+    TipAboveFeeCapError,
+    TransactionTypeNotSupportedError,
+    UserRejectedRequestError,
+    type WalletClient,
+} from 'viem';
+import { ContractFunctionExecutionError } from 'viem';
 
-import { AppErrorEnum } from '../constants';
 import { INonceManager } from '../types/managers';
 
 export interface CallContractConfig {
@@ -18,32 +29,49 @@ async function executeTransaction(
     params: SimulateContractParameters,
     nonceManager: INonceManager,
     config: CallContractConfig,
-) {
-    const chainId = publicClient.chain!.id;
-    const address = walletClient.account!.address;
+): Promise<Hash> {
+    const networkName = publicClient.chain.name;
+    try {
+        const nonce = await nonceManager.consume(networkName);
 
-    let txHash: string;
-    if (config.simulateTx) {
-        const { request } = await publicClient.simulateContract(params);
-        txHash = await walletClient.writeContract(request as any);
-    } else {
-        const nonce = await nonceManager.consume({
-            address,
-            chainId,
-            client: publicClient,
-        });
-
-        const paramsToSend = {
+        let reqParams = {
             ...(config.defaultGasLimit && { gas: config.defaultGasLimit }),
             ...params,
             nonce,
         };
 
-        txHash = await walletClient.writeContract(paramsToSend as any);
-    }
+        if (config.simulateTx) {
+            const { request } = await publicClient.simulateContract(reqParams);
+            reqParams = request;
+        }
 
-    return txHash as Hash;
+        const txHash = await walletClient.writeContract(reqParams);
+        return txHash;
+    } catch (err) {
+        //@dev: When we're absolutely sure that the TX didn't get mined, we decrement the nonce
+        if (
+            err instanceof UserRejectedRequestError ||
+            err instanceof InsufficientFundsError ||
+            err instanceof IntrinsicGasTooLowError ||
+            err instanceof IntrinsicGasTooHighError ||
+            err instanceof TipAboveFeeCapError ||
+            err instanceof TransactionTypeNotSupportedError
+        ) {
+            await nonceManager.decrement(networkName);
+        }
+
+        if (isNonceError(err)) {
+            await nonceManager.refresh(networkName);
+        }
+
+        throw err;
+    }
 }
+
+const isRetryableError = (error: any) => {
+    if (isNonceError(error)) return true;
+    return false;
+};
 
 export async function callContract(
     publicClient: PublicClient,
@@ -52,35 +80,18 @@ export async function callContract(
     nonceManager: INonceManager,
     config: CallContractConfig,
 ): Promise<Hash> {
-    try {
-        const isRetryableError = (error: any) => {
-            if (isNonceError(error)) {
-                nonceManager.reset({
-                    chainId: publicClient.chain!.id,
-                    address: walletClient.account!.address,
-                });
-                return true;
-            }
-            return false;
-        };
+    const txHash = await asyncRetry<Hash>(
+        async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
+        {
+            maxRetries: 10,
+            delayMs: 150,
+            isRetryableError,
+        },
+    );
 
-        const txHash = await asyncRetry<Hash>(
-            async () =>
-                executeTransaction(publicClient, walletClient, params, nonceManager, config),
-            {
-                maxRetries: 20,
-                delayMs: 1000,
-                isRetryableError,
-            },
-        );
-
-        if (!txHash) {
-            throw new AppError(AppErrorEnum.ContractCallError, new Error('All attempts exhausted'));
-        }
-
-        return txHash;
-    } catch (error) {
-        if (error instanceof AppError) throw error;
-        throw new AppError(AppErrorEnum.ContractCallError, error as Error);
+    if (!txHash) {
+        throw new Error('All attempts exhausted');
     }
+
+    return txHash;
 }

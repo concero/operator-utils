@@ -1,3 +1,5 @@
+import { Hash } from 'viem';
+
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { TxMonitorConfig } from '../types/ManagerConfigs';
@@ -20,7 +22,7 @@ interface Subscriber {
 }
 
 interface TransactionMonitor {
-    txHash: string;
+    txHash: Hash;
     chainName: string;
     subscribers: Map<string, Subscriber>;
     type: 'inclusion' | 'finality';
@@ -207,13 +209,13 @@ export class TxMonitor implements ITxMonitor {
                 return;
             }
 
-            const { publicClient } = this.viemClientManager.getClients(network);
+            const { publicClient } = this.viemClientManager.getClients(network.name);
 
             let inclusionBlockNumber = monitor.inclusionBlockNumber;
             if (!inclusionBlockNumber) {
                 const receipt = await publicClient
                     .getTransactionReceipt({
-                        hash: monitor.txHash as `0x${string}`,
+                        hash: monitor.txHash,
                     })
                     .catch(() => null);
 
@@ -351,7 +353,7 @@ export class TxMonitor implements ITxMonitor {
         this.logger.debug(`Subscribed to blocks for network ${networkName}`);
     }
 
-    private async removeMonitor(txHash: string): Promise<void> {
+    private removeMonitor(txHash: string): void {
         this.monitors.delete(txHash);
     }
 

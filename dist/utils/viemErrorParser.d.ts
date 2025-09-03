@@ -1,4 +1,7 @@
-import { TransactionNotFoundError, WaitForTransactionReceiptTimeoutError } from 'viem';
-export declare function isNonceError(error: Error): boolean;
-export declare function isWaitingForReceiptError(error: Error): error is TransactionNotFoundError | WaitForTransactionReceiptTimeoutError;
+/**
+
+ * Production-ready nonce error detection for arbitrary RPC providers
+ * Handles JSON-RPC 2.0 standard errors and custom RPC formats
+ */
+export declare function isNonceError(error: unknown): boolean;
 //# sourceMappingURL=viemErrorParser.d.ts.map

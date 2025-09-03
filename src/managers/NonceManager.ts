@@ -1,32 +1,38 @@
 import { ManagerBase } from './ManagerBase';
+import { ViemClientManager } from './ViemClientManager';
 
 import { Mutex } from 'async-mutex';
-import { createPublicClient } from 'viem';
 
+import { LoggerInterface } from '../types/LoggerInterface';
 import { NonceManagerConfig } from '../types/ManagerConfigs';
-import {
-    IGetNonceParams,
-    INonceManager,
-    INonceManagerParams,
-} from '../types/managers/INonceManager';
-import { LoggerInterface } from '../utils/Logger';
+import { INonceManager } from '../types/managers/INonceManager';
 
 export class NonceManager extends ManagerBase implements INonceManager {
     private static instance: NonceManager | null = null;
-    private noncesMap: Record<number, number> = {};
-    private mutexMap: Record<number, Mutex> = {};
+    private noncesMap: Record<string, number> = {};
+    private mutexMap: Record<string, Mutex> = {};
     private logger: LoggerInterface;
     private config: NonceManagerConfig;
+    private viemClientManager: ViemClientManager;
 
-    protected constructor(logger: LoggerInterface, config: NonceManagerConfig) {
+    protected constructor(
+        logger: LoggerInterface,
+        viemClientManager: ViemClientManager,
+        config: NonceManagerConfig,
+    ) {
         super();
         this.logger = logger;
+        this.viemClientManager = viemClientManager;
         this.config = config;
     }
 
-    static createInstance(logger: LoggerInterface, config: NonceManagerConfig): NonceManager {
+    static createInstance(
+        logger: LoggerInterface,
+        viemClientManager: ViemClientManager,
+        config: NonceManagerConfig,
+    ): NonceManager {
         if (!NonceManager.instance) {
-            NonceManager.instance = new NonceManager(logger, config);
+            NonceManager.instance = new NonceManager(logger, viemClientManager, config);
         }
         return NonceManager.instance;
     }
@@ -40,54 +46,84 @@ export class NonceManager extends ManagerBase implements INonceManager {
         return NonceManager.instance;
     }
 
-    static dispose(): void {
-        NonceManager.instance = null;
+    private async getOrLoadNonce(networkName: string): Promise<number> {
+        let nonce = this.noncesMap[networkName];
+        if (nonce === null || nonce === undefined) {
+            nonce = await this.fetchNonce(networkName);
+            this.noncesMap[networkName] = nonce;
+        }
+        return nonce;
     }
 
-    async get(params: IGetNonceParams) {
-        const m = this.getMutex(params.chainId);
-        return m.runExclusive(async () => {
-            if (!this.noncesMap[params.chainId]) {
-                const actualNonce = await this.fetchNonce(params);
-                this.set(params, actualNonce);
-                return actualNonce;
-            }
-            return this.noncesMap[params.chainId];
+    public async get(networkName: string): Promise<number> {
+        const mutex = this.getMutex(networkName);
+        return mutex.runExclusive(async () => {
+            return this.getOrLoadNonce(networkName);
         });
     }
 
-    async consume(params: IGetNonceParams) {
-        const m = this.getMutex(params.chainId);
-        return m.runExclusive(async () => {
-            const nonce = this.noncesMap[params.chainId]
-                ? this.noncesMap[params.chainId]
-                : await this.fetchNonce(params);
-
-            this.set(params, nonce + 1);
+    public async consume(networkName: string): Promise<number> {
+        const mutex = this.getMutex(networkName);
+        return mutex.runExclusive(async () => {
+            const nonce = await this.getOrLoadNonce(networkName);
+            this.set(networkName, nonce + 1);
+            this.logger.debug(`Consumed nonce for network ${networkName}: ${nonce}`);
             return nonce;
         });
     }
 
-    reset(params: INonceManagerParams) {
-        this.set(params, 0);
+    public reset(networkName: string): void {
+        this.set(networkName, 0);
     }
 
-    set(params: INonceManagerParams, nonce: number) {
-        this.noncesMap[params.chainId] = nonce;
-    }
-
-    private async fetchNonce(params: IGetNonceParams) {
-        const publicClient = createPublicClient({
-            transport: () => params.client.transport,
-            chain: params.client.chain,
+    public async refresh(networkName: string): Promise<void> {
+        const mutex = this.getMutex(networkName);
+        return mutex.runExclusive(async () => {
+            const nonce = await this.getOrLoadNonce(networkName);
+            this.set(networkName, nonce);
         });
-        return await publicClient.getTransactionCount({ address: params.address });
     }
 
-    private getMutex(chainId: number): Mutex {
-        if (!this.mutexMap[chainId]) {
-            this.mutexMap[chainId] = new Mutex();
+    public async increment(networkName: string): Promise<void> {
+        const mutex = this.getMutex(networkName);
+        return mutex.runExclusive(async () => {
+            const nonce = await this.getOrLoadNonce(networkName);
+            this.set(networkName, nonce + 1);
+            this.logger.debug(`Incremented nonce for network ${networkName} to ${nonce + 1}`);
+        });
+    }
+
+    public async decrement(networkName: string): Promise<void> {
+        const mutex = this.getMutex(networkName);
+        return mutex.runExclusive(async () => {
+            const nonce = await this.getOrLoadNonce(networkName);
+            if (nonce > 0) {
+                this.set(networkName, nonce - 1);
+                this.logger.debug(`Decremented nonce for network ${networkName} to ${nonce - 1}`);
+            } else {
+                this.logger.warn(
+                    `Nonce for network ${networkName} is already at 0, cannot decrement`,
+                );
+            }
+        });
+    }
+
+    private set(networkName: string, nonce: number): void {
+        this.noncesMap[networkName] = nonce;
+    }
+
+    private async fetchNonce(networkName: string): Promise<number> {
+        const clients = this.viemClientManager.getClients(networkName);
+        const { publicClient, walletClient } = clients;
+        const address = walletClient.account.address;
+
+        return await publicClient.getTransactionCount({ address, blockTag: 'pending' });
+    }
+
+    private getMutex(networkName: string): Mutex {
+        if (!this.mutexMap[networkName]) {
+            this.mutexMap[networkName] = new Mutex();
         }
-        return this.mutexMap[chainId];
+        return this.mutexMap[networkName];
     }
 }

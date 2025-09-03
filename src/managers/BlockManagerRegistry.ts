@@ -63,7 +63,7 @@ export class BlockManagerRegistry
         }
 
         try {
-            const { publicClient } = this.viemClientManager.getClients(network);
+            const { publicClient } = this.viemClientManager.getClients(network.name);
 
             return await this.createBlockManager(network, publicClient);
         } catch (error) {

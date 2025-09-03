@@ -4,13 +4,13 @@ import type { PrivateKeyAccount } from 'viem/accounts/types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { LoggerInterface } from '../types/LoggerInterface';
 import { ViemClientManagerConfig } from '../types/ManagerConfigs';
-import { IRpcManager, NetworkUpdateListener } from '../types/managers';
+import { IRpcManager, IViemClientManager } from '../types/managers';
 export interface ViemClients {
     walletClient: WalletClient;
     publicClient: PublicClient;
     account: PrivateKeyAccount;
 }
-export declare class ViemClientManager extends ManagerBase implements NetworkUpdateListener {
+export declare class ViemClientManager extends ManagerBase implements IViemClientManager {
     private static instance;
     private clients;
     private rpcManager;
@@ -23,7 +23,7 @@ export declare class ViemClientManager extends ManagerBase implements NetworkUpd
     initialize(): Promise<void>;
     private createTransport;
     private initializeClients;
-    getClients(chain: ConceroNetwork): ViemClients;
+    getClients(networkName: string): ViemClients;
     onNetworksUpdated(networks: ConceroNetwork[]): Promise<void>;
     updateClientsForNetworks(networks: ConceroNetwork[]): Promise<void>;
 }

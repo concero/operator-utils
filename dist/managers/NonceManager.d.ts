@@ -1,21 +1,26 @@
 import { ManagerBase } from './ManagerBase';
+import { ViemClientManager } from './ViemClientManager';
+import { LoggerInterface } from '../types/LoggerInterface';
 import { NonceManagerConfig } from '../types/ManagerConfigs';
-import { IGetNonceParams, INonceManager, INonceManagerParams } from '../types/managers/INonceManager';
-import { LoggerInterface } from '../utils/Logger';
+import { INonceManager } from '../types/managers/INonceManager';
 export declare class NonceManager extends ManagerBase implements INonceManager {
     private static instance;
     private noncesMap;
     private mutexMap;
     private logger;
     private config;
-    protected constructor(logger: LoggerInterface, config: NonceManagerConfig);
-    static createInstance(logger: LoggerInterface, config: NonceManagerConfig): NonceManager;
+    private viemClientManager;
+    protected constructor(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig);
+    static createInstance(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig): NonceManager;
     static getInstance(): NonceManager;
-    static dispose(): void;
-    get(params: IGetNonceParams): Promise<number>;
-    consume(params: IGetNonceParams): Promise<number>;
-    reset(params: INonceManagerParams): void;
-    set(params: INonceManagerParams, nonce: number): void;
+    private getOrLoadNonce;
+    get(networkName: string): Promise<number>;
+    consume(networkName: string): Promise<number>;
+    reset(networkName: string): void;
+    refresh(networkName: string): Promise<void>;
+    increment(networkName: string): Promise<void>;
+    decrement(networkName: string): Promise<void>;
+    private set;
     private fetchNonce;
     private getMutex;
 }

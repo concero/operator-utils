@@ -131,7 +131,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     }
 
     private watchNativeBalance(network: ConceroNetwork): string {
-        const { account } = this.viemClientManager.getClients(network);
+        const { account } = this.viemClientManager.getClients(network.name);
         const watcherId = this.txReader.methodWatcher.create(
             'getBalance',
             network,
@@ -149,7 +149,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         tokenSymbol: string,
         tokenAddress: Address,
     ): string {
-        const { account } = this.viemClientManager.getClients(network);
+        const { account } = this.viemClientManager.getClients(network.name);
         const watcherId = this.txReader.readContractWatcher.create(
             tokenAddress,
             network,
@@ -216,7 +216,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         requiredAmount: bigint,
     ): Promise<void> {
         const net = this.findActiveNetwork(networkName);
-        const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+        const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
         if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
 
         const min = this.getMinAllowance(networkName, tokenAddress);
@@ -252,7 +252,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         spenderAddress: string,
     ): Promise<bigint> {
         const net = this.findActiveNetwork(networkName);
-        const { publicClient, walletClient } = this.viemClientManager.getClients(net);
+        const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
         if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
         return (await publicClient.readContract({
             address: tokenAddress as Address,
@@ -277,7 +277,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
     private async updateNativeBalances(networks: ConceroNetwork[]): Promise<void> {
         await Promise.all(
             networks.map(async n => {
-                const { publicClient, account } = this.viemClientManager.getClients(n);
+                const { publicClient, account } = this.viemClientManager.getClients(n.name);
                 const bal = await publicClient.getBalance({ address: account.address });
                 this.nativeBalances.set(n.name, bal);
             }),
@@ -286,7 +286,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     private async updateTokenBalances(networks: ConceroNetwork[]): Promise<void> {
         for (const n of networks) {
-            const { publicClient, account } = this.viemClientManager.getClients(n);
+            const { publicClient, account } = this.viemClientManager.getClients(n.name);
             const map = new Map<string, bigint>();
             for (const cfg of this.getTokenConfigs(n.name)) {
                 try {
