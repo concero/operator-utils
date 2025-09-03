@@ -13,14 +13,13 @@ export declare class NonceManager extends ManagerBase implements INonceManager {
     protected constructor(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig);
     static createInstance(logger: LoggerInterface, viemClientManager: ViemClientManager, config: NonceManagerConfig): NonceManager;
     static getInstance(): NonceManager;
-    private getOrLoadNonce;
     get(networkName: string): Promise<number>;
     consume(networkName: string): Promise<number>;
     reset(networkName: string): void;
     refresh(networkName: string): Promise<void>;
-    increment(networkName: string): Promise<void>;
     decrement(networkName: string): Promise<void>;
     private set;
+    private getOrLoadNonce;
     private fetchNonce;
     private getMutex;
 }
