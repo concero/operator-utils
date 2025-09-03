@@ -10,3 +10,4 @@ export { callContract } from './callContract';
 export { getGranularLogLevels } from './getGranularLogLevels';
 export { safeRequireJson } from './safeRequireJson';
 export { isNonceError } from './viemErrorParser';
+export { sec, min } from "./time"

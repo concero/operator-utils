@@ -9,7 +9,10 @@ import { RpcManagerConfig } from './managers/IRpcManager';
 import { TxMonitorConfig } from './managers/ITxMonitor';
 import { TxWriterConfig } from './managers/ITxWriter';
 import { ViemClientManagerConfig } from './managers/IViemClientManager';
+import { NetworkType } from "@/types/ConceroNetwork";
 type GlobalConfig = {
+    NETWORK_MODE: NetworkType;
+    OPERATOR_PRIVATE_KEY: string;
     LOGGER: LoggerConfig;
     HTTPCLIENT: HttpClientConfig;
     VIEM_CLIENT_MANAGER: ViemClientManagerConfig;

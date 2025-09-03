@@ -50140,6 +50140,8 @@ function min(num2) {
 var networkMode = getEnvString("NETWORK_MODE", "testnet");
 var operatorPrivateKey = getEnvString("OPERATOR_PRIVATE_KEY");
 var globalConfig = {
+  NETWORK_MODE: networkMode,
+  OPERATOR_PRIVATE_KEY: operatorPrivateKey,
   LOGGER: {
     logLevelDefault: getEnvString("LOGGER_LOG_LEVEL_DEFAULT", "info"),
     logLevelsGranular: getGranularLogLevels(),
@@ -50265,7 +50267,9 @@ export {
   globalConfig,
   isNonceError,
   localhostViemChain,
-  safeRequireJson
+  min,
+  safeRequireJson,
+  sec
 };
 /*! Bundled license information:
 

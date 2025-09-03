@@ -8,6 +8,8 @@ const networkMode = getEnvString('NETWORK_MODE', 'testnet');
 const operatorPrivateKey = getEnvString('OPERATOR_PRIVATE_KEY');
 
 const globalConfig: GlobalConfig = {
+    NETWORK_MODE: networkMode,
+    OPERATOR_PRIVATE_KEY: operatorPrivateKey,
     LOGGER: {
         logLevelDefault: getEnvString('LOGGER_LOG_LEVEL_DEFAULT', 'info'),
         logLevelsGranular: getGranularLogLevels(),
