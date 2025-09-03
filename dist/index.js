@@ -48802,14 +48802,6 @@ var NonceManager = class _NonceManager extends ManagerBase {
     }
     return _NonceManager.instance;
   }
-  async getOrLoadNonce(networkName) {
-    let nonce = this.noncesMap[networkName];
-    if (nonce === null || nonce === void 0) {
-      nonce = await this.fetchNonce(networkName);
-      this.noncesMap[networkName] = nonce;
-    }
-    return nonce;
-  }
   async get(networkName) {
     const mutex = this.getMutex(networkName);
     return mutex.runExclusive(async () => {
@@ -48835,14 +48827,6 @@ var NonceManager = class _NonceManager extends ManagerBase {
       this.set(networkName, nonce);
     });
   }
-  async increment(networkName) {
-    const mutex = this.getMutex(networkName);
-    return mutex.runExclusive(async () => {
-      const nonce = await this.getOrLoadNonce(networkName);
-      this.set(networkName, nonce + 1);
-      this.logger.debug(`Incremented nonce for network ${networkName} to ${nonce + 1}`);
-    });
-  }
   async decrement(networkName) {
     const mutex = this.getMutex(networkName);
     return mutex.runExclusive(async () => {
@@ -48859,6 +48843,14 @@ var NonceManager = class _NonceManager extends ManagerBase {
   }
   set(networkName, nonce) {
     this.noncesMap[networkName] = nonce;
+  }
+  async getOrLoadNonce(networkName) {
+    let nonce = this.noncesMap[networkName];
+    if (nonce === null || nonce === void 0) {
+      nonce = await this.fetchNonce(networkName);
+      this.noncesMap[networkName] = nonce;
+    }
+    return nonce;
   }
   async fetchNonce(networkName) {
     const clients = this.viemClientManager.getClients(networkName);
