@@ -29,7 +29,7 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     excludeNetwork(networkName: string, reason: string): void;
     getVerifierNetwork(): ConceroNetwork;
     getDefaultFinalityConfirmations(): number;
-    private updateNetworks;
+    updateNetworks(): Promise<void>;
     private notifyListeners;
     startPolling(): Promise<void>;
     private createNetworkConfig;
