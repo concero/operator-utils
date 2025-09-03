@@ -48813,8 +48813,9 @@ var NonceManager = class _NonceManager extends ManagerBase {
   async refresh(networkName) {
     const mutex = this.getMutex(networkName);
     return mutex.runExclusive(async () => {
-      const nonce = await this.getOrLoadNonce(networkName);
-      this.set(networkName, nonce);
+      const freshNonce = await this.fetchNonce(networkName);
+      this.set(networkName, freshNonce);
+      this.logger.debug(`Force refreshed nonce for network ${networkName}: ${freshNonce}`);
     });
   }
   async decrement(networkName) {
