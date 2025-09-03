@@ -1,8 +1,6 @@
 import { NetworkUpdateListener } from './NetworkUpdateListener';
 import { NetworkType } from '@/types/ConceroNetwork';
-
 import { ConceroNetwork } from '../ConceroNetwork';
-
 export interface IConceroNetworkManager {
     initialize(): Promise<void>;
     getMainnetNetworks(): Record<string, ConceroNetwork>;
@@ -15,12 +13,10 @@ export interface IConceroNetworkManager {
     getVerifierNetwork(): ConceroNetwork | undefined;
     getDefaultFinalityConfirmations(): number;
     startPolling(): Promise<void>;
-    updateNetworks(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
     excludeNetwork(networkName: string, reason: string): void;
 }
-
 /** Configuration for NetworkManager */
 export type NetworkManagerConfig = {
     networkMode: NetworkType;
@@ -36,3 +32,4 @@ export type NetworkManagerConfig = {
     mainnetUrl: string;
     testnetUrl: string;
 };
+//# sourceMappingURL=IConceroNetworkManager.d.ts.map

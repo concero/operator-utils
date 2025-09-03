@@ -147,7 +147,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         return this.config.defaultFinalityConfirmations;
     }
 
-    private async updateNetworks(): Promise<void> {
+    public async updateNetworks(): Promise<void> {
         let networksFetched = false;
         try {
             if (this.config.networkMode === 'localhost') {
