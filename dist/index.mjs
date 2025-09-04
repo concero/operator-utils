@@ -47966,7 +47966,7 @@ var BlockManager = class _BlockManager {
       return;
     }
     try {
-      this.latestBlock = await this.publicClient.getBlockNumber();
+      this.latestBlock = await this.publicClient.getBlockNumber({ cacheTime: 0 });
       if (this.latestBlock > this.lastProcessedBlockNumber) {
         const startBlock = this.lastProcessedBlockNumber + 1n;
         await this.processBlockRange(startBlock, this.latestBlock);

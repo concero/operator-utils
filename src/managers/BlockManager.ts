@@ -102,7 +102,7 @@ export class BlockManager implements IBlockManager {
         }
 
         try {
-            this.latestBlock = await this.publicClient.getBlockNumber({cacheTime: 0});
+            this.latestBlock = await this.publicClient.getBlockNumber({ cacheTime: 0 });
 
             if (this.latestBlock > this.lastProcessedBlockNumber) {
                 const startBlock = this.lastProcessedBlockNumber + 1n;
