@@ -1,3 +1,4 @@
+import { NetworkType } from '@/types/ConceroNetwork';
 import { TxReaderConfig } from '@/types/managers';
 import { BalanceManagerConfig } from './managers/IBalanceManager';
 import { BlockManagerConfig } from './managers/IBlockManager';
@@ -9,7 +10,6 @@ import { RpcManagerConfig } from './managers/IRpcManager';
 import { TxMonitorConfig } from './managers/ITxMonitor';
 import { TxWriterConfig } from './managers/ITxWriter';
 import { ViemClientManagerConfig } from './managers/IViemClientManager';
-import { NetworkType } from "@/types/ConceroNetwork";
 type GlobalConfig = {
     NETWORK_MODE: NetworkType;
     OPERATOR_PRIVATE_KEY: string;
