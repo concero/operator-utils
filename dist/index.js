@@ -47954,11 +47954,11 @@ var BalanceManager = class extends ManagerBase {
 var BlockManager = class _BlockManager {
   constructor(initialBlock, network, publicClient, logger, config) {
     this.latestBlock = null;
-    this.blockRangeHandlers = /* @__PURE__ */ new Map();
+    this.subscribers = /* @__PURE__ */ new Map();
     this.isDisposed = false;
     this.isPolling = false;
     this.pollingTimeout = null;
-    this.lastProcessedBlockNumber = initialBlock;
+    this.lastReportedBlockNumber = initialBlock;
     this.publicClient = publicClient;
     this.network = network;
     this.logger = logger;
@@ -47968,7 +47968,7 @@ var BlockManager = class _BlockManager {
   static async create(network, publicClient, logger, config) {
     let initialBlock;
     const staticLogger = logger;
-    initialBlock = await publicClient.getBlockNumber();
+    initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
     staticLogger.debug(`${network.name}: Starting from current chain tip: ${initialBlock}`);
     staticLogger.debug(
       `${network.name}: Creating new instance with initial block ${initialBlock}`
@@ -48000,10 +48000,10 @@ var BlockManager = class _BlockManager {
       return;
     }
     try {
-      this.latestBlock = await this.publicClient.getBlockNumber({ cacheTime: 0 });
-      if (this.latestBlock > this.lastProcessedBlockNumber) {
-        const startBlock = this.lastProcessedBlockNumber + 1n;
-        await this.processBlockRange(startBlock, this.latestBlock);
+      this.latestBlock = await this.fetchLastBlockNumber();
+      if (this.latestBlock > this.lastReportedBlockNumber) {
+        const startBlock = this.lastReportedBlockNumber + 1n;
+        await this.notifySubscribers(startBlock, this.latestBlock);
       }
     } catch (error) {
       this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
@@ -48016,36 +48016,23 @@ var BlockManager = class _BlockManager {
   async getLatestBlock() {
     return this.latestBlock;
   }
-  /**
-   * Process a range of blocks by:
-   * 1. Notifying all registered handlers about the new block range
-   * 2. Updating the last processed block checkpoint
-   */
-  async processBlockRange(startBlock, endBlock) {
+  async fetchLastBlockNumber() {
+    return await this.publicClient.getBlockNumber({ cacheTime: 0 });
+  }
+  async notifySubscribers(startBlock, endBlock) {
     this.logger.debug(
       `${this.network.name}: Processing ${endBlock - startBlock + 1n} new blocks from ${startBlock} to ${endBlock}`
     );
-    if (this.blockRangeHandlers.size > 0) {
-      for (const handler of this.blockRangeHandlers.values()) {
-        try {
-          await handler.onBlockRange(startBlock, endBlock);
-        } catch (error) {
+    if (this.subscribers.size > 0) {
+      for (const subscriber of this.subscribers.values()) {
+        void subscriber.onBlockRange(startBlock, endBlock).catch((error) => {
           this.logger.error(
-            `${this.network.name}: Error in block range handler ${handler.id}: ${error}`
+            `${this.network.name}: Error in block range subscriber ${subscriber.id}: ${error}`
           );
-          if (handler.onError) {
-            handler.onError(error);
-          }
-        }
+        });
       }
     }
-    await this.updateLastProcessedBlock(endBlock);
-  }
-  /**
-   * Update the last processed block
-   */
-  async updateLastProcessedBlock(blockNumber) {
-    this.lastProcessedBlockNumber = blockNumber;
+    this.lastReportedBlockNumber = endBlock;
   }
   /**
    * Initiates a catchup process from the current processed block to the latest block.
@@ -48058,14 +48045,14 @@ var BlockManager = class _BlockManager {
     }
     try {
       this.latestBlock = await this.publicClient.getBlockNumber();
-      let currentBlock = this.lastProcessedBlockNumber;
+      let currentBlock = this.lastReportedBlockNumber;
       this.logger.debug(
         `${this.network.name}: Starting catchup from block ${currentBlock}, Chain tip: ${this.latestBlock}`
       );
       while (currentBlock < this.latestBlock && !this.isDisposed) {
         const startBlock = currentBlock + 1n;
         const endBlock = startBlock + this.config.catchupBatchSize - 1n > this.latestBlock ? this.latestBlock : startBlock + this.config.catchupBatchSize - 1n;
-        await this.processBlockRange(startBlock, endBlock);
+        await this.notifySubscribers(startBlock, endBlock);
         currentBlock = endBlock;
       }
     } catch (err) {
@@ -48073,26 +48060,27 @@ var BlockManager = class _BlockManager {
     }
   }
   /**
-   * Registers a handler that will be called when new blocks are processed.
+   * Registers a subscriber that will be called when new blocks are processed.
    * Returns an unregister function.
    */
   watchBlocks(options) {
-    const { onBlockRange, onError } = options;
-    const handlerId = Math.random().toString(36).substring(2, 15);
-    this.blockRangeHandlers.set(handlerId, {
-      id: handlerId,
-      onBlockRange,
-      onError
+    const { onBlockRange } = options;
+    const subscriberId = Math.random().toString(36).substring(2, 15);
+    this.subscribers.set(subscriberId, {
+      id: subscriberId,
+      onBlockRange
     });
     return () => {
-      this.logger.info(`${this.network.name}: Unregistered block range handler ${handlerId}`);
-      this.blockRangeHandlers.delete(handlerId);
+      this.logger.info(
+        `${this.network.name}: Unregistered block range subscriber ${subscriberId}`
+      );
+      this.subscribers.delete(subscriberId);
     };
   }
   dispose() {
     this.isDisposed = true;
     this.stopPolling();
-    this.blockRangeHandlers.clear();
+    this.subscribers.clear();
     this.logger.debug(`${this.network.name}: Disposed`);
   }
 };
@@ -49428,11 +49416,6 @@ var TxMonitor = class _TxMonitor {
     const unsubscribe = blockManager.watchBlocks({
       onBlockRange: async (startBlock, endBlock) => {
         await this.checkNetworkTransactions(networkName, endBlock);
-      },
-      onError: (error) => {
-        this.logger.error(
-          `Block monitoring error for ${networkName}: ${error instanceof Error ? error.message : String(error)}`
-        );
       }
     });
     this.networkSubscriptions.set(networkName, unsubscribe);

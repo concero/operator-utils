@@ -1,30 +1,28 @@
-import { PublicClient } from 'viem';
+import { type PublicClient } from 'viem';
 
 import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
- * It handles both the polling for new blocks and notifying registered handlers about block ranges.
+ * It handles both the polling for new blocks and notifying registered subscribers about block ranges.
  */
 
 /** Options for watching blocks */
 type WatchBlocksOptions = {
     onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
-    onError?: (err: unknown) => void;
 };
 
-type BlockRangeHandler = {
+type Subscriber = {
     id: string;
     onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
-    onError?: (err: unknown) => void;
 };
 
 export class BlockManager implements IBlockManager {
-    private lastProcessedBlockNumber: bigint;
+    private lastReportedBlockNumber: bigint;
     private latestBlock: bigint | null = null;
     public readonly publicClient: PublicClient;
     private network: ConceroNetwork;
-    private blockRangeHandlers: Map<string, BlockRangeHandler> = new Map();
+    private subscribers: Map<string, Subscriber> = new Map();
 
     protected logger: ILogger;
     private config: BlockManagerConfig;
@@ -41,7 +39,7 @@ export class BlockManager implements IBlockManager {
         logger: ILogger,
         config: BlockManagerConfig,
     ) {
-        this.lastProcessedBlockNumber = initialBlock;
+        this.lastReportedBlockNumber = initialBlock;
         this.publicClient = publicClient;
         this.network = network;
         this.logger = logger;
@@ -58,7 +56,7 @@ export class BlockManager implements IBlockManager {
         let initialBlock: bigint;
         const staticLogger = logger;
 
-        initialBlock = await publicClient.getBlockNumber();
+        initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
         staticLogger.debug(`${network.name}: Starting from current chain tip: ${initialBlock}`);
 
         staticLogger.debug(
@@ -102,12 +100,12 @@ export class BlockManager implements IBlockManager {
         }
 
         try {
-            this.latestBlock = await this.publicClient.getBlockNumber({ cacheTime: 0 });
+            this.latestBlock = await this.fetchLastBlockNumber();
 
-            if (this.latestBlock > this.lastProcessedBlockNumber) {
-                const startBlock = this.lastProcessedBlockNumber + 1n;
+            if (this.latestBlock > this.lastReportedBlockNumber) {
+                const startBlock = this.lastReportedBlockNumber + 1n;
 
-                await this.processBlockRange(startBlock, this.latestBlock);
+                await this.notifySubscribers(startBlock, this.latestBlock);
             }
         } catch (error) {
             this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
@@ -122,42 +120,25 @@ export class BlockManager implements IBlockManager {
         return this.latestBlock;
     }
 
-    /**
-     * Process a range of blocks by:
-     * 1. Notifying all registered handlers about the new block range
-     * 2. Updating the last processed block checkpoint
-     */
-    private async processBlockRange(startBlock: bigint, endBlock: bigint): Promise<void> {
+    private async fetchLastBlockNumber(): Promise<bigint> {
+        return await this.publicClient.getBlockNumber({ cacheTime: 0 });
+    }
+
+    private async notifySubscribers(startBlock: bigint, endBlock: bigint): Promise<void> {
         this.logger.debug(
             `${this.network.name}: Processing ${endBlock - startBlock + 1n} new blocks from ${startBlock} to ${endBlock}`,
         );
 
-        if (this.blockRangeHandlers.size > 0) {
-            // this.logger.debug(
-            //     `${this.network.name}: Notifying ${this.blockRangeHandlers.size} handlers about blocks ${startBlock} - ${endBlock}`,
-            // );
-
-            for (const handler of this.blockRangeHandlers.values()) {
-                try {
-                    await handler.onBlockRange(startBlock, endBlock);
-                } catch (error) {
+        if (this.subscribers.size > 0) {
+            for (const subscriber of this.subscribers.values()) {
+                void subscriber.onBlockRange(startBlock, endBlock).catch(error => {
                     this.logger.error(
-                        `${this.network.name}: Error in block range handler ${handler.id}: ${error}`,
+                        `${this.network.name}: Error in block range subscriber ${subscriber.id}: ${error}`,
                     );
-                    if (handler.onError) {
-                        handler.onError(error);
-                    }
-                }
+                });
             }
         }
-        await this.updateLastProcessedBlock(endBlock);
-    }
-
-    /**
-     * Update the last processed block
-     */
-    private async updateLastProcessedBlock(blockNumber: bigint): Promise<void> {
-        this.lastProcessedBlockNumber = blockNumber;
+        this.lastReportedBlockNumber = endBlock;
     }
 
     /**
@@ -172,7 +153,7 @@ export class BlockManager implements IBlockManager {
 
         try {
             this.latestBlock = await this.publicClient.getBlockNumber();
-            let currentBlock: bigint = this.lastProcessedBlockNumber;
+            let currentBlock: bigint = this.lastReportedBlockNumber;
 
             this.logger.debug(
                 `${this.network.name}: Starting catchup from block ${currentBlock}, Chain tip: ${this.latestBlock}`,
@@ -185,8 +166,7 @@ export class BlockManager implements IBlockManager {
                         ? this.latestBlock
                         : startBlock + this.config.catchupBatchSize - 1n;
 
-                // Process this block range (will notify handlers)
-                await this.processBlockRange(startBlock, endBlock);
+                await this.notifySubscribers(startBlock, endBlock);
                 currentBlock = endBlock;
             }
         } catch (err) {
@@ -195,33 +175,30 @@ export class BlockManager implements IBlockManager {
     }
 
     /**
-     * Registers a handler that will be called when new blocks are processed.
+     * Registers a subscriber that will be called when new blocks are processed.
      * Returns an unregister function.
      */
     public watchBlocks(options: WatchBlocksOptions): () => void {
-        const { onBlockRange, onError } = options;
-        const handlerId = Math.random().toString(36).substring(2, 15);
+        const { onBlockRange } = options;
+        const subscriberId = Math.random().toString(36).substring(2, 15);
 
-        // this.logger.debug(
-        //     `${this.network.name}: Registered block range handler ${handlerId}`,
-        // );
-
-        this.blockRangeHandlers.set(handlerId, {
-            id: handlerId,
+        this.subscribers.set(subscriberId, {
+            id: subscriberId,
             onBlockRange,
-            onError,
         });
 
         return () => {
-            this.logger.info(`${this.network.name}: Unregistered block range handler ${handlerId}`);
-            this.blockRangeHandlers.delete(handlerId);
+            this.logger.info(
+                `${this.network.name}: Unregistered block range subscriber ${subscriberId}`,
+            );
+            this.subscribers.delete(subscriberId);
         };
     }
 
     public dispose(): void {
         this.isDisposed = true;
         this.stopPolling();
-        this.blockRangeHandlers.clear();
+        this.subscribers.clear();
         this.logger.debug(`${this.network.name}: Disposed`);
     }
 }

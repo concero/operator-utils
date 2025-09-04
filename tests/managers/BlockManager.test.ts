@@ -51,9 +51,9 @@ describe('BlockManager', () => {
         const onBlockRange = jest.fn();
         const unregister = blockManager.watchBlocks({ onBlockRange });
         // @ts-ignore
-        expect(blockManager.blockRangeHandlers.size).toBe(1);
+        expect(blockManager.subscribers.size).toBe(1);
         unregister();
         // @ts-ignore
-        expect(blockManager.blockRangeHandlers.size).toBe(0);
+        expect(blockManager.subscribers.size).toBe(0);
     });
 });

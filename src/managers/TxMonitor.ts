@@ -342,11 +342,6 @@ export class TxMonitor implements ITxMonitor {
             onBlockRange: async (startBlock: bigint, endBlock: bigint) => {
                 await this.checkNetworkTransactions(networkName, endBlock);
             },
-            onError: (error: unknown) => {
-                this.logger.error(
-                    `Block monitoring error for ${networkName}: ${error instanceof Error ? error.message : String(error)}`,
-                );
-            },
         });
 
         this.networkSubscriptions.set(networkName, unsubscribe);
