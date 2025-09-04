@@ -41,6 +41,7 @@ export interface ITxReader {
         remove(watcherId: string): boolean;
     };
     initialize(): Promise<void>;
+    dispose(): Promise<void>;
 }
 /** Configuration for TxReader */
 export interface TxReaderConfig {

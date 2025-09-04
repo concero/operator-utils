@@ -70,6 +70,7 @@ export interface ITxReader {
     };
 
     initialize(): Promise<void>;
+    dispose(): Promise<void>;
 }
 
 /** Configuration for TxReader */

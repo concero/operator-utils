@@ -47712,9 +47712,9 @@ var {
 var BalanceManager = class extends ManagerBase {
   constructor(logger, viemClientManager, txReader, config) {
     super();
+    this.tokenConfigs = {};
     this.nativeBalances = /* @__PURE__ */ new Map();
     this.tokenBalances = /* @__PURE__ */ new Map();
-    this.tokenConfigs = {};
     this.registeredTokens = /* @__PURE__ */ new Map();
     this.registeredNativeBalances = /* @__PURE__ */ new Set();
     this.activeNetworks = [];
@@ -47825,6 +47825,7 @@ var BalanceManager = class extends ManagerBase {
     this.tokenWatchers.get(network.name).set(tokenSymbol, watcherId);
     return watcherId;
   }
+  //todo: When networks are removed via setActiveNetworks without an immediate beginWatching, watchers created for those networks continue polling, holding references to callbacks and clients, which can grow over time.
   setActiveNetworks(networks) {
     this.activeNetworks.splice(0, this.activeNetworks.length, ...networks);
     const names = new Set(networks.map((n) => n.name));
@@ -48387,7 +48388,7 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     try {
       if (this.config.networkMode === "localhost") {
         this.mainnetNetworks = {};
-        const localhostNetworks = this.getTestingNetworks(this.config.operatorPrivateKey);
+        const localhostNetworks = this.getTestingNetworks();
         this.testnetNetworks = localhostNetworks;
         this.logger.debug(
           `Using localhost networks only: ${Object.keys(localhostNetworks).join(", ")}`
@@ -48407,18 +48408,14 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
           const hasMainnetNetworks = Object.keys(fetchedMainnet).length > 0;
           const hasTestnetNetworks = Object.keys(fetchedTestnet).length > 0;
           if (hasMainnetNetworks) {
-            this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, "mainnet", [
-              this.config.operatorPrivateKey
-            ]);
+            this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, "mainnet");
           } else {
             this.logger.warn(
               "No mainnet networks fetched, keeping existing mainnet networks"
             );
           }
           if (hasTestnetNetworks) {
-            this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, "testnet", [
-              this.config.operatorPrivateKey
-            ]);
+            this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, "testnet");
           } else {
             this.logger.warn(
               "No testnet networks fetched, keeping existing testnet networks"
@@ -48494,7 +48491,7 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
       }
     }, this.config.pollingIntervalMs);
   }
-  createNetworkConfig(networks, networkType, accounts) {
+  createNetworkConfig(networks, networkType) {
     return Object.fromEntries(
       Object.entries(networks).map(([key, network]) => {
         const networkKey = key;
@@ -48532,7 +48529,7 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     const whitelistedIds = this.config.whitelistedNetworkIds[networkType] || [];
     switch (networkType) {
       case "localhost":
-        networks = Object.values(this.getTestingNetworks(this.config.operatorPrivateKey));
+        networks = Object.values(this.getTestingNetworks());
         break;
       case "testnet":
         networks = Object.values(this.testnetNetworks);
@@ -48872,6 +48869,7 @@ var RpcManager = class _RpcManager extends ManagerBase {
     await super.initialize();
     this.logger.debug("Initialized");
   }
+  // todo: may be unused, remove?
   async ensureRpcsForNetwork(network) {
     if (!this.rpcUrls[network.name] || this.rpcUrls[network.name].length === 0) {
       await this.updateRpcs([network]);
@@ -48938,6 +48936,7 @@ var RpcManager = class _RpcManager extends ManagerBase {
       throw error;
     }
   }
+  //todo:  exposes mutable arrays; callers could modify the returned array and inadvertently corrupt internal state
   getRpcsForNetwork(networkName) {
     if (this.config.networkMode === "localhost") {
       return ["http://127.0.0.1:8545"];
@@ -49204,7 +49203,6 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
 var TxMonitor = class _TxMonitor {
   constructor(logger, viemClientManager, blockManagerRegistry, networkManager, config) {
     this.monitors = /* @__PURE__ */ new Map();
-    this.disposed = false;
     this.networkSubscriptions = /* @__PURE__ */ new Map();
     this.viemClientManager = viemClientManager;
     this.logger = logger;
@@ -49294,7 +49292,7 @@ var TxMonitor = class _TxMonitor {
   generateSubscriberId() {
     return Math.random().toString(36).substring(2, 15);
   }
-  async checkTransactionStatus(monitor, currentBlock, finalityBlocks, network) {
+  async checkTransactionStatus(monitor, currentBlock, finalityConfirmations, network) {
     try {
       const elapsedTime = Date.now() - monitor.startTime;
       if (monitor.type === "inclusion" && this.config.maxInclusionWait && elapsedTime >= this.config.maxInclusionWait) {
@@ -49333,7 +49331,7 @@ var TxMonitor = class _TxMonitor {
         }
       } else if (monitor.type === "finality") {
         if (!monitor.finalityBlockNumber) {
-          monitor.finalityBlockNumber = inclusionBlockNumber + finalityBlocks;
+          monitor.finalityBlockNumber = inclusionBlockNumber + finalityConfirmations;
         }
         if (currentBlock >= monitor.finalityBlockNumber) {
           const currentReceipt = await publicClient.getTransactionReceipt({
@@ -49366,7 +49364,13 @@ var TxMonitor = class _TxMonitor {
     );
     monitor.subscribers.forEach((subscriber) => {
       if (subscriber.finalityCallback) {
-        subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
+        try {
+          subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
+        } catch (error) {
+          this.logger.error(
+            `Error in finality callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       }
     });
   }
@@ -49376,32 +49380,35 @@ var TxMonitor = class _TxMonitor {
     );
     monitor.subscribers.forEach((subscriber) => {
       if (subscriber.inclusionCallback) {
-        subscriber.inclusionCallback(
-          monitor.txHash,
-          monitor.chainName,
-          blockNumber,
-          isIncluded
-        );
+        try {
+          subscriber.inclusionCallback(
+            monitor.txHash,
+            monitor.chainName,
+            blockNumber,
+            isIncluded
+          );
+        } catch (error) {
+          this.logger.error(
+            `Error in inclusion callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       }
     });
   }
-  getNetwork(chainName) {
-    return this.networkManager.getNetworkByName(chainName);
-  }
   async checkNetworkTransactions(networkName, endBlock) {
-    const network = this.getNetwork(networkName);
+    const network = this.networkManager.getNetworkByName(networkName);
     if (!network) return;
     const activeMonitors = Array.from(this.monitors.values()).filter(
       (monitor) => monitor.chainName === networkName
     );
-    const finalityBlocks = BigInt(
+    const finalityConfirmations = BigInt(
       network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations()
     );
     for (const monitor of activeMonitors) {
       if (!this.monitors.has(monitor.txHash)) {
         continue;
       }
-      await this.checkTransactionStatus(monitor, endBlock, finalityBlocks, network);
+      await this.checkTransactionStatus(monitor, endBlock, finalityConfirmations, network);
     }
   }
   subscribeToNetwork(networkName) {
@@ -49494,6 +49501,7 @@ var TxReader = class _TxReader {
     this.readContractWatchers = /* @__PURE__ */ new Map();
     this.methodWatchers = /* @__PURE__ */ new Map();
     this.bulkCallbacks = /* @__PURE__ */ new Map();
+    this.isGlobalLoopRunning = false;
     this.logWatcher = {
       create: (contractAddress, network, onLogs, event, blockManager) => {
         const id = v4_default();
@@ -49639,98 +49647,122 @@ var TxReader = class _TxReader {
   }
   ensureGlobalLoop() {
     if (this.globalReadInterval) return;
-    this.globalReadInterval = setInterval(
-      () => this.executeGlobalReadLoop(),
-      this.watcherIntervalMs
-    );
+    this.scheduleNextGlobalRead();
     this.logger.debug(
       `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`
     );
   }
+  scheduleNextGlobalRead() {
+    this.globalReadInterval = setTimeout(async () => {
+      if (this.isGlobalLoopRunning) {
+        this.logger.debug(
+          "TxReader: Skipping overlapping execution of the global loop, because existing one is still running"
+        );
+        this.scheduleNextGlobalRead();
+        return;
+      }
+      try {
+        await this.executeGlobalReadLoop();
+      } catch (error) {
+        this.logger.error(
+          `TxReader: Global read loop error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      } finally {
+        if (this.globalReadInterval) {
+          this.scheduleNextGlobalRead();
+        }
+      }
+    }, this.watcherIntervalMs);
+  }
   stopGlobalLoopIfIdle() {
     if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
-      clearInterval(this.globalReadInterval);
+      clearTimeout(this.globalReadInterval);
       this.globalReadInterval = void 0;
       this.logger.debug("TxReader: Stopped global read loop - no more watchers");
     }
   }
   async executeGlobalReadLoop() {
-    const now = Date.now();
-    const dueContractWatchers = [];
-    const dueMethodWatchers = [];
-    this.logger.debug(
-      `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`
-    );
-    for (const w of this.readContractWatchers.values()) {
-      if (now - w.lastExecuted >= w.intervalMs) {
-        w.lastExecuted = now;
-        dueContractWatchers.push(w);
+    this.isGlobalLoopRunning = true;
+    try {
+      const now = Date.now();
+      const dueContractWatchers = [];
+      const dueMethodWatchers = [];
+      this.logger.debug(
+        `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`
+      );
+      for (const w of this.readContractWatchers.values()) {
+        if (now - w.lastExecuted >= w.intervalMs) {
+          w.lastExecuted = now;
+          dueContractWatchers.push(w);
+        }
       }
-    }
-    for (const w of this.methodWatchers.values()) {
-      if (now - w.lastExecuted >= w.intervalMs) {
-        w.lastExecuted = now;
-        dueMethodWatchers.push(w);
+      for (const w of this.methodWatchers.values()) {
+        if (now - w.lastExecuted >= w.intervalMs) {
+          w.lastExecuted = now;
+          dueMethodWatchers.push(w);
+        }
       }
-    }
-    if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
-      this.logger.debug("TxReader: No watchers due for execution");
-      return;
-    }
-    this.logger.debug(
-      `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`
-    );
-    const contractOutcomes = dueContractWatchers.length > 0 ? (await Promise.all(
-      [...this.groupByNetwork(dueContractWatchers).values()].map(
-        (group) => this.executeContractBatch(group)
-      )
-    )).flat() : [];
-    const methodOutcomes = dueMethodWatchers.length > 0 ? (await Promise.all(
-      [...this.groupByNetwork(dueMethodWatchers).values()].map(
-        (group) => this.executeMethodBatch(group)
-      )
-    )).flat() : [];
-    const outcomes = [...contractOutcomes, ...methodOutcomes];
-    const bulkBuckets = /* @__PURE__ */ new Map();
-    for (const o of outcomes) {
-      if (o.watcher.bulkId) {
-        const b = o.watcher.bulkId;
-        if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
-        bulkBuckets.get(b).push(o);
-      } else {
-        if (o.status === "fulfilled") {
-          o.watcher.callback(o.value, o.watcher.network).catch(
-            (err) => this.logger.error(
-              `single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`
-            )
-          );
+      if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
+        this.logger.debug("TxReader: No watchers due for execution");
+        return;
+      }
+      this.logger.debug(
+        `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`
+      );
+      const contractOutcomes = dueContractWatchers.length > 0 ? (await Promise.all(
+        [...this.groupByNetwork(dueContractWatchers).values()].map(
+          (group) => this.executeContractBatch(group)
+        )
+      )).flat() : [];
+      const methodOutcomes = dueMethodWatchers.length > 0 ? (await Promise.all(
+        [...this.groupByNetwork(dueMethodWatchers).values()].map(
+          (group) => this.executeMethodBatch(group)
+        )
+      )).flat() : [];
+      const outcomes = [...contractOutcomes, ...methodOutcomes];
+      const bulkBuckets = /* @__PURE__ */ new Map();
+      for (const o of outcomes) {
+        if (o.watcher.bulkId) {
+          const b = o.watcher.bulkId;
+          if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
+          bulkBuckets.get(b).push(o);
         } else {
+          if (o.status === "fulfilled") {
+            o.watcher.callback(o.value, o.watcher.network).catch(
+              (err) => this.logger.error(
+                `single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`
+              )
+            );
+          } else {
+            this.logger.error(
+              `readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`
+            );
+          }
+        }
+      }
+      for (const [bulkId, bucket] of bulkBuckets.entries()) {
+        const cb = this.bulkCallbacks.get(bulkId);
+        if (!cb) continue;
+        const results = bucket.filter((x) => x.status === "fulfilled").map((x) => ({
+          watcherId: x.watcher.id,
+          network: x.watcher.network,
+          value: x.value
+        }));
+        const errors = bucket.filter((x) => x.status === "rejected").map((x) => ({
+          watcherId: x.watcher.id,
+          network: x.watcher.network,
+          error: x.reason
+        }));
+        try {
+          await cb({ bulkId, results, errors });
+        } catch (e) {
           this.logger.error(
-            `readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`
+            `bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`
           );
         }
       }
-    }
-    for (const [bulkId, bucket] of bulkBuckets.entries()) {
-      const cb = this.bulkCallbacks.get(bulkId);
-      if (!cb) continue;
-      const results = bucket.filter((x) => x.status === "fulfilled").map((x) => ({
-        watcherId: x.watcher.id,
-        network: x.watcher.network,
-        value: x.value
-      }));
-      const errors = bucket.filter((x) => x.status === "rejected").map((x) => ({
-        watcherId: x.watcher.id,
-        network: x.watcher.network,
-        error: x.reason
-      }));
-      try {
-        await cb({ bulkId, results, errors });
-      } catch (e) {
-        this.logger.error(
-          `bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`
-        );
-      }
+    } finally {
+      this.isGlobalLoopRunning = false;
     }
   }
   groupByNetwork(watchers) {
@@ -49781,10 +49813,11 @@ var TxReader = class _TxReader {
     );
   }
   withTimeout(p, ms) {
-    return Promise.race([
-      p,
-      new Promise((_, r) => setTimeout(() => r(new Error("timeout")), ms))
-    ]);
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("timeout")), ms);
+    });
+    return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
   }
   async fetchLogsForWatcher(id, from5, to) {
     const w = this.logWatchers.get(id);
@@ -49801,7 +49834,7 @@ var TxReader = class _TxReader {
       );
       if (logs.length)
         w.callback(logs, w.network).catch(
-          (e) => this.logger.error(`fetchLogs failed (${id})`, e)
+          (e) => this.logger.error(`fetchLogsForWatcher failed (${id})`, e)
         );
     } catch (e) {
       this.logger.error(
@@ -49825,6 +49858,19 @@ var TxReader = class _TxReader {
       );
       return [];
     }
+  }
+  async dispose() {
+    this.logger.info("Disposing TxReader...");
+    if (this.globalReadInterval) {
+      clearTimeout(this.globalReadInterval);
+      this.globalReadInterval = void 0;
+    }
+    this.logWatchers.clear();
+    this.readContractWatchers.clear();
+    this.methodWatchers.clear();
+    this.bulkCallbacks.clear();
+    this.isGlobalLoopRunning = false;
+    this.logger.info("TxReader disposed successfully");
   }
 };
 
@@ -49881,7 +49927,7 @@ var TxWriter = class _TxWriter {
         this.txMonitor.ensureTxFinality(
           txHash,
           network.name,
-          (hash2, chainName, isFinalized) => retryCallback(hash2, isFinalized)
+          (hash2, networkName, isFinalized) => retryCallback(hash2, isFinalized)
         );
       } else {
         this.txMonitor.ensureTxInclusion(
@@ -49906,7 +49952,7 @@ var TxWriter = class _TxWriter {
       this.logger.warn(
         `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`
       );
-      this.nonceManager.reset(network.name);
+      await this.nonceManager.refresh(network.name);
       this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
       try {
         await this.retryTransaction(network, params);

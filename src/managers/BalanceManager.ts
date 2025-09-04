@@ -13,24 +13,25 @@ import {
 } from '../types';
 
 export abstract class BalanceManager extends ManagerBase implements IBalanceManager {
-    private readonly nativeBalances = new Map<string, bigint>();
-    private readonly tokenBalances = new Map<string, Map<string, bigint>>();
+    private minAllowances: Record<string, Record<string, bigint>>;
+    private tokenConfigs: Record<string, TokenConfig[]> = {};
+    private pollingIntervalMs: number;
 
-    private readonly minAllowances: Record<string, Record<string, bigint>>;
-    private readonly tokenConfigs: Record<string, TokenConfig[]> = {};
-    private readonly registeredTokens: Map<string, Map<string, Address>> = new Map();
-    private readonly registeredNativeBalances: Set<string> = new Set();
-    private readonly pollingIntervalMs: number;
+    private nativeBalances = new Map<string, bigint>();
+    private tokenBalances = new Map<string, Map<string, bigint>>();
 
-    protected readonly activeNetworks: ConceroNetwork[] = [];
-    protected readonly watcherIds: string[] = [];
+    private registeredTokens: Map<string, Map<string, Address>> = new Map();
+    private registeredNativeBalances: Set<string> = new Set();
 
-    private readonly tokenWatchers: Map<string, Map<string, string>> = new Map();
-    private readonly nativeWatchers: Map<string, string> = new Map();
+    private activeNetworks: ConceroNetwork[] = [];
+    private watcherIds: string[] = [];
 
-    private readonly viemClientManager: IViemClientManager;
-    private readonly txReader: ITxReader;
-    private readonly logger: ILogger;
+    private tokenWatchers: Map<string, Map<string, string>> = new Map();
+    private nativeWatchers: Map<string, string> = new Map();
+
+    private viemClientManager: IViemClientManager;
+    private txReader: ITxReader;
+    private logger: ILogger;
 
     protected constructor(
         logger: ILogger,
@@ -168,6 +169,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         return watcherId;
     }
 
+    //todo: When networks are removed via setActiveNetworks without an immediate beginWatching, watchers created for those networks continue polling, holding references to callbacks and clients, which can grow over time.
     public setActiveNetworks(networks: ConceroNetwork[]): void {
         this.activeNetworks.splice(0, this.activeNetworks.length, ...networks);
         const names = new Set(networks.map(n => n.name));

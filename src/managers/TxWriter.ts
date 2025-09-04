@@ -90,7 +90,7 @@ export class TxWriter implements ITxWriter {
                 this.txMonitor.ensureTxFinality(
                     txHash,
                     network.name,
-                    (hash: string, chainName: string, isFinalized: boolean) =>
+                    (hash: string, networkName: string, isFinalized: boolean) =>
                         retryCallback(hash, isFinalized),
                 );
             } else {
@@ -124,7 +124,7 @@ export class TxWriter implements ITxWriter {
                 `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`,
             );
 
-            this.nonceManager.reset(network.name);
+            await this.nonceManager.refresh(network.name);
             this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
 
             try {

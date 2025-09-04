@@ -24,6 +24,7 @@ export declare class TxReader implements ITxReader {
     private readonly methodWatchers;
     private readonly bulkCallbacks;
     private globalReadInterval?;
+    private isGlobalLoopRunning;
     private readonly watcherIntervalMs;
     private constructor();
     static createInstance(logger: ILogger, networkManager: IConceroNetworkManager, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
@@ -55,6 +56,7 @@ export declare class TxReader implements ITxReader {
         remove: (id: string) => boolean;
     };
     private ensureGlobalLoop;
+    private scheduleNextGlobalRead;
     private stopGlobalLoopIfIdle;
     private executeGlobalReadLoop;
     private groupByNetwork;
@@ -63,6 +65,7 @@ export declare class TxReader implements ITxReader {
     private withTimeout;
     private fetchLogsForWatcher;
     getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]>;
+    dispose(): Promise<void>;
 }
 export {};
 //# sourceMappingURL=TxReader.d.ts.map

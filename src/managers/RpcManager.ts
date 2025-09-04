@@ -21,7 +21,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
     constructor(logger: ILogger, networkManager: ConceroNetworkManager, config: RpcManagerConfig) {
         super();
-        this.httpClient = HttpClient.getInstance();
+        this.httpClient = HttpClient.getInstance(); //todo: injecct ready instance instead
         this.logger = logger;
         this.networkManager = networkManager;
         this.config = config;
@@ -50,6 +50,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         this.logger.debug('Initialized');
     }
 
+    // todo: may be unused, remove?
     public async ensureRpcsForNetwork(network: ConceroNetwork): Promise<void> {
         if (!this.rpcUrls[network.name] || this.rpcUrls[network.name].length === 0) {
             await this.updateRpcs([network]);
@@ -135,6 +136,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
         }
     }
 
+    //todo:  exposes mutable arrays; callers could modify the returned array and inadvertently corrupt internal state
     public getRpcsForNetwork(networkName: string): string[] {
         if (this.config.networkMode === 'localhost') {
             return ['http://127.0.0.1:8545'];
@@ -144,6 +146,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
     public hasValidRpcs(networkName: string): boolean {
         const rpcUrls = this.getRpcsForNetwork(networkName);
+        //todo: maybe implement a health check instead of just checking for non-empty array?
         return rpcUrls.length > 0;
     }
 

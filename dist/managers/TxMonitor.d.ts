@@ -3,7 +3,6 @@ export declare class TxMonitor implements ITxMonitor {
     private static instance;
     private monitors;
     private viemClientManager;
-    private disposed;
     private logger;
     private config;
     private networkSubscriptions;
@@ -18,7 +17,6 @@ export declare class TxMonitor implements ITxMonitor {
     private checkTransactionStatus;
     private notifyFinalitySubscribers;
     private notifyInclusionSubscribers;
-    private getNetwork;
     private checkNetworkTransactions;
     private subscribeToNetwork;
     private removeMonitor;

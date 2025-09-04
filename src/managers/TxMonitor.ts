@@ -12,13 +12,13 @@ import {
 
 interface Subscriber {
     id: string;
-    finalityCallback?: (txHash: string, chainName: string, isFinalized: boolean) => void;
+    finalityCallback?: (txHash: string, chainName: string, isFinalized: boolean) => Promise<void>;
     inclusionCallback?: (
         txHash: string,
         networkName: string,
         blockNumber: bigint,
         isIncluded: boolean,
-    ) => void;
+    ) => Promise<void>;
 }
 
 interface TransactionMonitor {
@@ -36,7 +36,6 @@ export class TxMonitor implements ITxMonitor {
     private static instance: TxMonitor | undefined;
     private monitors: Map<string, TransactionMonitor> = new Map();
     private viemClientManager: IViemClientManager;
-    private disposed: boolean = false;
     private logger: ILogger;
     private config: TxMonitorConfig;
     private networkSubscriptions: Map<string, () => void> = new Map();
@@ -177,7 +176,7 @@ export class TxMonitor implements ITxMonitor {
     private async checkTransactionStatus(
         monitor: TransactionMonitor,
         currentBlock: bigint,
-        finalityBlocks: bigint,
+        finalityConfirmations: bigint,
         network: ConceroNetwork,
     ): Promise<void> {
         try {
@@ -236,7 +235,7 @@ export class TxMonitor implements ITxMonitor {
                 }
             } else if (monitor.type === 'finality') {
                 if (!monitor.finalityBlockNumber) {
-                    monitor.finalityBlockNumber = inclusionBlockNumber + finalityBlocks;
+                    monitor.finalityBlockNumber = inclusionBlockNumber + finalityConfirmations;
                 }
 
                 if (currentBlock >= monitor.finalityBlockNumber) {
@@ -276,7 +275,13 @@ export class TxMonitor implements ITxMonitor {
 
         monitor.subscribers.forEach(subscriber => {
             if (subscriber.finalityCallback) {
-                subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
+                try {
+                    subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
+                } catch (error) {
+                    this.logger.error(
+                        `Error in finality callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                }
             }
         });
     }
@@ -292,29 +297,31 @@ export class TxMonitor implements ITxMonitor {
 
         monitor.subscribers.forEach(subscriber => {
             if (subscriber.inclusionCallback) {
-                subscriber.inclusionCallback(
-                    monitor.txHash,
-                    monitor.chainName,
-                    blockNumber,
-                    isIncluded,
-                );
+                try {
+                    subscriber.inclusionCallback(
+                        monitor.txHash,
+                        monitor.chainName,
+                        blockNumber,
+                        isIncluded,
+                    );
+                } catch (error) {
+                    this.logger.error(
+                        `Error in inclusion callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                }
             }
         });
     }
 
-    private getNetwork(chainName: string): ConceroNetwork | undefined {
-        return this.networkManager.getNetworkByName(chainName);
-    }
-
     private async checkNetworkTransactions(networkName: string, endBlock: bigint): Promise<void> {
-        const network = this.getNetwork(networkName);
+        const network = this.networkManager.getNetworkByName(networkName);
         if (!network) return;
 
         const activeMonitors = Array.from(this.monitors.values()).filter(
             monitor => monitor.chainName === networkName,
         );
 
-        const finalityBlocks = BigInt(
+        const finalityConfirmations = BigInt(
             network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
         );
 
@@ -323,7 +330,7 @@ export class TxMonitor implements ITxMonitor {
                 continue;
             }
 
-            await this.checkTransactionStatus(monitor, endBlock, finalityBlocks, network);
+            await this.checkTransactionStatus(monitor, endBlock, finalityConfirmations, network);
         }
     }
 

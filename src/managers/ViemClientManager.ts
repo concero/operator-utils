@@ -17,6 +17,8 @@ export interface ViemClients {
     publicClient: PublicClient;
     account: PrivateKeyAccount;
 }
+
+//todo: what happens when we update networks while having in-flight requests in existing clients?
 // Creates & updates Viem Fallback Clients for each network
 export class ViemClientManager extends ManagerBase implements IViemClientManager {
     private static instance: ViemClientManager;

@@ -42,6 +42,7 @@ export class TxReader implements ITxReader {
     private readonly bulkCallbacks = new Map<string, BulkCallback>();
 
     private globalReadInterval?: NodeJS.Timeout;
+    private isGlobalLoopRunning = false;
     private readonly watcherIntervalMs: number;
 
     private constructor(
@@ -83,6 +84,7 @@ export class TxReader implements ITxReader {
             event: AbiEvent,
             blockManager: any,
         ): string => {
+            //todo: standardise id creation across TxReader, TxMonitor, BlockManager, BalanceManager, ConceroNetworkManager
             const id = uuidv4();
             const unwatch = blockManager.watchBlocks({
                 onBlockRange: (from: bigint, to: bigint) => this.fetchLogsForWatcher(id, from, to),
@@ -245,13 +247,34 @@ export class TxReader implements ITxReader {
 
     private ensureGlobalLoop(): void {
         if (this.globalReadInterval) return;
-        this.globalReadInterval = setInterval(
-            () => this.executeGlobalReadLoop(),
-            this.watcherIntervalMs,
-        );
+        this.scheduleNextGlobalRead();
         this.logger.debug(
             `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`,
         );
+    }
+
+    private scheduleNextGlobalRead(): void {
+        this.globalReadInterval = setTimeout(async () => {
+            if (this.isGlobalLoopRunning) {
+                this.logger.debug(
+                    'TxReader: Skipping overlapping execution of the global loop, because existing one is still running',
+                );
+                this.scheduleNextGlobalRead();
+                return;
+            }
+
+            try {
+                await this.executeGlobalReadLoop();
+            } catch (error) {
+                this.logger.error(
+                    `TxReader: Global read loop error: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            } finally {
+                if (this.globalReadInterval) {
+                    this.scheduleNextGlobalRead();
+                }
+            }
+        }, this.watcherIntervalMs);
     }
 
     private stopGlobalLoopIfIdle(): void {
@@ -260,119 +283,125 @@ export class TxReader implements ITxReader {
             this.methodWatchers.size === 0 &&
             this.globalReadInterval
         ) {
-            clearInterval(this.globalReadInterval);
+            clearTimeout(this.globalReadInterval);
             this.globalReadInterval = undefined;
             this.logger.debug('TxReader: Stopped global read loop - no more watchers');
         }
     }
 
     private async executeGlobalReadLoop(): Promise<void> {
-        const now = Date.now();
-        const dueContractWatchers: Watcher[] = [];
-        const dueMethodWatchers: MethodWatcher[] = [];
+        this.isGlobalLoopRunning = true;
 
-        this.logger.debug(
-            `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`,
-        );
+        try {
+            const now = Date.now();
+            const dueContractWatchers: Watcher[] = [];
+            const dueMethodWatchers: MethodWatcher[] = [];
 
-        for (const w of this.readContractWatchers.values()) {
-            if (now - w.lastExecuted >= w.intervalMs) {
-                w.lastExecuted = now;
-                dueContractWatchers.push(w);
+            this.logger.debug(
+                `TxReader: Checking ${this.readContractWatchers.size} contract watchers and ${this.methodWatchers.size} method watchers`,
+            );
+
+            for (const w of this.readContractWatchers.values()) {
+                if (now - w.lastExecuted >= w.intervalMs) {
+                    w.lastExecuted = now;
+                    dueContractWatchers.push(w);
+                }
             }
-        }
 
-        for (const w of this.methodWatchers.values()) {
-            if (now - w.lastExecuted >= w.intervalMs) {
-                w.lastExecuted = now;
-                dueMethodWatchers.push(w);
+            for (const w of this.methodWatchers.values()) {
+                if (now - w.lastExecuted >= w.intervalMs) {
+                    w.lastExecuted = now;
+                    dueMethodWatchers.push(w);
+                }
             }
-        }
 
-        if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
-            this.logger.debug('TxReader: No watchers due for execution');
-            return;
-        }
+            if (dueContractWatchers.length === 0 && dueMethodWatchers.length === 0) {
+                this.logger.debug('TxReader: No watchers due for execution');
+                return;
+            }
 
-        this.logger.debug(
-            `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`,
-        );
+            this.logger.debug(
+                `TxReader: Executing ${dueContractWatchers.length} contract watchers and ${dueMethodWatchers.length} method watchers`,
+            );
 
-        const contractOutcomes =
-            dueContractWatchers.length > 0
-                ? (
-                      await Promise.all(
-                          [...this.groupByNetwork(dueContractWatchers).values()].map(group =>
-                              this.executeContractBatch(group),
-                          ),
-                      )
-                  ).flat()
-                : [];
+            const contractOutcomes =
+                dueContractWatchers.length > 0
+                    ? (
+                          await Promise.all(
+                              [...this.groupByNetwork(dueContractWatchers).values()].map(group =>
+                                  this.executeContractBatch(group),
+                              ),
+                          )
+                      ).flat()
+                    : [];
 
-        const methodOutcomes =
-            dueMethodWatchers.length > 0
-                ? (
-                      await Promise.all(
-                          [...this.groupByNetwork(dueMethodWatchers).values()].map(group =>
-                              this.executeMethodBatch(group),
-                          ),
-                      )
-                  ).flat()
-                : [];
+            const methodOutcomes =
+                dueMethodWatchers.length > 0
+                    ? (
+                          await Promise.all(
+                              [...this.groupByNetwork(dueMethodWatchers).values()].map(group =>
+                                  this.executeMethodBatch(group),
+                              ),
+                          )
+                      ).flat()
+                    : [];
 
-        const outcomes = [...contractOutcomes, ...methodOutcomes];
+            const outcomes = [...contractOutcomes, ...methodOutcomes];
 
-        const bulkBuckets = new Map<string, typeof outcomes>();
-        for (const o of outcomes) {
-            if (o.watcher.bulkId) {
-                const b = o.watcher.bulkId;
-                if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
-                bulkBuckets.get(b)!.push(o);
-            } else {
-                if (o.status === 'fulfilled') {
-                    // single-watcher callback
-                    o.watcher
-                        .callback(o.value, o.watcher.network)
-                        .catch(err =>
-                            this.logger.error(
-                                `single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`,
-                            ),
-                        );
+            const bulkBuckets = new Map<string, typeof outcomes>();
+            for (const o of outcomes) {
+                if (o.watcher.bulkId) {
+                    const b = o.watcher.bulkId;
+                    if (!bulkBuckets.has(b)) bulkBuckets.set(b, []);
+                    bulkBuckets.get(b)!.push(o);
                 } else {
+                    if (o.status === 'fulfilled') {
+                        // single-watcher callback
+                        o.watcher
+                            .callback(o.value, o.watcher.network)
+                            .catch(err =>
+                                this.logger.error(
+                                    `single callback failed (${o.watcher.id}): ${err instanceof Error ? err.message : String(err)}`,
+                                ),
+                            );
+                    } else {
+                        this.logger.error(
+                            `readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`,
+                        );
+                    }
+                }
+            }
+
+            for (const [bulkId, bucket] of bulkBuckets.entries()) {
+                const cb = this.bulkCallbacks.get(bulkId);
+                if (!cb) continue;
+
+                const results = bucket
+                    .filter(x => x.status === 'fulfilled')
+                    .map(x => ({
+                        watcherId: x.watcher.id,
+                        network: x.watcher.network,
+                        value: (x as any).value,
+                    }));
+
+                const errors = bucket
+                    .filter(x => x.status === 'rejected')
+                    .map(x => ({
+                        watcherId: x.watcher.id,
+                        network: x.watcher.network,
+                        error: (x as any).reason,
+                    }));
+
+                try {
+                    await cb({ bulkId, results, errors });
+                } catch (e) {
                     this.logger.error(
-                        `readContract failed (${o.watcher.id}): ${o.reason instanceof Error ? o.reason.message : String(o.reason)}`,
+                        `bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`,
                     );
                 }
             }
-        }
-
-        for (const [bulkId, bucket] of bulkBuckets.entries()) {
-            const cb = this.bulkCallbacks.get(bulkId);
-            if (!cb) continue;
-
-            const results = bucket
-                .filter(x => x.status === 'fulfilled')
-                .map(x => ({
-                    watcherId: x.watcher.id,
-                    network: x.watcher.network,
-                    value: (x as any).value,
-                }));
-
-            const errors = bucket
-                .filter(x => x.status === 'rejected')
-                .map(x => ({
-                    watcherId: x.watcher.id,
-                    network: x.watcher.network,
-                    error: (x as any).reason,
-                }));
-
-            try {
-                await cb({ bulkId, results, errors });
-            } catch (e) {
-                this.logger.error(
-                    `bulk callback failed (${bulkId}): ${e instanceof Error ? e.message : String(e)}`,
-                );
-            }
+        } finally {
+            this.isGlobalLoopRunning = false;
         }
     }
 
@@ -439,10 +468,13 @@ export class TxReader implements ITxReader {
     }
 
     private withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-        return Promise.race([
-            p,
-            new Promise<T>((_, r) => setTimeout(() => r(new Error('timeout')), ms)),
-        ]);
+        let timeoutId: NodeJS.Timeout;
+
+        const timeoutPromise = new Promise<T>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('timeout')), ms);
+        });
+
+        return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
     }
 
     private async fetchLogsForWatcher(id: string, from: bigint, to: bigint): Promise<void> {
@@ -461,7 +493,7 @@ export class TxReader implements ITxReader {
             );
             if (logs.length)
                 w.callback(logs, w.network).catch(e =>
-                    this.logger.error(`fetchLogs failed (${id})`, e),
+                    this.logger.error(`fetchLogsForWatcher failed (${id})`, e),
                 );
         } catch (e) {
             this.logger.error(
@@ -486,5 +518,26 @@ export class TxReader implements ITxReader {
             );
             return [];
         }
+    }
+
+    public async dispose(): Promise<void> {
+        this.logger.info('Disposing TxReader...');
+
+        // Stop global loop
+        if (this.globalReadInterval) {
+            clearTimeout(this.globalReadInterval);
+            this.globalReadInterval = undefined;
+        }
+
+        // Clear all watchers and their resources
+        this.logWatchers.clear();
+        this.readContractWatchers.clear();
+        this.methodWatchers.clear();
+        this.bulkCallbacks.clear();
+
+        // Reset state
+        this.isGlobalLoopRunning = false;
+
+        this.logger.info('TxReader disposed successfully');
     }
 }

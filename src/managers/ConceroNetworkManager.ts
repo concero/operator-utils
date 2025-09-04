@@ -153,7 +153,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             if (this.config.networkMode === 'localhost') {
                 // In localhost mode, skip fetching remote network configs
                 this.mainnetNetworks = {};
-                const localhostNetworks = this.getTestingNetworks(this.config.operatorPrivateKey);
+                const localhostNetworks = this.getTestingNetworks();
                 this.testnetNetworks = localhostNetworks;
                 this.logger.debug(
                     `Using localhost networks only: ${Object.keys(localhostNetworks).join(', ')}`,
@@ -176,9 +176,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                     const hasTestnetNetworks = Object.keys(fetchedTestnet).length > 0;
 
                     if (hasMainnetNetworks) {
-                        this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, 'mainnet', [
-                            this.config.operatorPrivateKey,
-                        ]);
+                        this.mainnetNetworks = this.createNetworkConfig(fetchedMainnet, 'mainnet');
                     } else {
                         this.logger.warn(
                             'No mainnet networks fetched, keeping existing mainnet networks',
@@ -186,9 +184,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                     }
 
                     if (hasTestnetNetworks) {
-                        this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, 'testnet', [
-                            this.config.operatorPrivateKey,
-                        ]);
+                        this.testnetNetworks = this.createNetworkConfig(fetchedTestnet, 'testnet');
                     } else {
                         this.logger.warn(
                             'No testnet networks fetched, keeping existing testnet networks',
@@ -279,7 +275,6 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private createNetworkConfig<T extends string>(
         networks: Record<string, any>,
         networkType: NetworkType,
-        accounts: string[],
     ): Record<T, ConceroNetwork> {
         return Object.fromEntries(
             Object.entries(networks).map(([key, network]) => {
@@ -323,7 +318,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
 
         switch (networkType) {
             case 'localhost':
-                networks = Object.values(this.getTestingNetworks(this.config.operatorPrivateKey));
+                networks = Object.values(this.getTestingNetworks());
                 break;
             case 'testnet':
                 networks = Object.values(this.testnetNetworks);
