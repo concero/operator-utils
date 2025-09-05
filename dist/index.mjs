@@ -49838,7 +49838,8 @@ var TxWriter = class _TxWriter {
         this.txMonitor.ensureTxInclusion(
           txHash,
           network.name,
-          (hash2, _network, _blockNumber, isIncluded) => retryCallback(hash2, isIncluded)
+          (hash2, _network, _blockNumber, isIncluded) => retryCallback(hash2, isIncluded),
+          1
         );
       }
       return txHash;
