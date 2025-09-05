@@ -1,4 +1,4 @@
-import { SimulateContractParameters } from 'viem';
+import { Hash, SimulateContractParameters } from 'viem';
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
@@ -15,7 +15,7 @@ export declare class TxWriter implements ITxWriter {
     static createInstance(logger: ILogger, viemClientManager: IViemClientManager, txMonitor: ITxMonitor, nonceManager: INonceManager, config: TxWriterConfig): TxWriter;
     static getInstance(): TxWriter;
     initialize(): Promise<void>;
-    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<string>;
+    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<Hash>;
     private callContractWithMonitoring;
     private createRetryCallback;
 }
