@@ -72,9 +72,7 @@ export async function fetchNetworkConfigs(
             testnetNetworks,
         };
     } catch (error: unknown) {
-        logger.error(
-            `Failed to fetch ${networkMode} network configurations: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        logger.error(`Failed to fetch ${networkMode} network configurations: ${error}`);
         throw error;
     }
 }
@@ -109,9 +107,7 @@ function processNetworkData(
             };
         } catch (error: unknown) {
             const networkType = isTestnet ? 'testnet' : 'mainnet';
-            logger.warn(
-                `Failed to process ${networkType} network ${networkName}: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            logger.warn(`Failed to process ${networkType} network ${networkName}: ${error}`);
         }
     }
 

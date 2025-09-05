@@ -42,9 +42,7 @@ export class BlockManagerRegistry
         try {
             await this.updateBlockManagers(networks);
         } catch (error) {
-            this.logger.error(
-                `Failed to sync BlockManagers after network update: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.error(`Failed to sync BlockManagers after network update: ${error}`);
             throw error;
         }
     }
@@ -63,9 +61,7 @@ export class BlockManagerRegistry
 
             return await this.createBlockManager(network, publicClient);
         } catch (error) {
-            this.logger.warn(
-                `Failed to create BlockManager for network ${network.name}: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.warn(`Failed to create BlockManager for network ${network.name}: ${error}`);
             this.networkManager.excludeNetwork(
                 network.name,
                 `Failed to create BlockManager: ${error}`,

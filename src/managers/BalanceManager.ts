@@ -211,8 +211,8 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     public async ensureAllowance(
         networkName: string,
-        tokenAddress: string,
-        spenderAddress: string,
+        tokenAddress: Address,
+        spenderAddress: Address,
         requiredAmount: bigint,
     ): Promise<void> {
         const net = this.findActiveNetwork(networkName);
@@ -222,10 +222,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         const min = this.getMinAllowance(networkName, tokenAddress);
 
         const current = (await publicClient.readContract({
-            address: tokenAddress as Address,
+            address: tokenAddress,
             abi: erc20Abi,
             functionName: 'allowance',
-            args: [walletClient.account.address, spenderAddress as Address],
+            args: [walletClient.account.address, spenderAddress],
         })) as bigint;
 
         const target = requiredAmount > min ? requiredAmount : min;
@@ -235,10 +235,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         }
 
         const txHash = await walletClient.writeContract({
-            address: tokenAddress as Address,
+            address: tokenAddress,
             abi: erc20Abi,
             functionName: 'approve',
-            args: [spenderAddress as Address, target],
+            args: [spenderAddress, target],
         });
 
         await publicClient.waitForTransactionReceipt({ hash: txHash });

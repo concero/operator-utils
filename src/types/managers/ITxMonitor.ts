@@ -17,11 +17,6 @@ export interface ITxMonitor {
         ) => void,
         confirmations?: number,
     ): void;
-    getMonitoredTransactions(chainName?: string): Array<{
-        txHash: string;
-        chainName: string;
-        status: 'pending';
-    }>;
 }
 
 /** Configuration for TxMonitor */

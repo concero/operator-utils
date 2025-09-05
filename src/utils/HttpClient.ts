@@ -101,9 +101,7 @@ export class HttpClient extends ManagerBase {
 
             return response.data;
         } catch (error) {
-            this.logger.debug(
-                `Request failed for ${url} with error: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.debug(`Request failed for ${url} with error: ${error}`);
             throw new AppError(AppErrorEnum.FailedHTTPRequest, error);
         }
     }

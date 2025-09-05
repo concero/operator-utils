@@ -258,9 +258,7 @@ export class TxReader implements ITxReader {
             try {
                 await this.executeGlobalReadLoop();
             } catch (error) {
-                this.logger.error(
-                    `TxReader: Global read loop error: ${error instanceof Error ? error.message : String(error)}`,
-                );
+                this.logger.error(`TxReader: Global read loop error: ${error}`);
             } finally {
                 if (this.globalReadInterval) {
                     this.scheduleNextGlobalRead();

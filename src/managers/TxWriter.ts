@@ -138,7 +138,7 @@ export class TxWriter implements ITxWriter {
                 this.logger.error(
                     `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`,
                 );
-                this.logger.error(`Tx Params: ${JSON.stringify(params)}`);
+                this.logger.error(`Tx Params: ${params}`);
                 return;
             }
 

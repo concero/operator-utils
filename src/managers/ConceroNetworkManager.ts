@@ -46,9 +46,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             this.initialized = true;
             this.logger.debug('Initialized');
         } catch (error) {
-            this.logger.error(
-                `Failed to initialize networks: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.error(`Failed to initialize networks: ${error}`);
             throw error;
         }
     }
@@ -194,7 +192,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                     networksFetched = true;
                 } catch (error) {
                     this.logger.warn(
-                        `Failed to fetch network configurations. Will retry on next update cycle: ${error instanceof Error ? error.message : String(error)}`,
+                        `Failed to fetch network configurations. Will retry on next update cycle: ${error}`,
                     );
                     if (Object.keys(this.allNetworks).length === 0) {
                         this.logger.error(
@@ -219,9 +217,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                 await this.notifyListeners();
             }
         } catch (error) {
-            this.logger.error(
-                `Failed to update networks: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.error(`Failed to update networks: ${error}`);
         }
     }
 
@@ -230,9 +226,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             try {
                 await listener.onNetworksUpdated(this.activeNetworks);
             } catch (error) {
-                this.logger.error(
-                    `Error in network update listener: ${error instanceof Error ? error.message : String(error)}`,
-                );
+                this.logger.error(`Error in network update listener: ${error}`);
             }
         }
     }
@@ -254,7 +248,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                 this.logger.debug(`Completed initial update for ${listener.constructor.name}`);
             } catch (error) {
                 this.logger.error(
-                    `Error in initial update for ${listener.constructor.name}: ${error instanceof Error ? error.message : String(error)}`,
+                    `Error in initial update for ${listener.constructor.name}: ${error}`,
                 );
                 throw error;
             }

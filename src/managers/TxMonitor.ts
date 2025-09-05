@@ -85,7 +85,7 @@ export class TxMonitor implements ITxMonitor {
     }
 
     public ensureTxFinality(
-        txHash: string,
+        txHash: Hash,
         chainName: string,
         onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
     ): void {
@@ -124,10 +124,10 @@ export class TxMonitor implements ITxMonitor {
     }
 
     public ensureTxInclusion(
-        txHash: string,
+        txHash: Hash,
         chainName: string,
         onTxIncluded: (
-            txHash: string,
+            txHash: Hash,
             networkName: string,
             blockNumber: bigint,
             isIncluded: boolean,
@@ -238,7 +238,7 @@ export class TxMonitor implements ITxMonitor {
                 if (currentBlock >= monitor.finalityBlockNumber) {
                     const currentReceipt = await publicClient
                         .getTransactionReceipt({
-                            hash: monitor.txHash as `0x${string}`,
+                            hash: monitor.txHash,
                         })
                         .catch(() => null);
 
@@ -252,9 +252,7 @@ export class TxMonitor implements ITxMonitor {
                 }
             }
         } catch (error) {
-            this.logger.error(
-                `Error checking transaction ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.error(`Error checking transaction ${monitor.txHash}: ${error}`);
 
             if (monitor.type === 'finality') {
                 this.notifyFinalitySubscribers(monitor, false);
@@ -276,7 +274,7 @@ export class TxMonitor implements ITxMonitor {
                     subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
                 } catch (error) {
                     this.logger.error(
-                        `Error in finality callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
+                        `Error in finality callback for tx ${monitor.txHash}: ${error}`,
                     );
                 }
             }
@@ -303,7 +301,7 @@ export class TxMonitor implements ITxMonitor {
                     );
                 } catch (error) {
                     this.logger.error(
-                        `Error in inclusion callback for tx ${monitor.txHash}: ${error instanceof Error ? error.message : String(error)}`,
+                        `Error in inclusion callback for tx ${monitor.txHash}: ${error}`,
                     );
                 }
             }
@@ -354,19 +352,5 @@ export class TxMonitor implements ITxMonitor {
 
     private removeMonitor(txHash: string): void {
         this.monitors.delete(txHash);
-    }
-
-    public getMonitoredTransactions(chainName?: string): Array<{
-        txHash: string;
-        chainName: string;
-        status: 'pending';
-    }> {
-        return Array.from(this.monitors.values())
-            .filter(monitor => !chainName || monitor.chainName === chainName)
-            .map(monitor => ({
-                txHash: monitor.txHash,
-                chainName: monitor.chainName,
-                status: 'pending',
-            }));
     }
 }

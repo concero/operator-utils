@@ -129,9 +129,7 @@ export class RpcManager extends ManagerBase implements IRpcManager, NetworkUpdat
 
             this.logger.debug(`Updated RPCs for ${networks.length} active networks`);
         } catch (error) {
-            this.logger.error(
-                `Failed to update RPCs: ${error instanceof Error ? error.message : String(error)}`,
-            );
+            this.logger.error(`Failed to update RPCs: ${error}`);
             throw error;
         }
     }
