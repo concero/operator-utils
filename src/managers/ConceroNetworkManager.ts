@@ -266,29 +266,25 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         }, this.config.pollingIntervalMs);
     }
 
-    private createNetworkConfig<T extends string>(
+    private createNetworkConfig(
         networks: Record<string, any>,
         networkType: NetworkType,
-    ): Record<T, ConceroNetwork> {
+    ): Record<string, ConceroNetwork> {
         return Object.fromEntries(
-            Object.entries(networks).map(([key, network]) => {
-                const networkKey = key as T;
-                return [
-                    networkKey,
-                    {
-                        name: network.name || networkKey,
-                        type: networkType,
-                        id: network.chainId,
-                        accounts: [this.config.operatorPrivateKey],
-                        chainSelector: network.chainSelector || network.chainId.toString(),
-                        viemChain: network.viemChain,
-                        finalityConfirmations:
-                            network.finalityConfirmations ||
-                            this.config.defaultFinalityConfirmations,
-                    },
-                ];
-            }),
-        ) as Record<T, ConceroNetwork>;
+            Object.entries(networks).map(([networkKey, network]) => [
+                networkKey,
+                {
+                    name: network.name || networkKey,
+                    type: networkType,
+                    id: network.chainId,
+                    accounts: [this.config.operatorPrivateKey],
+                    chainSelector: network.chainSelector || network.chainId.toString(),
+                    viemChain: network.viemChain,
+                    finalityConfirmations:
+                        network.finalityConfirmations || this.config.defaultFinalityConfirmations,
+                },
+            ]),
+        );
     }
 
     private getTestingNetworks(): Record<string, ConceroNetwork> {

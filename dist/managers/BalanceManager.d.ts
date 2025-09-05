@@ -30,8 +30,8 @@ export declare abstract class BalanceManager extends ManagerBase implements IBal
     getTotalTokenBalance(symbol: string): bigint;
     getTokenConfigs(networkName: string): TokenConfig[];
     getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
-    ensureAllowance(networkName: string, tokenAddress: string, spenderAddress: string, requiredAmount: bigint): Promise<void>;
-    getAllowance(networkName: string, tokenAddress: string, spenderAddress: string): Promise<bigint>;
+    ensureAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address, requiredAmount: bigint): Promise<void>;
+    getAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address): Promise<bigint>;
     private onTokenBalanceUpdate;
     private onNativeBalanceUpdate;
     private updateNativeBalances;

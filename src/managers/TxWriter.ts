@@ -1,4 +1,4 @@
-import { SimulateContractParameters } from 'viem';
+import { Hash, SimulateContractParameters } from 'viem';
 
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
@@ -125,8 +125,8 @@ export class TxWriter implements ITxWriter {
         params: SimulateContractParameters,
         ensureTxFinality: boolean,
         attempt: number,
-    ): (txHash: string, success: boolean) => void {
-        return async (txHash: string, success: boolean): Promise<void> => {
+    ): (txHash: Hash, success: boolean) => void {
+        return async (txHash: Hash, success: boolean): Promise<void> => {
             if (success) {
                 this.logger.debug(
                     `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`,

@@ -1,3 +1,4 @@
+import { Hash } from 'viem';
 import { TxMonitor } from '@/managers/TxMonitor';
 import { IBlockManagerRegistry, IConceroNetworkManager } from '@/types/managers';
 
@@ -43,7 +44,7 @@ describe('TxMonitor', () => {
 
     it('should monitor a transaction for finality', async () => {
         const onFinality = jest.fn();
-        const txHash = '0x123';
+        const txHash: Hash = '0x123';
         const chainName = 'test-network';
 
         txMonitor.ensureTxFinality(txHash, chainName, onFinality);
@@ -66,7 +67,7 @@ describe('TxMonitor', () => {
 
     it('should handle transaction not found', async () => {
         const onFinality = jest.fn();
-        const txHash = '0x123';
+        const txHash: Hash = '0x123';
         const chainName = 'test-network';
 
         txMonitor.ensureTxFinality(txHash, chainName, onFinality);

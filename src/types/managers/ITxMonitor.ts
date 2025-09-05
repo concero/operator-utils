@@ -1,16 +1,18 @@
+import { Hash } from 'viem';
+
 import { ConceroNetwork } from '../ConceroNetwork';
 
 export interface ITxMonitor {
     ensureTxFinality(
-        txHash: string,
+        txHash: Hash,
         chainName: string,
-        onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
+        onFinalityCallback: (txHash: Hash, chainName: string, isFinalized: boolean) => void,
     ): void;
     ensureTxInclusion(
-        txHash: string,
+        txHash: Hash,
         chainName: string,
         onTxIncluded: (
-            txHash: string,
+            txHash: Hash,
             networkName: string,
             blockNumber: bigint,
             isIncluded: boolean,

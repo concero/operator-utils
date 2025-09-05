@@ -4,7 +4,7 @@ import { ConceroNetwork } from '../ConceroNetwork';
 
 export interface TokenConfig {
     symbol: string;
-    address: string;
+    address: Address;
 }
 
 export interface BalanceManagerConfig {
@@ -30,14 +30,14 @@ export interface IBalanceManager {
 
     ensureAllowance(
         networkName: string,
-        tokenAddress: string,
-        spenderAddress: string,
+        tokenAddress: Address,
+        spenderAddress: Address,
         requiredAmount: bigint,
     ): Promise<void>;
 
     getAllowance(
         networkName: string,
-        tokenAddress: string,
-        spenderAddress: string,
+        tokenAddress: Address,
+        spenderAddress: Address,
     ): Promise<bigint>;
 }

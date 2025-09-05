@@ -83,7 +83,7 @@ export class BlockManagerRegistry
                 this.logger.info(`Removing BlockManager for inactive network ${networkName}`);
                 const blockManager = this.blockManagers.get(networkName);
                 if (blockManager && 'dispose' in blockManager) {
-                    (blockManager as any).dispose();
+                    blockManager.dispose();
                 }
                 this.blockManagers.delete(networkName);
             }

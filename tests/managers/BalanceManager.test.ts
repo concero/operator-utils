@@ -1,4 +1,4 @@
-import { zeroAddress } from 'viem';
+import { Address, zeroAddress } from 'viem';
 import { BalanceManager } from '@/managers/BalanceManager';
 import {
     BalanceManagerConfig,
@@ -70,14 +70,14 @@ describe('BalanceManager', () => {
     });
 
     it('should register and deregister an ERC20 token', () => {
-        const tokenAddress = '0x123';
-        balanceManager.registerToken(mockConceroNetwork, 'TKN', tokenAddress as any);
+        const tokenAddress: Address = '0x123';
+        balanceManager.registerToken(mockConceroNetwork, 'TKN', tokenAddress);
         // @ts-ignore
         expect(balanceManager.registeredTokens.get(mockConceroNetwork.name)?.get('TKN')).toBe(
             tokenAddress,
         );
 
-        balanceManager.deregisterToken(mockConceroNetwork.name, 'TKN', tokenAddress as any);
+        balanceManager.deregisterToken(mockConceroNetwork.name, 'TKN', tokenAddress);
         // @ts-ignore
         expect(balanceManager.registeredTokens.has(mockConceroNetwork.name)).toBe(false);
     });
@@ -89,9 +89,9 @@ describe('BalanceManager', () => {
     });
 
     it('should begin watching balances', () => {
-        const tokenAddress = '0x123';
+        const tokenAddress: Address = '0x123';
         balanceManager.registerToken(mockConceroNetwork, 'NATIVE', zeroAddress);
-        balanceManager.registerToken(mockConceroNetwork, 'TKN', tokenAddress as any);
+        balanceManager.registerToken(mockConceroNetwork, 'TKN', tokenAddress);
         balanceManager.setActiveNetworks([mockConceroNetwork]);
         balanceManager.beginWatching();
 
@@ -122,8 +122,8 @@ describe('BalanceManager', () => {
     });
 
     it('should ensure allowance', async () => {
-        const tokenAddress = '0x123';
-        const spenderAddress = '0x456';
+        const tokenAddress: Address = '0x123';
+        const spenderAddress: Address = '0x456';
         const requiredAmount = 100n;
 
         balanceManager.setActiveNetworks([mockConceroNetwork]);
@@ -138,8 +138,8 @@ describe('BalanceManager', () => {
     });
 
     it('should get allowance', async () => {
-        const tokenAddress = '0x123';
-        const spenderAddress = '0x456';
+        const tokenAddress: Address = '0x123';
+        const spenderAddress: Address = '0x456';
 
         balanceManager.setActiveNetworks([mockConceroNetwork]);
         const allowance = await balanceManager.getAllowance(

@@ -2,7 +2,7 @@ import type { Address } from 'viem';
 import { ConceroNetwork } from '../ConceroNetwork';
 export interface TokenConfig {
     symbol: string;
-    address: string;
+    address: Address;
 }
 export interface BalanceManagerConfig {
     pollingIntervalMs: number;
@@ -20,7 +20,7 @@ export interface IBalanceManager {
     getNativeBalances(): Map<string, bigint>;
     getTokenConfigs(networkName: string): TokenConfig[];
     getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
-    ensureAllowance(networkName: string, tokenAddress: string, spenderAddress: string, requiredAmount: bigint): Promise<void>;
-    getAllowance(networkName: string, tokenAddress: string, spenderAddress: string): Promise<bigint>;
+    ensureAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address, requiredAmount: bigint): Promise<void>;
+    getAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address): Promise<bigint>;
 }
 //# sourceMappingURL=IBalanceManager.d.ts.map

@@ -51,20 +51,12 @@ export async function fetchNetworkConfigs(
 
         if (networkMode === 'mainnet') {
             if (!urls?.mainnet) throw new Error('Mainnet URL is required');
-            const mainnetData = await httpClient.get(urls.mainnet);
-            mainnetNetworks = processNetworkData(
-                mainnetData as Record<string, V2Network>,
-                false,
-                logger,
-            );
+            const mainnetData = await httpClient.get<Record<string, V2Network>>(urls.mainnet);
+            mainnetNetworks = processNetworkData(mainnetData, false, logger);
         } else if (networkMode === 'testnet') {
             if (!urls?.testnet) throw new Error('Testnet URL is required');
-            const testnetData = await httpClient.get(urls.testnet);
-            testnetNetworks = processNetworkData(
-                testnetData as Record<string, V2Network>,
-                true,
-                logger,
-            );
+            const testnetData = await httpClient.get<Record<string, V2Network>>(urls.testnet);
+            testnetNetworks = processNetworkData(testnetData, true, logger);
         }
 
         return {

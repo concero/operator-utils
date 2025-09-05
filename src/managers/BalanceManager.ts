@@ -248,18 +248,18 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
 
     public async getAllowance(
         networkName: string,
-        tokenAddress: string,
-        spenderAddress: string,
+        tokenAddress: Address,
+        spenderAddress: Address,
     ): Promise<bigint> {
         const net = this.findActiveNetwork(networkName);
         const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
         if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
-        return (await publicClient.readContract({
+        return await publicClient.readContract({
             address: tokenAddress as Address,
             abi: erc20Abi,
             functionName: 'allowance',
-            args: [walletClient.account.address, spenderAddress as Address],
-        })) as bigint;
+            args: [walletClient.account.address, spenderAddress],
+        });
     }
 
     private onTokenBalanceUpdate(net: string, sym: string, bal: bigint): void {
@@ -290,12 +290,12 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             const map = new Map<string, bigint>();
             for (const cfg of this.getTokenConfigs(n.name)) {
                 try {
-                    const bal = (await publicClient.readContract({
+                    const bal = await publicClient.readContract({
                         address: cfg.address as Address,
                         abi: erc20Abi,
                         functionName: 'balanceOf',
                         args: [account.address],
-                    })) as bigint;
+                    });
                     map.set(cfg.symbol, bal);
                 } catch {
                     map.set(cfg.symbol, 0n);

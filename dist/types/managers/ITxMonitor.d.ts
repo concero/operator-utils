@@ -1,11 +1,7 @@
+import { Hash } from 'viem';
 export interface ITxMonitor {
-    ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
-    ensureTxInclusion(txHash: string, chainName: string, onTxIncluded: (txHash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
-    getMonitoredTransactions(chainName?: string): Array<{
-        txHash: string;
-        chainName: string;
-        status: 'pending';
-    }>;
+    ensureTxFinality(txHash: Hash, chainName: string, onFinalityCallback: (txHash: Hash, chainName: string, isFinalized: boolean) => void): void;
+    ensureTxInclusion(txHash: Hash, chainName: string, onTxIncluded: (txHash: Hash, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
 }
 /** Configuration for TxMonitor */
 export interface TxMonitorConfig {
