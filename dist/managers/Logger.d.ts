@@ -1,20 +1,37 @@
-import { ManagerBase } from './ManagerBase';
-import { LoggerConfig, LoggerInterface } from '../types';
-export declare class Logger extends ManagerBase {
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+export interface LoggerInterface {
+    error: (message: unknown, meta?: Record<string, unknown>) => void;
+    warn: (message: unknown, meta?: Record<string, unknown>) => void;
+    info: (message: unknown, meta?: Record<string, unknown>) => void;
+    debug: (message: unknown, meta?: Record<string, unknown>) => void;
+}
+export interface LoggerConfig {
+    enableConsoleTransport: boolean;
+    enableFileTransport: boolean;
+    logDir: string;
+    logMaxSize: string;
+    logMaxFiles: string;
+    batchFlushIntervalMs: number;
+    batchMaxItems: number;
+    batchMaxBytes: number;
+    logLevelsGranular: Record<string, LogLevel>;
+    logLevelDefault: LogLevel;
+}
+export declare class Logger {
+    private readonly config;
     private static instance?;
-    private baseLogger;
-    private consumerLoggers;
-    private batchers;
-    private config;
+    private readonly consoleLogger;
+    private readonly fileLogger?;
+    private readonly batchers;
     private constructor();
-    static createInstance(config: LoggerConfig): Logger;
+    static createInstance(cfg: LoggerConfig): Logger;
     static getInstance(): Logger;
-    private safeStringify;
-    private createBaseLogger;
-    initialize(): Promise<void>;
-    getLogger(consumerName?: string): LoggerInterface;
-    private createConsumerLogger;
-    private flushBatch;
-    private shouldBatch;
+    getLogger(consumer?: string): LoggerInterface;
+    flushBatches(): void;
+    close(): void;
+    private lte;
+    private createConsoleLogger;
+    private createFileLogger;
+    private flushFileBatch;
 }
 //# sourceMappingURL=Logger.d.ts.map

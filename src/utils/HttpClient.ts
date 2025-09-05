@@ -88,9 +88,7 @@ export class HttpClient extends ManagerBase {
         }
 
         try {
-            this.logger.debug(
-                `${method} request to ${url} with config: ${JSON.stringify(config)} ${body ? `and body: ${JSON.stringify(body)}` : ''}`,
-            );
+            this.logger.debug(`${method} -> ${url} ${body && `with body: ${body}`}`.trim());
 
             const response: AxiosResponse<T> = await this.axiosInstance.request<T>({
                 method,

@@ -1,14 +1,34 @@
-import { ManagerBase } from './ManagerBase';
+import { inspect } from 'node:util';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
-import { LoggerConfig, LoggerInterface, LogLevel } from '../types';
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
-type BatchItem = { level: LogLevel; message: unknown; meta: unknown[] };
+export interface LoggerInterface {
+    error: (message: unknown, meta?: Record<string, unknown>) => void;
+    warn: (message: unknown, meta?: Record<string, unknown>) => void;
+    info: (message: unknown, meta?: Record<string, unknown>) => void;
+    debug: (message: unknown, meta?: Record<string, unknown>) => void;
+}
 
-class LogBatcher {
+export interface LoggerConfig {
+    enableConsoleTransport: boolean;
+    enableFileTransport: boolean;
+    logDir: string;
+    logMaxSize: string; // e.g. "20m"
+    logMaxFiles: string; // e.g. "14d"
+    batchFlushIntervalMs: number;
+    batchMaxItems: number;
+    batchMaxBytes: number;
+    logLevelsGranular: Record<string, LogLevel>; // per-consumer threshold
+    logLevelDefault: LogLevel; // default threshold for consumers
+}
+
+type BatchItem = { level: LogLevel; message: unknown; meta: Record<string, unknown> };
+
+class FileBatcher {
     private buffer: BatchItem[] = [];
-    private byteEstimate = 0;
+    private approxBytes = 0;
     private timer?: NodeJS.Timeout;
 
     constructor(
@@ -20,22 +40,24 @@ class LogBatcher {
 
     enqueue(item: BatchItem) {
         this.buffer.push(item);
-        this.byteEstimate += this.sizeOf(item);
-        if (this.buffer.length >= this.maxItems || this.byteEstimate >= this.maxBytes) {
+        this.approxBytes += this.estimate(item);
+
+        if (this.buffer.length >= this.maxItems || this.approxBytes >= this.maxBytes) {
             this.flushNow();
             return;
         }
+
         if (!this.timer) {
             this.timer = setTimeout(() => this.flushNow(), this.intervalMs);
-            if (this.timer.unref) this.timer.unref();
+            this.timer.unref?.();
         }
     }
 
     flushNow() {
-        if (!this.buffer.length) return;
+        if (this.buffer.length === 0) return;
         const batch = this.buffer;
         this.buffer = [];
-        this.byteEstimate = 0;
+        this.approxBytes = 0;
         if (this.timer) {
             clearTimeout(this.timer);
             this.timer = undefined;
@@ -43,179 +65,216 @@ class LogBatcher {
         this.flushFn(batch);
     }
 
-    private sizeOf(item: BatchItem): number {
-        let size = 0;
-        try {
-            size +=
-                typeof item.message === 'string'
-                    ? item.message.length
-                    : JSON.stringify(item.message).length;
-        } catch {
-            size += 64;
-        }
-        for (const m of item.meta) {
-            try {
-                size += typeof m === 'string' ? m.length : JSON.stringify(m).length;
-            } catch {
-                size += 64;
-            }
-        }
-        return size + 16;
+    private estimate(item: BatchItem): number {
+        const msgCost = typeof item.message === 'string' ? Buffer.byteLength(item.message) : 128;
+        const metaCost = 64 + Object.keys(item.meta ?? {}).length * 32;
+        return msgCost + metaCost + 16;
     }
 }
 
-export class Logger extends ManagerBase {
+export class Logger {
     private static instance?: Logger;
-    private baseLogger: winston.Logger;
-    private consumerLoggers = new Map<string, LoggerInterface>();
-    private batchers = new Map<string, LogBatcher>();
-    private config: LoggerConfig;
 
-    private constructor(cfg: LoggerConfig) {
-        super();
-        this.config = cfg;
-        this.baseLogger = this.createBaseLogger();
+    private readonly consoleLogger: winston.Logger;
+    private readonly fileLogger?: winston.Logger;
+    private readonly batchers = new Map<string, FileBatcher>();
+
+    private constructor(private readonly config: LoggerConfig) {
+        this.consoleLogger = this.createConsoleLogger();
+        this.fileLogger = this.config.enableFileTransport ? this.createFileLogger() : undefined;
     }
 
-    public static createInstance(config: LoggerConfig): Logger {
-        if (!Logger.instance) Logger.instance = new Logger(config);
+    static createInstance(cfg: LoggerConfig): Logger {
+        if (!Logger.instance) Logger.instance = new Logger(cfg);
         return Logger.instance;
     }
 
-    public static getInstance(): Logger {
+    static getInstance(): Logger {
         if (!Logger.instance)
-            throw new Error('Logger is not initialized. Call createInstance() first.');
+            throw new Error('Logger not initialized. Call createInstance() first.');
         return Logger.instance;
     }
 
-    private safeStringify(obj: unknown, indent?: number): string {
-        return JSON.stringify(obj, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v), indent);
-    }
+    getLogger(consumer?: string): LoggerInterface {
+        const name = consumer ?? 'default';
+        const threshold = this.config.logLevelsGranular[name] ?? this.config.logLevelDefault;
 
-    private createBaseLogger(): winston.Logger {
-        const consoleFormat = winston.format.combine(
-            winston.format.colorize({ level: true }),
-            winston.format.timestamp({ format: 'MM-DD HH:mm:ss' }),
-            winston.format.printf(({ level, message, timestamp, consumer, ...rest }) => {
-                const prefix = consumer ? `${consumer}` : '';
-                const msg =
-                    typeof message === 'object' ? this.safeStringify(message, 2) : String(message);
-                const meta = rest && Object.keys(rest).length ? this.safeStringify(rest, 2) : '';
-                return `${timestamp} ${level} ${prefix}: ${msg} ${meta}`.trim();
-            }),
-        );
-
-        const transports: winston.transport[] = [];
-
-        if (this.config.enableFileTransport) {
-            transports.push(
-                new DailyRotateFile({
-                    level: 'debug',
-                    dirname: this.config.logDir,
-                    filename: 'log-%DATE%.log',
-                    datePattern: 'YYYY-MM-DD',
-                    maxSize: this.config.logMaxSize,
-                    maxFiles: this.config.logMaxFiles,
-                }),
-                new DailyRotateFile({
-                    level: 'error',
-                    dirname: this.config.logDir,
-                    filename: 'error-%DATE%.log',
-                    datePattern: 'YYYY-MM-DD',
-                    maxSize: this.config.logMaxSize,
-                    maxFiles: this.config.logMaxFiles,
-                }),
+        if (this.fileLogger && !this.batchers.has(name)) {
+            this.batchers.set(
+                name,
+                new FileBatcher(
+                    items => this.flushFileBatch(items),
+                    this.config.batchFlushIntervalMs,
+                    this.config.batchMaxItems,
+                    this.config.batchMaxBytes,
+                ),
             );
         }
 
-        if (this.config.enableConsoleTransport) {
-            transports.push(
-                new winston.transports.Console({
-                    level: 'debug',
-                    format: consoleFormat,
-                }),
-            );
-        }
+        const shouldLog = (candidate: LogLevel) => this.lte(threshold, candidate);
 
-        return winston.createLogger({
-            level: 'debug',
-            format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-            transports,
-        });
-    }
+        const write = (lvl: LogLevel, message: unknown, meta?: Record<string, unknown>) => {
+            const fullMeta = { consumer: consumer ?? undefined, ...(meta ?? {}) };
 
-    async initialize(): Promise<void> {
-        if (this.initialized) return;
-        super.initialize();
-        this.getLogger('Logger').info('Initialized');
-    }
-
-    getLogger(consumerName?: string): LoggerInterface {
-        const key = consumerName || '__default__';
-        const existing = this.consumerLoggers.get(key);
-        if (existing) return existing;
-
-        const logger = this.createConsumerLogger(consumerName);
-        this.consumerLoggers.set(key, logger);
-
-        if (this.shouldBatch()) {
-            const batcher = new LogBatcher(
-                items => this.flushBatch(items, consumerName),
-                this.config.batchFlushIntervalMs,
-                this.config.batchMaxItems,
-                this.config.batchMaxBytes,
-            );
-            this.batchers.set(key, batcher);
-        }
-
-        return logger;
-    }
-
-    private createConsumerLogger(consumerName?: string): LoggerInterface {
-        const levelFor = (): LogLevel =>
-            (consumerName
-                ? this.config.logLevelsGranular[consumerName]
-                : this.config.logLevelDefault) || this.config.logLevelDefault;
-
-        const rank: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
-        const shouldLog = (lvl: LogLevel) => rank[lvl] <= rank[levelFor()];
-
-        const write = (lvl: LogLevel, message: unknown, meta: unknown[]) => {
-            const metaObj = consumerName ? { consumer: consumerName } : {};
-            if (this.shouldBatch() && lvl !== 'error') {
-                const batcher = this.batchers.get(consumerName || '__default__')!;
-                batcher.enqueue({ level: lvl, message, meta: [metaObj] });
-                return;
+            if (this.config.enableConsoleTransport) {
+                this.consoleLogger.log({ level: lvl, message, ...fullMeta });
             }
-            this.baseLogger[lvl](message as any, metaObj);
+
+            if (this.fileLogger) {
+                if (lvl === 'error') {
+                    this.fileLogger.log({ level: lvl, message, ...fullMeta });
+                } else {
+                    this.batchers.get(name)!.enqueue({ level: lvl, message, meta: fullMeta });
+                }
+            }
         };
 
         return {
-            error: (message: unknown, ...meta: unknown[]) => write('error', message, meta),
-            warn: (message: unknown, ...meta: unknown[]) => {
-                if (shouldLog('warn')) write('warn', message, meta);
+            error: (msg, meta) => write('error', msg, meta),
+            warn: (msg, meta) => {
+                if (shouldLog('warn')) write('warn', msg, meta);
             },
-            info: (message: unknown, ...meta: unknown[]) => {
-                if (shouldLog('info')) write('info', message, meta);
+            info: (msg, meta) => {
+                if (shouldLog('info')) write('info', msg, meta);
             },
-            debug: (message: unknown, ...meta: unknown[]) => {
-                if (shouldLog('debug')) write('debug', message, meta);
+            debug: (msg, meta) => {
+                if (shouldLog('debug')) write('debug', msg, meta);
             },
         };
     }
 
-    private flushBatch(items: BatchItem[], consumerName?: string) {
-        if (!items.length) return;
-
-        for (const { level, message } of items) {
-            const metaObj = {
-                ...(consumerName ? { consumer: consumerName } : {}),
-            };
-            this.baseLogger[level](message as any, metaObj);
-        }
+    flushBatches(): void {
+        this.batchers.forEach(b => b.flushNow());
     }
 
-    private shouldBatch(): boolean {
-        return this.config.enableFileTransport === true;
+    close(): void {
+        this.flushBatches();
+        if (this.fileLogger) {
+            for (const t of this.fileLogger.transports) (t as any).close?.();
+        }
+        for (const t of this.consoleLogger.transports) (t as any).close?.();
+    }
+
+    // ---- internals ----
+
+    private lte(threshold: LogLevel, candidate: LogLevel): boolean {
+        const order: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
+        return order[candidate] <= order[threshold];
+    }
+
+    private createConsoleLogger(): winston.Logger {
+        const fmt = winston.format.combine(
+            winston.format.errors({ stack: true }),
+            winston.format.timestamp({ format: 'MM-DD HH:mm:ss' }),
+            winston.format.colorize({ level: true }),
+            winston.format.splat(),
+            winston.format.printf(info => {
+                const { timestamp, level, message, consumer } = info as any;
+
+                // Format main message
+                const text =
+                    message instanceof Error
+                        ? `${message.name}: ${message.message}`
+                        : typeof message === 'string'
+                          ? message
+                          : inspect(message, { depth: 1, breakLength: 120 });
+
+                // Pick a single error-like meta if present (common keys: error/err)
+                const errLike = (info as any).error ?? (info as any).err;
+                const errSuffix =
+                    errLike instanceof Error ? ` ${errLike.name}: ${errLike.message}` : '';
+
+                const prefix = consumer ? `${consumer}: ` : '';
+
+                // Final line (no meta dump, no Symbols)
+                return `${timestamp} ${level} ${prefix}${text}${errSuffix}`;
+            }),
+        );
+
+        return winston.createLogger({
+            level: this.config.logLevelDefault,
+            exitOnError: false,
+            transports: this.config.enableConsoleTransport
+                ? [
+                      new winston.transports.Console({
+                          level: this.config.logLevelDefault,
+                          format: fmt,
+                      }),
+                  ]
+                : [],
+            // Keep handlers; they will also print in the same concise shape
+            exceptionHandlers: this.config.enableConsoleTransport
+                ? [new winston.transports.Console({ format: fmt })]
+                : [],
+            rejectionHandlers: this.config.enableConsoleTransport
+                ? [new winston.transports.Console({ format: fmt })]
+                : [],
+        });
+    }
+
+    private createFileLogger(): winston.Logger {
+        const common = {
+            dirname: this.config.logDir,
+            datePattern: 'YYYY-MM-DD',
+            zippedArchive: true,
+            maxSize: this.config.logMaxSize,
+            maxFiles: this.config.logMaxFiles,
+            createSymlink: true,
+            symlinkName: 'current.log',
+        };
+
+        const all = new DailyRotateFile({ filename: 'log-%DATE%.log', level: 'debug', ...common });
+        const err = new DailyRotateFile({
+            filename: 'error-%DATE%.log',
+            level: 'error',
+            ...common,
+        });
+
+        all.on('error', e =>
+            this.consoleLogger.log({ level: 'error', message: 'file transport error', err: e }),
+        );
+        err.on('error', e =>
+            this.consoleLogger.log({ level: 'error', message: 'file transport error', err: e }),
+        );
+
+        const bigintSafe = winston.format(info => {
+            const normalize = (v: any): any => {
+                if (typeof v === 'bigint') return `${v}n`;
+                if (Array.isArray(v)) return v.map(normalize);
+                if (v && typeof v === 'object') {
+                    for (const k of Object.keys(v)) (v as any)[k] = normalize((v as any)[k]);
+                }
+                return v;
+            };
+            normalize(info);
+            return info;
+        });
+
+        const fmt = winston.format.combine(
+            winston.format.errors({ stack: true }),
+            bigintSafe(),
+            winston.format.timestamp(),
+            winston.format.json(),
+        );
+
+        return winston.createLogger({
+            level: 'debug',
+            format: fmt,
+            exitOnError: false,
+            transports: [all, err],
+            exceptionHandlers: [
+                new DailyRotateFile({ filename: 'exceptions-%DATE%.log', ...common }),
+            ],
+            rejectionHandlers: [
+                new DailyRotateFile({ filename: 'rejections-%DATE%.log', ...common }),
+            ],
+        });
+    }
+
+    private flushFileBatch(items: BatchItem[]) {
+        if (!this.fileLogger || items.length === 0) return;
+        for (const i of items) {
+            this.fileLogger.log({ level: i.level, message: i.message, ...i.meta });
+        }
     }
 }
