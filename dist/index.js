@@ -49496,11 +49496,11 @@ var TxReader = class _TxReader {
         return id;
       },
       bulkCreate: (items, options, onResult) => {
-        const timeoutMs = options.timeoutMs || this.watcherIntervalMs;
-        let effectiveInterval = this.watcherIntervalMs;
-        if (timeoutMs > this.watcherIntervalMs) {
+        const timeoutMs = options.timeoutMs || this.pollingIntervalMs;
+        let effectiveInterval = this.pollingIntervalMs;
+        if (timeoutMs > this.pollingIntervalMs) {
           this.logger.warn(
-            `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the global polling interval (${this.watcherIntervalMs} ms). Using timeoutMs as the interval for this bulk to prevent overlapping reads.`
+            `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the global polling interval (${this.pollingIntervalMs} ms). Using timeoutMs as the interval for this bulk to prevent overlapping reads.`
           );
           effectiveInterval = timeoutMs;
         }
@@ -49574,9 +49574,9 @@ var TxReader = class _TxReader {
         return removed;
       }
     };
-    this.watcherIntervalMs = config.watcherIntervalMs;
+    this.pollingIntervalMs = config.pollingIntervalMs;
     this.logger.debug(
-      `TxReader: Initialized with watcher interval ${this.watcherIntervalMs} ms`
+      `TxReader: Initialized with watcher interval ${this.pollingIntervalMs} ms`
     );
   }
   static createInstance(logger, viemClientManager, config) {
@@ -49594,7 +49594,7 @@ var TxReader = class _TxReader {
     if (this.globalReadInterval) return;
     this.scheduleNextGlobalRead();
     this.logger.debug(
-      `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`
+      `TxReader: Started global read loop with ${this.pollingIntervalMs}ms interval`
     );
   }
   scheduleNextGlobalRead() {
@@ -49617,7 +49617,7 @@ var TxReader = class _TxReader {
           this.scheduleNextGlobalRead();
         }
       }
-    }, this.watcherIntervalMs);
+    }, this.pollingIntervalMs);
   }
   stopGlobalLoopIfIdle() {
     if (this.readContractWatchers.size === 0 && this.methodWatchers.size === 0 && this.globalReadInterval) {
@@ -50292,7 +50292,7 @@ var globalConfig = {
     maxCallbackRetries: getEnvInt("TX_WRITER_MAX_CALLBACK_RETRIES", 3)
   },
   TX_READER: {
-    watcherIntervalMs: getEnvInt("TX_READER_WATCHER_INTERVAL_MS", sec(10))
+    pollingIntervalMs: getEnvInt("TX_READER_POLLING_INTERVAL_MS", sec(10))
   },
   TX_MONITOR: {
     maxInclusionWait: getEnvInt("TX_MONITOR_MAX_INCLUSION_WAIT", min(5)),

@@ -98,7 +98,7 @@ const globalConfig: GlobalConfig = {
         maxCallbackRetries: getEnvInt('TX_WRITER_MAX_CALLBACK_RETRIES', 3),
     },
     TX_READER: {
-        watcherIntervalMs: getEnvInt('TX_READER_WATCHER_INTERVAL_MS', sec(10)),
+        pollingIntervalMs: getEnvInt('TX_READER_POLLING_INTERVAL_MS', sec(10)),
     },
     TX_MONITOR: {
         maxInclusionWait: getEnvInt('TX_MONITOR_MAX_INCLUSION_WAIT', min(5)), // 5 minutes default

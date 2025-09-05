@@ -38,16 +38,16 @@ export class TxReader implements ITxReader {
 
     private globalReadInterval?: NodeJS.Timeout;
     private isGlobalLoopRunning = false;
-    private readonly watcherIntervalMs: number;
+    private readonly pollingIntervalMs: number;
 
     private constructor(
         private readonly logger: ILogger,
         private readonly viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ) {
-        this.watcherIntervalMs = config.watcherIntervalMs;
+        this.pollingIntervalMs = config.pollingIntervalMs;
         this.logger.debug(
-            `TxReader: Initialized with watcher interval ${this.watcherIntervalMs} ms`,
+            `TxReader: Initialized with watcher interval ${this.pollingIntervalMs} ms`,
         );
     }
 
@@ -144,13 +144,13 @@ export class TxReader implements ITxReader {
             options: { timeoutMs?: number },
             onResult: BulkCallback,
         ): { bulkId: string; watcherIds: string[] } => {
-            const timeoutMs = options.timeoutMs || this.watcherIntervalMs;
-            let effectiveInterval = this.watcherIntervalMs;
+            const timeoutMs = options.timeoutMs || this.pollingIntervalMs;
+            let effectiveInterval = this.pollingIntervalMs;
 
-            if (timeoutMs > this.watcherIntervalMs) {
+            if (timeoutMs > this.pollingIntervalMs) {
                 this.logger.warn(
                     `TxReader.bulkCreate: timeoutMs (${timeoutMs} ms) is greater than the ` +
-                        `global polling interval (${this.watcherIntervalMs} ms). ` +
+                        `global polling interval (${this.pollingIntervalMs} ms). ` +
                         `Using timeoutMs as the interval for this bulk to prevent overlapping reads.`,
                 );
                 effectiveInterval = timeoutMs;
@@ -241,7 +241,7 @@ export class TxReader implements ITxReader {
         if (this.globalReadInterval) return;
         this.scheduleNextGlobalRead();
         this.logger.debug(
-            `TxReader: Started global read loop with ${this.watcherIntervalMs}ms interval`,
+            `TxReader: Started global read loop with ${this.pollingIntervalMs}ms interval`,
         );
     }
 
@@ -266,7 +266,7 @@ export class TxReader implements ITxReader {
                     this.scheduleNextGlobalRead();
                 }
             }
-        }, this.watcherIntervalMs);
+        }, this.pollingIntervalMs);
     }
 
     private stopGlobalLoopIfIdle(): void {

@@ -23,7 +23,7 @@ describe('TxReader', () => {
         (uuidv4 as jest.Mock).mockReturnValue('mock-uuid');
 
         txReader = TxReader.createInstance(logger, viemClientManager, {
-            watcherIntervalMs: 1000,
+            pollingIntervalMs: 1000,
         });
     });
 

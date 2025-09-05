@@ -74,5 +74,5 @@ export interface ITxReader {
 
 /** Configuration for TxReader */
 export interface TxReaderConfig {
-    watcherIntervalMs: number;
+    pollingIntervalMs: number;
 }
