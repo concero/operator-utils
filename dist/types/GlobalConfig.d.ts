@@ -1,5 +1,4 @@
-import { NetworkType } from '@/types/ConceroNetwork';
-import { TxReaderConfig } from '@/types/managers';
+import { NetworkType } from '../types/ConceroNetwork';
 import { BalanceManagerConfig } from './managers/IBalanceManager';
 import { BlockManagerConfig } from './managers/IBlockManager';
 import { NetworkManagerConfig } from './managers/IConceroNetworkManager';
@@ -8,6 +7,7 @@ import { HttpClientConfig } from './managers/IHttpClient';
 import { LoggerConfig } from './managers/ILogger';
 import { RpcManagerConfig } from './managers/IRpcManager';
 import { TxMonitorConfig } from './managers/ITxMonitor';
+import { TxReaderConfig } from './managers/ITxReader';
 import { TxWriterConfig } from './managers/ITxWriter';
 import { ViemClientManagerConfig } from './managers/IViemClientManager';
 type GlobalConfig = {

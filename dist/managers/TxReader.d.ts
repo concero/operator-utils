@@ -24,7 +24,7 @@ export declare class TxReader implements ITxReader {
     private readonly bulkCallbacks;
     private globalReadInterval?;
     private isGlobalLoopRunning;
-    private readonly watcherIntervalMs;
+    private readonly pollingIntervalMs;
     private constructor();
     static createInstance(logger: ILogger, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
     static getInstance(): TxReader;
