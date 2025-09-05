@@ -60,7 +60,7 @@ export class TxWriter implements ITxWriter {
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality = false,
-    ): Promise<string> {
+    ): Promise<Hash> {
         return this.callContractWithMonitoring(network, params, ensureTxFinality, 1);
     }
 
@@ -69,7 +69,7 @@ export class TxWriter implements ITxWriter {
         params: SimulateContractParameters,
         ensureTxFinality: boolean,
         callbackRetryAttempt: number,
-    ): Promise<string> {
+    ): Promise<Hash> {
         try {
             const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
 

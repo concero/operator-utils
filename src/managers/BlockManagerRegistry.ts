@@ -50,7 +50,6 @@ export class BlockManagerRegistry
     private async ensureBlockManagerForNetwork(
         network: ConceroNetwork,
     ): Promise<BlockManager | null> {
-        // If we already have a BlockManager for this network, return it
         if (this.blockManagers.has(network.name)) {
             this.logger.debug(`Using existing BlockManager for network ${network.name}`);
             return this.blockManagers.get(network.name)!;
@@ -77,7 +76,6 @@ export class BlockManagerRegistry
         const currentNetworkNames = new Set(this.blockManagers.keys());
         const newNetworkNames = new Set(networks.map(network => network.name));
 
-        // Remove BlockManagers for networks that are no longer active
         for (const networkName of currentNetworkNames) {
             if (!newNetworkNames.has(networkName)) {
                 this.logger.info(`Removing BlockManager for inactive network ${networkName}`);
@@ -89,12 +87,11 @@ export class BlockManagerRegistry
             }
         }
 
-        // Create BlockManagers for new networks
         const newNetworks = networks.filter(network => !currentNetworkNames.has(network.name));
         if (newNetworks.length > 0) {
             this.logger.debug(`Creating ${newNetworks.length} new BlockManagers`);
 
-            await Promise.all(
+            await Promise.allSettled(
                 newNetworks.map(network => this.ensureBlockManagerForNetwork(network)),
             );
         }

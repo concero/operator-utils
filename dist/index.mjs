@@ -48094,7 +48094,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     const newNetworks = networks.filter((network) => !currentNetworkNames.has(network.name));
     if (newNetworks.length > 0) {
       this.logger.debug(`Creating ${newNetworks.length} new BlockManagers`);
-      await Promise.all(
+      await Promise.allSettled(
         newNetworks.map((network) => this.ensureBlockManagerForNetwork(network))
       );
     }

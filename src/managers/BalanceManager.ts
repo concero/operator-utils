@@ -255,7 +255,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
         if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
         return await publicClient.readContract({
-            address: tokenAddress as Address,
+            address: tokenAddress,
             abi: erc20Abi,
             functionName: 'allowance',
             args: [walletClient.account.address, spenderAddress],
@@ -291,7 +291,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             for (const cfg of this.getTokenConfigs(n.name)) {
                 try {
                     const bal = await publicClient.readContract({
-                        address: cfg.address as Address,
+                        address: cfg.address,
                         abi: erc20Abi,
                         functionName: 'balanceOf',
                         args: [account.address],
