@@ -11286,7 +11286,7 @@ var require_ms2 = __commonJS({
 var require_pretty_print = __commonJS({
   "node_modules/logform/pretty-print.js"(exports, module) {
     "use strict";
-    var inspect = __require("util").inspect;
+    var inspect2 = __require("util").inspect;
     var format = require_format();
     var { LEVEL, MESSAGE, SPLAT } = require_triple_beam();
     module.exports = format((info, opts = {}) => {
@@ -11294,7 +11294,7 @@ var require_pretty_print = __commonJS({
       delete stripped[LEVEL];
       delete stripped[MESSAGE];
       delete stripped[SPLAT];
-      info[MESSAGE] = inspect(stripped, false, opts.depth || null, opts.colorize);
+      info[MESSAGE] = inspect2(stripped, false, opts.depth || null, opts.colorize);
       return info;
     });
   }
@@ -12404,8 +12404,8 @@ var require_buffer_list = __commonJS({
     var _require = __require("buffer");
     var Buffer2 = _require.Buffer;
     var _require2 = __require("util");
-    var inspect = _require2.inspect;
-    var custom = inspect && inspect.custom || "inspect";
+    var inspect2 = _require2.inspect;
+    var custom = inspect2 && inspect2.custom || "inspect";
     function copyBuffer(src, target, offset) {
       Buffer2.prototype.copy.call(src, target, offset);
     }
@@ -12562,7 +12562,7 @@ var require_buffer_list = __commonJS({
       }, {
         key: custom,
         value: function value(_, options) {
-          return inspect(this, _objectSpread(_objectSpread({}, options), {}, {
+          return inspect2(this, _objectSpread(_objectSpread({}, options), {}, {
             // Only inspect one level.
             depth: 0,
             // It should not recurse.
@@ -23416,7 +23416,7 @@ var require_moment = __commonJS({
           utc ? "YYYY-MM-DD[T]HH:mm:ss.SSS[Z]" : "YYYY-MM-DD[T]HH:mm:ss.SSSZ"
         );
       }
-      function inspect() {
+      function inspect2() {
         if (!this.isValid()) {
           return "moment.invalid(/* " + this._i + " */)";
         }
@@ -24081,7 +24081,7 @@ var require_moment = __commonJS({
       proto.toObject = toObject;
       proto.toDate = toDate;
       proto.toISOString = toISOString;
-      proto.inspect = inspect;
+      proto.inspect = inspect2;
       if (typeof Symbol !== "undefined" && Symbol.for != null) {
         proto[Symbol.for("nodejs.util.inspect.custom")] = function() {
           return "Moment<" + this.format() + ">";
@@ -44007,6 +44007,7 @@ var localhostViemChain = defineChain({
 // src/managers/Logger.ts
 var import_winston = __toESM(require_winston());
 var import_winston_daily_rotate_file = __toESM(require_winston_daily_rotate_file());
+import { inspect } from "node:util";
 var FileBatcher = class {
   constructor(flushFn, intervalMs, maxItems, maxBytes) {
     this.flushFn = flushFn;
@@ -44119,18 +44120,13 @@ var Logger = class _Logger {
   }
   createConsoleLogger() {
     const fmt = import_winston.default.format.combine(
-      // Capture error info (we won't print stack in console).
       import_winston.default.format.errors({ stack: true }),
-      // Timestamp exactly like before.
       import_winston.default.format.timestamp({ format: "MM-DD HH:mm:ss" }),
-      // Keep colored level (remove if you want plain).
       import_winston.default.format.colorize({ level: true }),
-      // Support %s style interpolation if you use it.
       import_winston.default.format.splat(),
-      // Final, minimal printf that mirrors your old output.
       import_winston.default.format.printf((info) => {
         const { timestamp, level, message, consumer } = info;
-        const text = message instanceof Error ? `${message.name}: ${message.message}` : typeof message === "string" ? message : __require("node:util").inspect(message, { depth: 1, breakLength: 120 });
+        const text = message instanceof Error ? `${message.name}: ${message.message}` : typeof message === "string" ? message : inspect(message, { depth: 1, breakLength: 120 });
         const errLike = info.error ?? info.err;
         const errSuffix = errLike instanceof Error ? ` ${errLike.name}: ${errLike.message}` : "";
         const prefix = consumer ? `${consumer}: ` : "";
