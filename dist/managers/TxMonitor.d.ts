@@ -13,7 +13,6 @@ export declare class TxMonitor implements ITxMonitor {
     static getInstance(): TxMonitor;
     ensureTxFinality(txHash: string, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
     ensureTxInclusion(txHash: string, chainName: string, onTxIncluded: (txHash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
-    private generateSubscriberId;
     private checkTransactionStatus;
     private notifyFinalitySubscribers;
     private notifyInclusionSubscribers;

@@ -1,13 +1,8 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
-import { v4 as uuidv4 } from 'uuid';
 
-import {
-    ConceroNetwork,
-    IConceroNetworkManager,
-    IViemClientManager,
-    TxReaderConfig,
-} from '../types';
+import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers';
+import { generateUid } from '../utils';
 
 type Watcher = ReadContractWatcher & {
     timeoutMs?: number;
@@ -47,7 +42,6 @@ export class TxReader implements ITxReader {
 
     private constructor(
         private readonly logger: ILogger,
-        private readonly networkManager: IConceroNetworkManager,
         private readonly viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ) {
@@ -59,11 +53,10 @@ export class TxReader implements ITxReader {
 
     public static createInstance(
         logger: ILogger,
-        networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ): TxReader {
-        TxReader.instance = new TxReader(logger, networkManager, viemClientManager, config);
+        TxReader.instance = new TxReader(logger, viemClientManager, config);
         return TxReader.instance;
     }
 
@@ -84,8 +77,7 @@ export class TxReader implements ITxReader {
             event: AbiEvent,
             blockManager: any,
         ): string => {
-            //todo: standardise id creation across TxReader, TxMonitor, BlockManager, BalanceManager, ConceroNetworkManager
-            const id = uuidv4();
+            const id = generateUid();
             const unwatch = blockManager.watchBlocks({
                 onBlockRange: (from: bigint, to: bigint) => this.fetchLogsForWatcher(id, from, to),
             });
@@ -122,7 +114,7 @@ export class TxReader implements ITxReader {
             intervalMs = 10_000,
             args?: any[],
         ): string => {
-            const id = uuidv4();
+            const id = generateUid();
             this.readContractWatchers.set(id, {
                 id,
                 network,
@@ -164,11 +156,11 @@ export class TxReader implements ITxReader {
                 effectiveInterval = timeoutMs;
             }
 
-            const bulkId = uuidv4();
+            const bulkId = generateUid();
             const watcherIds: string[] = [];
 
             for (const c of items) {
-                const id = uuidv4();
+                const id = generateUid();
                 watcherIds.push(id);
                 this.readContractWatchers.set(id, {
                     id,
@@ -221,7 +213,7 @@ export class TxReader implements ITxReader {
             intervalMs = 10_000,
             args?: any[],
         ): string => {
-            const id = uuidv4();
+            const id = generateUid();
             this.methodWatchers.set(id, {
                 id,
                 network,
@@ -488,6 +480,7 @@ export class TxReader implements ITxReader {
                     event: w.event,
                     fromBlock: from,
                     toBlock: to,
+                    strict: true,
                 },
                 w.network,
             );
@@ -518,26 +511,5 @@ export class TxReader implements ITxReader {
             );
             return [];
         }
-    }
-
-    public async dispose(): Promise<void> {
-        this.logger.info('Disposing TxReader...');
-
-        // Stop global loop
-        if (this.globalReadInterval) {
-            clearTimeout(this.globalReadInterval);
-            this.globalReadInterval = undefined;
-        }
-
-        // Clear all watchers and their resources
-        this.logWatchers.clear();
-        this.readContractWatchers.clear();
-        this.methodWatchers.clear();
-        this.bulkCallbacks.clear();
-
-        // Reset state
-        this.isGlobalLoopRunning = false;
-
-        this.logger.info('TxReader disposed successfully');
     }
 }

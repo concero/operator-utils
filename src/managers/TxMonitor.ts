@@ -9,6 +9,7 @@ import {
     IViemClientManager,
     TxMonitorConfig,
 } from '../types';
+import { generateUid } from '../utils';
 
 interface Subscriber {
     id: string;
@@ -89,7 +90,7 @@ export class TxMonitor implements ITxMonitor {
         onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
     ): void {
         const existingMonitor = this.monitors.get(txHash);
-        const subscriberId = this.generateSubscriberId();
+        const subscriberId = generateUid();
 
         if (existingMonitor) {
             existingMonitor.subscribers.set(subscriberId, {
@@ -134,7 +135,7 @@ export class TxMonitor implements ITxMonitor {
         confirmations = 1,
     ): void {
         const existingMonitor = this.monitors.get(txHash);
-        const subscriberId = this.generateSubscriberId();
+        const subscriberId = generateUid();
 
         if (existingMonitor) {
             existingMonitor.subscribers.set(subscriberId, {
@@ -167,10 +168,6 @@ export class TxMonitor implements ITxMonitor {
         this.logger.debug(
             `Started monitoring tx ${txHash} on ${chainName} for inclusion with ${confirmations} confirmations`,
         );
-    }
-
-    private generateSubscriberId(): string {
-        return Math.random().toString(36).substring(2, 15);
     }
 
     private async checkTransactionStatus(

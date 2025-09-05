@@ -1,6 +1,7 @@
 import { type PublicClient } from 'viem';
 
 import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
+import { generateUid } from '../utils';
 
 /**
  * BlockManager encapsulates block processing and canonical block emission for a single network.
@@ -180,7 +181,7 @@ export class BlockManager implements IBlockManager {
      */
     public watchBlocks(options: WatchBlocksOptions): () => void {
         const { onBlockRange } = options;
-        const subscriberId = Math.random().toString(36).substring(2, 15);
+        const subscriberId = generateUid();
 
         this.subscribers.set(subscriberId, {
             id: subscriberId,

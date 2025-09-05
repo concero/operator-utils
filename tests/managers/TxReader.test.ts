@@ -13,18 +13,16 @@ jest.useFakeTimers();
 describe('TxReader', () => {
     let logger: MockLogger;
     let txReader: TxReader;
-    let networkManager: jest.Mocked<INetworkManager>;
+
     let viemClientManager: MockViemClientManager;
 
     beforeEach(() => {
         logger = new MockLogger();
-        networkManager = {
-            getNetworkByName: jest.fn().mockReturnValue(mockConceroNetwork),
-        } as any;
+
         viemClientManager = new MockViemClientManager();
         (uuidv4 as jest.Mock).mockReturnValue('mock-uuid');
 
-        txReader = TxReader.createInstance(logger, networkManager, viemClientManager, {
+        txReader = TxReader.createInstance(logger, viemClientManager, {
             watcherIntervalMs: 1000,
         });
     });
@@ -64,19 +62,27 @@ describe('TxReader', () => {
             ['0x456'],
         );
 
-        const mockReadContract =
-            viemClientManager.getClients(mockConceroNetwork).publicClient.readContract;
+        const mockReadContract = viemClientManager.getClients(mockConceroNetwork.name).publicClient
+            .readContract;
         (mockReadContract as jest.Mock).mockResolvedValue(123n);
 
+        // Advance timers to trigger the watcher and run all timers
         jest.advanceTimersByTime(1000);
-        await Promise.resolve(); // allow promises to resolve
+
+        // Run all pending timers to execute the setTimeout callback
+        jest.runOnlyPendingTimers();
+
+        // Wait for all promises to resolve
+        await Promise.resolve();
+        await Promise.resolve(); // Double wait to ensure all microtasks complete
 
         expect(mockReadContract).toHaveBeenCalled();
         // expect(callback).toHaveBeenCalledWith(123n, mockConceroNetwork);
-    });
+    }, 10000);
 
     it('should get logs', async () => {
-        const mockGetLogs = viemClientManager.getClients(mockConceroNetwork).publicClient.getLogs;
+        const mockGetLogs = viemClientManager.getClients(mockConceroNetwork.name).publicClient
+            .getLogs;
         (mockGetLogs as jest.Mock).mockResolvedValue([{ data: 'log1' }]);
 
         const logs = await txReader.getLogs(

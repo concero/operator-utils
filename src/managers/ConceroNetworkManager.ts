@@ -2,7 +2,7 @@ import { ManagerBase } from './ManagerBase';
 
 import { ConceroNetwork, NetworkManagerConfig, NetworkType } from '../types';
 import { IConceroNetworkManager, ILogger, NetworkUpdateListener } from '../types/';
-import { fetchNetworkConfigs, HttpClient, localhostViemChain } from '../utils';
+import { fetchNetworkConfigs, generateUid, HttpClient, localhostViemChain } from '../utils';
 
 export class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance: ConceroNetworkManager;

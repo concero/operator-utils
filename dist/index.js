@@ -36899,6 +36899,7 @@ __export(index_exports, {
   createCustomHttpTransport: () => createCustomHttpTransport,
   createViemChain: () => createViemChain,
   fetchNetworkConfigs: () => fetchNetworkConfigs,
+  generateUid: () => generateUid,
   getEnvBigint: () => getEnvBigint,
   getEnvBool: () => getEnvBool,
   getEnvInt: () => getEnvInt,
@@ -48066,7 +48067,7 @@ var BlockManager = class _BlockManager {
    */
   watchBlocks(options) {
     const { onBlockRange } = options;
-    const subscriberId = Math.random().toString(36).substring(2, 15);
+    const subscriberId = generateUid();
     this.subscribers.set(subscriberId, {
       id: subscriberId,
       onBlockRange
@@ -49231,7 +49232,7 @@ var TxMonitor = class _TxMonitor {
   }
   ensureTxFinality(txHash, chainName, onFinalityCallback) {
     const existingMonitor = this.monitors.get(txHash);
-    const subscriberId = this.generateSubscriberId();
+    const subscriberId = generateUid();
     if (existingMonitor) {
       existingMonitor.subscribers.set(subscriberId, {
         id: subscriberId,
@@ -49260,7 +49261,7 @@ var TxMonitor = class _TxMonitor {
   }
   ensureTxInclusion(txHash, chainName, onTxIncluded, confirmations = 1) {
     const existingMonitor = this.monitors.get(txHash);
-    const subscriberId = this.generateSubscriberId();
+    const subscriberId = generateUid();
     if (existingMonitor) {
       existingMonitor.subscribers.set(subscriberId, {
         id: subscriberId,
@@ -49288,9 +49289,6 @@ var TxMonitor = class _TxMonitor {
     this.logger.debug(
       `Started monitoring tx ${txHash} on ${chainName} for inclusion with ${confirmations} confirmations`
     );
-  }
-  generateSubscriberId() {
-    return Math.random().toString(36).substring(2, 15);
   }
   async checkTransactionStatus(monitor, currentBlock, finalityConfirmations, network) {
     try {
@@ -49440,62 +49438,10 @@ var TxMonitor = class _TxMonitor {
   }
 };
 
-// node_modules/uuid/dist/esm/stringify.js
-var byteToHex = [];
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 256).toString(16).slice(1));
-}
-function unsafeStringify(arr, offset = 0) {
-  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
-}
-
-// node_modules/uuid/dist/esm/rng.js
-var import_crypto3 = require("crypto");
-var rnds8Pool = new Uint8Array(256);
-var poolPtr = rnds8Pool.length;
-function rng() {
-  if (poolPtr > rnds8Pool.length - 16) {
-    (0, import_crypto3.randomFillSync)(rnds8Pool);
-    poolPtr = 0;
-  }
-  return rnds8Pool.slice(poolPtr, poolPtr += 16);
-}
-
-// node_modules/uuid/dist/esm/native.js
-var import_crypto4 = require("crypto");
-var native_default = { randomUUID: import_crypto4.randomUUID };
-
-// node_modules/uuid/dist/esm/v4.js
-function v4(options, buf, offset) {
-  if (native_default.randomUUID && !buf && !options) {
-    return native_default.randomUUID();
-  }
-  options = options || {};
-  const rnds = options.random ?? options.rng?.() ?? rng();
-  if (rnds.length < 16) {
-    throw new Error("Random bytes length must be >= 16");
-  }
-  rnds[6] = rnds[6] & 15 | 64;
-  rnds[8] = rnds[8] & 63 | 128;
-  if (buf) {
-    offset = offset || 0;
-    if (offset < 0 || offset + 16 > buf.length) {
-      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
-    }
-    for (let i = 0; i < 16; ++i) {
-      buf[offset + i] = rnds[i];
-    }
-    return buf;
-  }
-  return unsafeStringify(rnds);
-}
-var v4_default = v4;
-
 // src/managers/TxReader.ts
 var TxReader = class _TxReader {
-  constructor(logger, networkManager, viemClientManager, config) {
+  constructor(logger, viemClientManager, config) {
     this.logger = logger;
-    this.networkManager = networkManager;
     this.viemClientManager = viemClientManager;
     this.logWatchers = /* @__PURE__ */ new Map();
     this.readContractWatchers = /* @__PURE__ */ new Map();
@@ -49504,7 +49450,7 @@ var TxReader = class _TxReader {
     this.isGlobalLoopRunning = false;
     this.logWatcher = {
       create: (contractAddress, network, onLogs, event, blockManager) => {
-        const id = v4_default();
+        const id = generateUid();
         const unwatch = blockManager.watchBlocks({
           onBlockRange: (from5, to) => this.fetchLogsForWatcher(id, from5, to)
         });
@@ -49532,7 +49478,7 @@ var TxReader = class _TxReader {
     };
     this.readContractWatcher = {
       create: (contractAddress, network, functionName, abi2, callback, intervalMs = 1e4, args) => {
-        const id = v4_default();
+        const id = generateUid();
         this.readContractWatchers.set(id, {
           id,
           network,
@@ -49559,10 +49505,10 @@ var TxReader = class _TxReader {
           );
           effectiveInterval = timeoutMs;
         }
-        const bulkId = v4_default();
+        const bulkId = generateUid();
         const watcherIds = [];
         for (const c of items) {
-          const id = v4_default();
+          const id = generateUid();
           watcherIds.push(id);
           this.readContractWatchers.set(id, {
             id,
@@ -49607,7 +49553,7 @@ var TxReader = class _TxReader {
     };
     this.methodWatcher = {
       create: (method, network, callback, intervalMs = 1e4, args) => {
-        const id = v4_default();
+        const id = generateUid();
         this.methodWatchers.set(id, {
           id,
           network,
@@ -49634,8 +49580,8 @@ var TxReader = class _TxReader {
       `TxReader: Initialized with watcher interval ${this.watcherIntervalMs} ms`
     );
   }
-  static createInstance(logger, networkManager, viemClientManager, config) {
-    _TxReader.instance = new _TxReader(logger, networkManager, viemClientManager, config);
+  static createInstance(logger, viemClientManager, config) {
+    _TxReader.instance = new _TxReader(logger, viemClientManager, config);
     return _TxReader.instance;
   }
   static getInstance() {
@@ -49828,7 +49774,8 @@ var TxReader = class _TxReader {
           address: w.contractAddress,
           event: w.event,
           fromBlock: from5,
-          toBlock: to
+          toBlock: to,
+          strict: true
         },
         w.network
       );
@@ -49858,19 +49805,6 @@ var TxReader = class _TxReader {
       );
       return [];
     }
-  }
-  async dispose() {
-    this.logger.info("Disposing TxReader...");
-    if (this.globalReadInterval) {
-      clearTimeout(this.globalReadInterval);
-      this.globalReadInterval = void 0;
-    }
-    this.logWatchers.clear();
-    this.readContractWatchers.clear();
-    this.methodWatchers.clear();
-    this.bulkCallbacks.clear();
-    this.isGlobalLoopRunning = false;
-    this.logger.info("TxReader disposed successfully");
   }
 };
 
@@ -49955,7 +49889,7 @@ var TxWriter = class _TxWriter {
       await this.nonceManager.refresh(network.name);
       this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
       try {
-        await this.retryTransaction(network, params);
+        await this.callContract(network, params, true);
       } catch (error) {
         this.logger.error(
           `[${network.name}] Retry failed for transaction ${txHash}:`,
@@ -49963,9 +49897,6 @@ var TxWriter = class _TxWriter {
         );
       }
     };
-  }
-  async retryTransaction(network, params) {
-    return this.callContract(network, params, true);
   }
 };
 
@@ -50199,6 +50130,62 @@ function min(num2) {
   return sec(num2 * 60);
 }
 
+// node_modules/uuid/dist/esm/stringify.js
+var byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+
+// node_modules/uuid/dist/esm/rng.js
+var import_crypto3 = require("crypto");
+var rnds8Pool = new Uint8Array(256);
+var poolPtr = rnds8Pool.length;
+function rng() {
+  if (poolPtr > rnds8Pool.length - 16) {
+    (0, import_crypto3.randomFillSync)(rnds8Pool);
+    poolPtr = 0;
+  }
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
+}
+
+// node_modules/uuid/dist/esm/native.js
+var import_crypto4 = require("crypto");
+var native_default = { randomUUID: import_crypto4.randomUUID };
+
+// node_modules/uuid/dist/esm/v4.js
+function v4(options, buf, offset) {
+  if (native_default.randomUUID && !buf && !options) {
+    return native_default.randomUUID();
+  }
+  options = options || {};
+  const rnds = options.random ?? options.rng?.() ?? rng();
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  rnds[6] = rnds[6] & 15 | 64;
+  rnds[8] = rnds[8] & 63 | 128;
+  if (buf) {
+    offset = offset || 0;
+    if (offset < 0 || offset + 16 > buf.length) {
+      throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);
+    }
+    for (let i = 0; i < 16; ++i) {
+      buf[offset + i] = rnds[i];
+    }
+    return buf;
+  }
+  return unsafeStringify(rnds);
+}
+var v4_default = v4;
+
+// src/utils/generateUid.ts
+function generateUid() {
+  return v4_default();
+}
+
 // src/constants/globalConfig.ts
 var networkMode = getEnvString("NETWORK_MODE", "testnet");
 var operatorPrivateKey = getEnvString("OPERATOR_PRIVATE_KEY");
@@ -50323,6 +50310,7 @@ var globalConfig = {
   createCustomHttpTransport,
   createViemChain,
   fetchNetworkConfigs,
+  generateUid,
   getEnvBigint,
   getEnvBool,
   getEnvInt,

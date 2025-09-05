@@ -128,7 +128,7 @@ export class TxWriter implements ITxWriter {
             this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
 
             try {
-                await this.retryTransaction(network, params);
+                await this.callContract(network, params, true);
             } catch (error) {
                 this.logger.error(
                     `[${network.name}] Retry failed for transaction ${txHash}:`,
@@ -136,12 +136,5 @@ export class TxWriter implements ITxWriter {
                 );
             }
         };
-    }
-
-    private async retryTransaction(
-        network: ConceroNetwork,
-        params: SimulateContractParameters,
-    ): Promise<string> {
-        return this.callContract(network, params, true);
     }
 }
