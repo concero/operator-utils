@@ -242,13 +242,13 @@ export class TxMonitor implements ITxMonitor {
                         })
                         .catch(() => null);
 
-                    if (currentReceipt && currentReceipt.blockNumber === inclusionBlockNumber) {
+                    if (currentReceipt) {
                         this.notifyFinalitySubscribers(monitor, true);
-                        this.removeMonitor(monitor.txHash);
                     } else {
                         this.notifyFinalitySubscribers(monitor, false);
-                        this.removeMonitor(monitor.txHash);
                     }
+
+                    this.removeMonitor(monitor.txHash);
                 }
             }
         } catch (error) {

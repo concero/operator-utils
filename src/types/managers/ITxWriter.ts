@@ -16,4 +16,5 @@ export interface TxWriterConfig {
     dryRun: boolean;
     simulateTx: boolean;
     defaultGasLimit?: bigint;
+    maxCallbackRetries: number;
 }

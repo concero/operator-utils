@@ -49300,13 +49300,12 @@ var TxMonitor = class _TxMonitor {
           const currentReceipt = await publicClient.getTransactionReceipt({
             hash: monitor.txHash
           }).catch(() => null);
-          if (currentReceipt && currentReceipt.blockNumber === inclusionBlockNumber) {
+          if (currentReceipt) {
             this.notifyFinalitySubscribers(monitor, true);
-            this.removeMonitor(monitor.txHash);
           } else {
             this.notifyFinalitySubscribers(monitor, false);
-            this.removeMonitor(monitor.txHash);
           }
+          this.removeMonitor(monitor.txHash);
         }
       }
     } catch (error) {
@@ -49802,14 +49801,16 @@ var TxWriter = class _TxWriter {
     this.logger.info("Initialized");
   }
   async callContract(network, params, ensureTxFinality = false) {
+    return this.callContractWithMonitoring(network, params, ensureTxFinality, 1);
+  }
+  async callContractWithMonitoring(network, params, ensureTxFinality, callbackRetryAttempt) {
     try {
       const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
       if (this.config.dryRun) {
         this.logger.info(
           `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`
         );
-        const mockTxHash = `0xdry${Date.now().toString(16)}`;
-        return mockTxHash;
+        return `0xdry${Date.now().toString(16)}`;
       }
       const txHash = await callContract(
         publicClient,
@@ -49821,19 +49822,23 @@ var TxWriter = class _TxWriter {
           defaultGasLimit: this.config.defaultGasLimit
         }
       );
-      const retryCallback = this.createRetryCallback(network, params);
+      const retryCallback = this.createRetryCallback(
+        network,
+        params,
+        ensureTxFinality,
+        callbackRetryAttempt
+      );
       if (ensureTxFinality) {
         this.txMonitor.ensureTxFinality(
           txHash,
           network.name,
-          (hash2, networkName, isFinalized) => retryCallback(hash2, isFinalized)
+          (hash2, _network, isFinalized) => retryCallback(hash2, isFinalized)
         );
       } else {
         this.txMonitor.ensureTxInclusion(
           txHash,
           network.name,
-          (hash2, networkName, blockNumber, isIncluded) => retryCallback(hash2, isIncluded),
-          1
+          (hash2, _network, _blockNumber, isIncluded) => retryCallback(hash2, isIncluded)
         );
       }
       return txHash;
@@ -49842,23 +49847,30 @@ var TxWriter = class _TxWriter {
       throw error;
     }
   }
-  createRetryCallback(network, params) {
+  createRetryCallback(network, params, ensureTxFinality, attempt) {
     return async (txHash, success) => {
       if (success) {
-        this.logger.debug(`[${network.name}] Transaction ${txHash} completed successfully`);
+        this.logger.debug(
+          `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`
+        );
+        return;
+      }
+      if (attempt >= this.config.maxCallbackRetries) {
+        this.logger.error(
+          `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`
+        );
+        this.logger.error(`Tx Params: ${JSON.stringify(params)}`);
         return;
       }
       this.logger.warn(
-        `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`
+        `[${network.name}] Transaction ${txHash} failed (attempt ${attempt}), retrying...`
       );
       await this.nonceManager.refresh(network.name);
-      this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
       try {
-        await this.callContract(network, params, true);
+        await this.callContractWithMonitoring(network, params, true, attempt + 1);
       } catch (error) {
         this.logger.error(
-          `[${network.name}] Retry failed for transaction ${txHash}:`,
-          error
+          `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`
         );
       }
     };
@@ -50240,7 +50252,8 @@ var globalConfig = {
   TX_WRITER: {
     simulateTx: getEnvBool("TX_WRITER_SIMULATE_TX", false),
     dryRun: getEnvBool("TX_WRITER_DRY_RUN", false),
-    defaultGasLimit: getEnvBigint("TX_WRITER_GAS_LIMIT_DEFAULT", 2000000n)
+    defaultGasLimit: getEnvBigint("TX_WRITER_GAS_LIMIT_DEFAULT", 2000000n),
+    maxCallbackRetries: getEnvInt("TX_WRITER_MAX_CALLBACK_RETRIES", 3)
   },
   TX_READER: {
     watcherIntervalMs: getEnvInt("TX_READER_WATCHER_INTERVAL_MS", sec(10))

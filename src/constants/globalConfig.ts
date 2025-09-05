@@ -95,6 +95,7 @@ const globalConfig: GlobalConfig = {
         simulateTx: getEnvBool('TX_WRITER_SIMULATE_TX', false),
         dryRun: getEnvBool('TX_WRITER_DRY_RUN', false),
         defaultGasLimit: getEnvBigint('TX_WRITER_GAS_LIMIT_DEFAULT', 2_000_000n),
+        maxCallbackRetries: getEnvInt('TX_WRITER_MAX_CALLBACK_RETRIES', 3),
     },
     TX_READER: {
         watcherIntervalMs: getEnvInt('TX_READER_WATCHER_INTERVAL_MS', sec(10)),

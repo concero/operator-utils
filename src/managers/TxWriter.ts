@@ -56,11 +56,19 @@ export class TxWriter implements ITxWriter {
     public async initialize(): Promise<void> {
         this.logger.info('Initialized');
     }
-
     public async callContract(
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality = false,
+    ): Promise<string> {
+        return this.callContractWithMonitoring(network, params, ensureTxFinality, 1);
+    }
+
+    private async callContractWithMonitoring(
+        network: ConceroNetwork,
+        params: SimulateContractParameters,
+        ensureTxFinality: boolean,
+        callbackRetryAttempt: number,
     ): Promise<string> {
         try {
             const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
@@ -69,8 +77,7 @@ export class TxWriter implements ITxWriter {
                 this.logger.info(
                     `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`,
                 );
-                const mockTxHash = `0xdry${Date.now().toString(16)}`;
-                return mockTxHash;
+                return `0xdry${Date.now().toString(16)}`;
             }
 
             const txHash = await callContract(
@@ -84,21 +91,24 @@ export class TxWriter implements ITxWriter {
                 },
             );
 
-            const retryCallback = this.createRetryCallback(network, params);
+            const retryCallback = this.createRetryCallback(
+                network,
+                params,
+                ensureTxFinality,
+                callbackRetryAttempt,
+            );
 
             if (ensureTxFinality) {
                 this.txMonitor.ensureTxFinality(
                     txHash,
                     network.name,
-                    (hash: string, networkName: string, isFinalized: boolean) =>
-                        retryCallback(hash, isFinalized),
+                    (hash, _network, isFinalized) => retryCallback(hash, isFinalized),
                 );
             } else {
                 this.txMonitor.ensureTxInclusion(
                     txHash,
                     network.name,
-                    (hash: string, networkName: string, blockNumber: bigint, isIncluded: boolean) =>
-                        retryCallback(hash, isIncluded),
+                    (hash, _network, _blockNumber, isIncluded) => retryCallback(hash, isIncluded),
                     1,
                 );
             }
@@ -113,26 +123,36 @@ export class TxWriter implements ITxWriter {
     private createRetryCallback(
         network: ConceroNetwork,
         params: SimulateContractParameters,
+        ensureTxFinality: boolean,
+        attempt: number,
     ): (txHash: string, success: boolean) => void {
         return async (txHash: string, success: boolean): Promise<void> => {
             if (success) {
-                this.logger.debug(`[${network.name}] Transaction ${txHash} completed successfully`);
+                this.logger.debug(
+                    `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`,
+                );
+                return;
+            }
+
+            if (attempt >= this.config.maxCallbackRetries) {
+                this.logger.error(
+                    `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`,
+                );
+                this.logger.error(`Tx Params: ${JSON.stringify(params)}`);
                 return;
             }
 
             this.logger.warn(
-                `[${network.name}] Transaction ${txHash} failed or was dropped - attempting retry`,
+                `[${network.name}] Transaction ${txHash} failed (attempt ${attempt}), retrying...`,
             );
 
             await this.nonceManager.refresh(network.name);
-            this.logger.debug(`[${network.name}] Reset nonce after transaction failure`);
 
             try {
-                await this.callContract(network, params, true);
+                await this.callContractWithMonitoring(network, params, true, attempt + 1);
             } catch (error) {
                 this.logger.error(
-                    `[${network.name}] Retry failed for transaction ${txHash}:`,
-                    error,
+                    `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`,
                 );
             }
         };

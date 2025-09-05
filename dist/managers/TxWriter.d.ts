@@ -16,6 +16,7 @@ export declare class TxWriter implements ITxWriter {
     static getInstance(): TxWriter;
     initialize(): Promise<void>;
     callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<string>;
+    private callContractWithMonitoring;
     private createRetryCallback;
 }
 //# sourceMappingURL=TxWriter.d.ts.map

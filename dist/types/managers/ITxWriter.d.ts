@@ -9,5 +9,6 @@ export interface TxWriterConfig {
     dryRun: boolean;
     simulateTx: boolean;
     defaultGasLimit?: bigint;
+    maxCallbackRetries: number;
 }
 //# sourceMappingURL=ITxWriter.d.ts.map
