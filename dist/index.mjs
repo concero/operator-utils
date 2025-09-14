@@ -49350,7 +49350,6 @@ var TxMonitor = class _TxMonitor {
     });
   }
   async checkNetworkTransactions(networkName, endBlock) {
-    this.logger.info(`[this.monitors.values()]: ${Array.from(this.monitors.values()).length}`);
     const network = this.networkManager.getNetworkByName(networkName);
     if (!network) return;
     const activeMonitors = Array.from(this.monitors.values()).filter(
