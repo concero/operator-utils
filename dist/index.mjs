@@ -49851,7 +49851,7 @@ var TxWriter = class _TxWriter {
       );
       await this.nonceManager.refresh(network.name);
       try {
-        await this.callContractWithMonitoring(network, params, true, attempt + 1);
+        await this.callContractWithMonitoring(network, params, false, attempt + 1);
       } catch (error) {
         this.logger.error(
           `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`
