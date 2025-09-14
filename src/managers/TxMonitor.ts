@@ -309,6 +309,9 @@ export class TxMonitor implements ITxMonitor {
     }
 
     private async checkNetworkTransactions(networkName: string, endBlock: bigint): Promise<void> {
+        // TODO: remove it
+        this.logger.info(`[this.monitors.values()]: ${this.monitors.values()}`);
+
         const network = this.networkManager.getNetworkByName(networkName);
         if (!network) return;
 
