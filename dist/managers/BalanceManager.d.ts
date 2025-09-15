@@ -1,0 +1,43 @@
+import type { Address } from 'viem';
+import { ManagerBase } from './ManagerBase';
+import { BalanceManagerConfig, ConceroNetwork, IBalanceManager, ILogger, ITxReader, IViemClientManager, TokenConfig } from '../types';
+export declare abstract class BalanceManager extends ManagerBase implements IBalanceManager {
+    private minAllowances;
+    private tokenConfigs;
+    private pollingIntervalMs;
+    private nativeBalances;
+    private tokenBalances;
+    private registeredTokens;
+    private registeredNativeBalances;
+    private activeNetworks;
+    private watcherIds;
+    private tokenWatchers;
+    private nativeWatchers;
+    private viemClientManager;
+    private txReader;
+    private logger;
+    protected constructor(logger: ILogger, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
+    initialize(): Promise<void>;
+    registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
+    deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;
+    beginWatching(): void;
+    private watchNativeBalance;
+    private watchTokenBalance;
+    setActiveNetworks(networks: ConceroNetwork[]): void;
+    forceUpdate(): Promise<void>;
+    getNativeBalances(): Map<string, bigint>;
+    getTokenBalance(networkName: string, symbol: string): bigint;
+    getTotalTokenBalance(symbol: string): bigint;
+    getTokenConfigs(networkName: string): TokenConfig[];
+    getTokenConfig(networkName: string, symbol: string): TokenConfig | undefined;
+    ensureAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address, requiredAmount: bigint): Promise<void>;
+    getAllowance(networkName: string, tokenAddress: Address, spenderAddress: Address): Promise<bigint>;
+    private onTokenBalanceUpdate;
+    private onNativeBalanceUpdate;
+    private updateNativeBalances;
+    private updateTokenBalances;
+    private getMinAllowance;
+    protected clearTokenWatchers(): void;
+    private findActiveNetwork;
+}
+//# sourceMappingURL=BalanceManager.d.ts.map

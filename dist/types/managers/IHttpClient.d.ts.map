@@ -1,0 +1,1 @@
+{"version":3,"file":"IHttpClient.d.ts","sourceRoot":"","sources":["../../../src/types/managers/IHttpClient.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,WAAW;CAE3B;AAED,mCAAmC;AACnC,MAAM,WAAW,gBAAgB;IAC7B,UAAU,EAAE,MAAM,CAAC;IACnB,UAAU,EAAE,MAAM,CAAC;IACnB,cAAc,EAAE,MAAM,CAAC;CAC1B"}
