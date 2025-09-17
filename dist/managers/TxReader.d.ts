@@ -1,10 +1,10 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery } from '../types/managers';
-export interface BulkCallbackResult {
+export interface BulkCallbackResult<V = unknown> {
     watcherId: string;
     network: ConceroNetwork;
-    value: unknown;
+    value: V;
 }
 export interface BulkCallbackError {
     watcherId: string;

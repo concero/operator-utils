@@ -22,10 +22,10 @@ type MethodWatcher = {
     timeoutMs?: number;
 };
 
-export interface BulkCallbackResult {
+export interface BulkCallbackResult<V = unknown> {
     watcherId: string;
     network: ConceroNetwork;
-    value: unknown;
+    value: V;
 }
 
 export interface BulkCallbackError {
