@@ -1,19 +1,22 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery } from '../types/managers';
-type BulkCallback = (payload: {
+export interface BulkCallbackResult {
+    watcherId: string;
+    network: ConceroNetwork;
+    value: unknown;
+}
+export interface BulkCallbackError {
+    watcherId: string;
+    network: ConceroNetwork;
+    error: unknown;
+}
+export interface BulkCallbackPayload {
     bulkId: string;
-    results: {
-        watcherId: string;
-        network: ConceroNetwork;
-        value: any;
-    }[];
-    errors: {
-        watcherId: string;
-        network: ConceroNetwork;
-        error: unknown;
-    }[];
-}) => Promise<void>;
+    results: BulkCallbackResult[];
+    errors: BulkCallbackError[];
+}
+type BulkCallback = (payload: BulkCallbackPayload) => Promise<void>;
 export declare class TxReader implements ITxReader {
     private readonly logger;
     private readonly viemClientManager;
