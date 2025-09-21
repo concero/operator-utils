@@ -52,6 +52,10 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         this.logger.info('BalanceManager initialized');
     }
 
+    public getActiveNetworks() {
+        return this.activeNetworks;
+    }
+
     public registerToken(
         network: ConceroNetwork,
         tokenSymbol: string,

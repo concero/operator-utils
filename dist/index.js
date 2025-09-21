@@ -49075,6 +49075,9 @@ var BalanceManager = class extends ManagerBase {
     if (this.initialized) return;
     this.logger.info("BalanceManager initialized");
   }
+  getActiveNetworks() {
+    return this.activeNetworks;
+  }
   registerToken(network, tokenSymbol, tokenAddress) {
     if (tokenAddress === zeroAddress) {
       this.registeredNativeBalances.add(network.name);
