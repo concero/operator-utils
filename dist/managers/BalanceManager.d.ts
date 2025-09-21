@@ -18,6 +18,7 @@ export declare abstract class BalanceManager extends ManagerBase implements IBal
     private logger;
     protected constructor(logger: ILogger, viemClientManager: IViemClientManager, txReader: ITxReader, config: BalanceManagerConfig);
     initialize(): Promise<void>;
+    getActiveNetworks(): ConceroNetwork[];
     registerToken(network: ConceroNetwork, tokenSymbol: string, tokenAddress: Address): void;
     deregisterToken(networkName: string, tokenSymbol: string, tokenAddress: Address): void;
     beginWatching(): void;
