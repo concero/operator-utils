@@ -24,8 +24,8 @@
         "check-updates": "npx npm-check-updates",
         "test": "jest"
     },
-  "packageManager": "bun",
-  "author": "",
+    "packageManager": "bun",
+    "author": "",
     "license": "ISC",
     "description": "",
     "dependencies": {
