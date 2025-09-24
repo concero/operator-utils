@@ -22,10 +22,10 @@
         "lint:fix": "eslint --config .eslint.config.mjs --fix",
         "format": "prettier --config .prettierrc.json --write \"**/*.{ts,json}\"",
         "check-updates": "npx npm-check-updates",
-        "test": "jest",
-        "preinstall": "sh validatePackageManager.sh bun"
+        "test": "jest"
     },
-    "author": "",
+  "packageManager": "bun",
+  "author": "",
     "license": "ISC",
     "description": "",
     "dependencies": {
