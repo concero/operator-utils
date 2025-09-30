@@ -49300,7 +49300,7 @@ var BalanceManager = class extends ManagerBase {
 
 // src/managers/BlockManager.ts
 var BlockManager = class _BlockManager {
-  constructor(network, publicClient, logger, config, blockCheckpointManager) {
+  constructor(config, network, publicClient, logger, blockCheckpointManager) {
     this.blockCheckpointManager = blockCheckpointManager;
     this.lastReportedBlockNumber = 0n;
     this.latestBlock = null;
@@ -49313,13 +49313,9 @@ var BlockManager = class _BlockManager {
     this.logger = logger;
     this.config = config;
   }
-  static async create(network, publicClient, logger, config) {
-    const staticLogger = logger;
-    const initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
-    staticLogger.debug(
-      `${network.name}: Creating new instance with initial block ${initialBlock}`
-    );
-    return new _BlockManager(network, publicClient, logger, config);
+  static async create(config, network, publicClient, logger, blockCheckpointManager) {
+    logger.debug(`${network.name}: Creating new instance`);
+    return new _BlockManager(config, network, publicClient, logger, blockCheckpointManager);
   }
   async startPolling() {
     if (this.isPolling) {
@@ -49348,6 +49344,10 @@ var BlockManager = class _BlockManager {
       if (this.latestBlock > this.lastReportedBlockNumber) {
         await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
         this.lastReportedBlockNumber = this.latestBlock;
+        await this.blockCheckpointManager?.updateLastProcessedBlock(
+          Number(this.network.chainSelector),
+          this.lastReportedBlockNumber
+        );
       }
     } catch (error) {
       this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
@@ -49447,8 +49447,9 @@ var BlockManager = class _BlockManager {
 
 // src/managers/BlockManagerRegistry.ts
 var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
-  constructor(logger, networkManager, viemClientManager, config) {
+  constructor(config, logger, networkManager, viemClientManager, blockCheckpointManager) {
     super();
+    this.blockCheckpointManager = blockCheckpointManager;
     this.blockManagers = /* @__PURE__ */ new Map();
     this.logger = logger;
     this.networkManager = networkManager;
@@ -49504,12 +49505,13 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       );
     }
   }
-  static createInstance(logger, networkManager, viemClientManager, config) {
+  static createInstance(config, logger, networkManager, viemClientManager, blockCheckpointManager) {
     _BlockManagerRegistry.instance = new _BlockManagerRegistry(
+      config,
       logger,
       networkManager,
       viemClientManager,
-      config
+      blockCheckpointManager
     );
     return _BlockManagerRegistry.instance;
   }
@@ -49535,10 +49537,13 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
     if (this.blockManagers.has(network.name)) {
       return this.blockManagers.get(network.name);
     }
-    const blockManager = await BlockManager.create(network, publicClient, this.logger, {
-      pollingIntervalMs: this.config.pollingIntervalMs,
-      catchupBatchSize: this.config.catchupBatchSize
-    });
+    const blockManager = await BlockManager.create(
+      this.config,
+      network,
+      publicClient,
+      this.logger,
+      this.blockCheckpointManager
+    );
     this.blockManagers.set(network.name, blockManager);
     this.logger.debug(`Created BlockManager for network ${network.name}`);
     return blockManager;
@@ -51100,8 +51105,7 @@ var TxReader = class _TxReader {
           address: w.contractAddress,
           event: w.event,
           fromBlock: from14,
-          toBlock: to,
-          strict: true
+          toBlock: to
         },
         w.network
       );
