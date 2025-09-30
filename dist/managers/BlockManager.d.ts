@@ -9,16 +9,16 @@ type WatchBlocksOptions = {
     onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
 };
 export declare class BlockManager implements IBlockManager {
+    private blockCheckpointManager?;
     private lastReportedBlockNumber;
     private latestBlock;
     readonly publicClient: PublicClient;
     private network;
     private subscribers;
     protected logger: ILogger;
-    private config;
+    private readonly config;
     private isDisposed;
     private isPolling;
-    private pollingIntervalMs;
     private pollingTimeout;
     private constructor();
     static create(network: ConceroNetwork, publicClient: PublicClient, logger: ILogger, config: BlockManagerConfig): Promise<BlockManager>;
@@ -27,12 +27,12 @@ export declare class BlockManager implements IBlockManager {
     private poll;
     getLatestBlock(): Promise<bigint | null>;
     private fetchLastBlockNumber;
+    private getStartBlockNumber;
     private notifySubscribers;
     /**
      * Initiates a catchup process from the current processed block to the latest block.
      * This is typically called during initialization.
      */
-    private performCatchup;
     /**
      * Registers a subscriber that will be called when new blocks are processed.
      * Returns an unregister function.

@@ -49265,35 +49265,33 @@ var BalanceManager = class extends ManagerBase {
 
 // src/managers/BlockManager.ts
 var BlockManager = class _BlockManager {
-  constructor(initialBlock, network, publicClient, logger, config) {
+  constructor(network, publicClient, logger, config, blockCheckpointManager) {
+    this.blockCheckpointManager = blockCheckpointManager;
+    this.lastReportedBlockNumber = 0n;
     this.latestBlock = null;
     this.subscribers = /* @__PURE__ */ new Map();
     this.isDisposed = false;
     this.isPolling = false;
     this.pollingTimeout = null;
-    this.lastReportedBlockNumber = initialBlock;
     this.publicClient = publicClient;
     this.network = network;
     this.logger = logger;
     this.config = config;
-    this.pollingIntervalMs = config.pollingIntervalMs;
   }
   static async create(network, publicClient, logger, config) {
-    let initialBlock;
     const staticLogger = logger;
-    initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
-    staticLogger.debug(`${network.name}: Starting from current chain tip: ${initialBlock}`);
+    const initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
     staticLogger.debug(
       `${network.name}: Creating new instance with initial block ${initialBlock}`
     );
-    const blockManager = new _BlockManager(initialBlock, network, publicClient, logger, config);
-    return blockManager;
+    return new _BlockManager(network, publicClient, logger, config);
   }
   async startPolling() {
     if (this.isPolling) {
       this.logger.debug(`${this.network.name}: Already polling, ignoring start request`);
       return;
     }
+    this.lastReportedBlockNumber = await this.getStartBlockNumber();
     this.isPolling = true;
     await this.poll();
   }
@@ -49309,20 +49307,18 @@ var BlockManager = class _BlockManager {
     }
   }
   async poll() {
-    if (!this.isPolling || this.isDisposed) {
-      return;
-    }
+    if (!this.isPolling || this.isDisposed) return;
     try {
       this.latestBlock = await this.fetchLastBlockNumber();
       if (this.latestBlock > this.lastReportedBlockNumber) {
-        const startBlock = this.lastReportedBlockNumber + 1n;
-        await this.notifySubscribers(startBlock, this.latestBlock);
+        await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
+        this.lastReportedBlockNumber = this.latestBlock;
       }
     } catch (error) {
       this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
     } finally {
       if (this.isPolling && !this.isDisposed) {
-        this.pollingTimeout = setTimeout(() => this.poll(), this.pollingIntervalMs);
+        this.pollingTimeout = setTimeout(() => this.poll(), this.config.pollingIntervalMs);
       }
     }
   }
@@ -49332,46 +49328,62 @@ var BlockManager = class _BlockManager {
   async fetchLastBlockNumber() {
     return await this.publicClient.getBlockNumber({ cacheTime: 0 });
   }
+  async getStartBlockNumber() {
+    const blockCheckpoint = await this.blockCheckpointManager?.getCheckpoint(
+      Number(this.network.chainSelector)
+    );
+    if (blockCheckpoint != void 0) {
+      return blockCheckpoint;
+    } else {
+      return await this.fetchLastBlockNumber();
+    }
+  }
   async notifySubscribers(startBlock, endBlock) {
     this.logger.debug(
-      `${this.network.name}: Processing ${endBlock - startBlock + 1n} new blocks from ${startBlock} to ${endBlock}`
+      `${this.network.name}: Processing ${endBlock - startBlock} new blocks from ${startBlock} to ${endBlock}`
     );
     if (this.subscribers.size > 0) {
       for (const subscriber of this.subscribers.values()) {
-        void subscriber.onBlockRange(startBlock, endBlock).catch((error) => {
+        subscriber.onBlockRange(startBlock, endBlock).catch((error) => {
           this.logger.error(
             `${this.network.name}: Error in block range subscriber ${subscriber.id}: ${error}`
           );
         });
       }
     }
-    this.lastReportedBlockNumber = endBlock;
   }
   /**
    * Initiates a catchup process from the current processed block to the latest block.
    * This is typically called during initialization.
    */
-  async performCatchup() {
-    if (this.isDisposed) {
-      this.logger.debug(`${this.network.name}: Already disposed, skipping catchup`);
-      return;
-    }
-    try {
-      this.latestBlock = await this.publicClient.getBlockNumber();
-      let currentBlock = this.lastReportedBlockNumber;
-      this.logger.debug(
-        `${this.network.name}: Starting catchup from block ${currentBlock}, Chain tip: ${this.latestBlock}`
-      );
-      while (currentBlock < this.latestBlock && !this.isDisposed) {
-        const startBlock = currentBlock + 1n;
-        const endBlock = startBlock + this.config.catchupBatchSize - 1n > this.latestBlock ? this.latestBlock : startBlock + this.config.catchupBatchSize - 1n;
-        await this.notifySubscribers(startBlock, endBlock);
-        currentBlock = endBlock;
-      }
-    } catch (err) {
-      this.logger.error(`${this.network.name}:`, err);
-    }
-  }
+  // private async performCatchup() {
+  //     if (this.isDisposed) {
+  //         this.logger.debug(`${this.network.name}: Already disposed, skipping catchup`);
+  //         return;
+  //     }
+  //
+  //     try {
+  //         this.latestBlock = await this.publicClient.getBlockNumber();
+  //         let currentBlock: bigint = this.lastReportedBlockNumber;
+  //
+  //         this.logger.debug(
+  //             `${this.network.name}: Starting catchup from block ${currentBlock}, Chain tip: ${this.latestBlock}`,
+  //         );
+  //
+  //         while (currentBlock < this.latestBlock && !this.isDisposed) {
+  //             const startBlock = currentBlock + 1n;
+  //             const endBlock =
+  //                 startBlock + this.config.catchupBatchSize - 1n > this.latestBlock
+  //                     ? this.latestBlock
+  //                     : startBlock + this.config.catchupBatchSize - 1n;
+  //
+  //             await this.notifySubscribers(startBlock, endBlock);
+  //             currentBlock = endBlock;
+  //         }
+  //     } catch (err) {
+  //         this.logger.error(`${this.network.name}:`, err);
+  //     }
+  // }
   /**
    * Registers a subscriber that will be called when new blocks are processed.
    * Returns an unregister function.

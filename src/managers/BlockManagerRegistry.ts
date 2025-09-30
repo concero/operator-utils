@@ -1,6 +1,7 @@
 import { PublicClient } from 'viem';
 import { BlockManager } from './BlockManager';
 import { ManagerBase } from './ManagerBase';
+import { IBlockCheckpointManager } from '@/types/managers/IBlockCheckpointManager';
 
 import {
     BlockManagerConfig,
@@ -21,14 +22,15 @@ export class BlockManagerRegistry
     private blockManagers: Map<string, BlockManager> = new Map();
     private networkManager: IConceroNetworkManager;
     private viemClientManager: IViemClientManager;
-    private logger: ILogger;
-    private config: BlockManagerConfig;
+    private readonly logger: ILogger;
+    private readonly config: BlockManagerConfig;
 
     private constructor(
+        config: BlockManagerConfig,
         logger: ILogger,
         networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        config: BlockManagerConfig,
+        private blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         super();
         this.logger = logger;
@@ -37,7 +39,7 @@ export class BlockManagerRegistry
         this.config = config;
     }
 
-    public async onNetworksUpdated(networks: ConceroNetwork[]): Promise<void> {
+    public async onNetworksUpdated(networks: ConceroNetwork[]) {
         this.logger.info(`Networks updated, syncing BlockManagers for ${networks.length} networks`);
         try {
             await this.updateBlockManagers(networks);
@@ -47,9 +49,7 @@ export class BlockManagerRegistry
         }
     }
 
-    private async ensureBlockManagerForNetwork(
-        network: ConceroNetwork,
-    ): Promise<BlockManager | null> {
+    private async ensureBlockManagerForNetwork(network: ConceroNetwork) {
         if (this.blockManagers.has(network.name)) {
             this.logger.debug(`Using existing BlockManager for network ${network.name}`);
             return this.blockManagers.get(network.name)!;
@@ -57,7 +57,6 @@ export class BlockManagerRegistry
 
         try {
             const { publicClient } = this.viemClientManager.getClients(network.name);
-
             return await this.createBlockManager(network, publicClient);
         } catch (error) {
             this.logger.warn(`Failed to create BlockManager for network ${network.name}: ${error}`);
@@ -69,7 +68,7 @@ export class BlockManagerRegistry
         }
     }
 
-    private async updateBlockManagers(networks: ConceroNetwork[]): Promise<void> {
+    private async updateBlockManagers(networks: ConceroNetwork[]) {
         if (!this.initialized) return;
 
         this.logger.info(`Syncing BlockManagers for ${networks.length} active networks`);
@@ -98,16 +97,18 @@ export class BlockManagerRegistry
     }
 
     public static createInstance(
+        config: BlockManagerRegistryConfig,
         logger: ILogger,
         networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        config: BlockManagerRegistryConfig,
-    ): BlockManagerRegistry {
+        blockCheckpointManager?: IBlockCheckpointManager,
+    ) {
         BlockManagerRegistry.instance = new BlockManagerRegistry(
+            config,
             logger,
             networkManager,
             viemClientManager,
-            config,
+            blockCheckpointManager,
         );
         return BlockManagerRegistry.instance;
     }
@@ -133,18 +134,18 @@ export class BlockManagerRegistry
         }
     }
 
-    public async createBlockManager(
-        network: ConceroNetwork,
-        publicClient: PublicClient,
-    ): Promise<BlockManager> {
+    public async createBlockManager(network: ConceroNetwork, publicClient: PublicClient) {
         if (this.blockManagers.has(network.name)) {
             return this.blockManagers.get(network.name)!;
         }
 
-        const blockManager = await BlockManager.create(network, publicClient, this.logger, {
-            pollingIntervalMs: this.config.pollingIntervalMs,
-            catchupBatchSize: this.config.catchupBatchSize,
-        });
+        const blockManager = await BlockManager.create(
+            this.config,
+            network,
+            publicClient,
+            this.logger,
+            this.blockCheckpointManager,
+        );
 
         this.blockManagers.set(network.name, blockManager);
         this.logger.debug(`Created BlockManager for network ${network.name}`);

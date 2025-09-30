@@ -481,7 +481,7 @@ export class TxReader implements ITxReader {
         return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
     }
 
-    private async fetchLogsForWatcher(id: string, from: bigint, to: bigint): Promise<void> {
+    private async fetchLogsForWatcher(id: string, from: bigint, to: bigint) {
         const w = this.logWatchers.get(id);
         if (!w) return;
 
@@ -489,10 +489,9 @@ export class TxReader implements ITxReader {
             const logs = await this.getLogs(
                 {
                     address: w.contractAddress,
-                    event: w.event,
+                    event: w.event!,
                     fromBlock: from,
                     toBlock: to,
-                    strict: true,
                 },
                 w.network,
             );

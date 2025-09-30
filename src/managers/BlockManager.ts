@@ -32,10 +32,10 @@ export class BlockManager implements IBlockManager {
     private pollingTimeout: NodeJS.Timeout | null = null;
 
     private constructor(
+        config: BlockManagerConfig,
         network: ConceroNetwork,
         publicClient: PublicClient,
         logger: ILogger,
-        config: BlockManagerConfig,
         private blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         this.publicClient = publicClient;
@@ -45,20 +45,14 @@ export class BlockManager implements IBlockManager {
     }
 
     static async create(
+        config: BlockManagerConfig,
         network: ConceroNetwork,
         publicClient: PublicClient,
         logger: ILogger,
-        config: BlockManagerConfig,
+        blockCheckpointManager?: IBlockCheckpointManager,
     ) {
-        const staticLogger = logger;
-
-        const initialBlock = await publicClient.getBlockNumber({ cacheTime: 0 });
-
-        staticLogger.debug(
-            `${network.name}: Creating new instance with initial block ${initialBlock}`,
-        );
-
-        return new BlockManager(network, publicClient, logger, config);
+        logger.debug(`${network.name}: Creating new instance`);
+        return new BlockManager(config, network, publicClient, logger, blockCheckpointManager);
     }
 
     public async startPolling() {
@@ -68,7 +62,6 @@ export class BlockManager implements IBlockManager {
         }
 
         this.lastReportedBlockNumber = await this.getStartBlockNumber();
-
         this.isPolling = true;
 
         // await this.performCatchup();
@@ -98,6 +91,10 @@ export class BlockManager implements IBlockManager {
             if (this.latestBlock > this.lastReportedBlockNumber) {
                 await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
                 this.lastReportedBlockNumber = this.latestBlock;
+                await this.blockCheckpointManager?.updateLastProcessedBlock(
+                    Number(this.network.chainSelector),
+                    this.lastReportedBlockNumber,
+                );
             }
         } catch (error) {
             this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
