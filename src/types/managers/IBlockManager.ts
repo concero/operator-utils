@@ -9,5 +9,5 @@ export interface IBlockManager {
 export type BlockManagerConfig = {
     pollingIntervalMs: number;
     catchupBatchSize: bigint;
-    useCheckpoints: boolean
+    useCheckpoints: boolean;
 };
