@@ -23,15 +23,15 @@ describe('BlockManagerRegistry', () => {
         viemClientManager = new MockViemClientManager();
 
         blockManagerRegistry = BlockManagerRegistry.createInstance(
-            logger,
-            networkManager,
-            viemClientManager,
             {
                 blockManagerConfig: {
                     pollingIntervalMs: 1000,
                     catchupBatchSize: 10,
                 },
             },
+            logger,
+            networkManager,
+            viemClientManager,
         );
     });
 

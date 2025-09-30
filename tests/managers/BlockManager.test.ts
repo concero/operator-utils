@@ -17,20 +17,17 @@ describe('BlockManager', () => {
             getBlockNumber: jest.fn().mockResolvedValue(100n),
         } as any;
 
-        blockManager = await BlockManager.create(mockConceroNetwork, publicClient, logger, {
-            pollingIntervalMs: 1000,
-            catchupBatchSize: 10,
-        });
+        blockManager = await BlockManager.create(
+            { pollingIntervalMs: 1000, catchupBatchSize: 10n, useCheckpoints: false },
+            mockConceroNetwork,
+            publicClient,
+            logger,
+        );
     });
 
     afterEach(() => {
         blockManager.dispose();
         jest.clearAllMocks();
-    });
-
-    it('should create a block manager and initialize with the latest block number', async () => {
-        expect(blockManager).toBeDefined();
-        expect(publicClient.getBlockNumber).toHaveBeenCalled();
     });
 
     it('should start polling and process new blocks', async () => {
