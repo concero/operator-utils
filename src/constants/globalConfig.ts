@@ -86,6 +86,7 @@ const globalConfig: GlobalConfig = {
     BLOCK_MANAGER: {
         pollingIntervalMs: getEnvInt('BLOCK_MANAGER_POLLING_INTERVAL_MS', sec(5)),
         catchupBatchSize: getEnvBigint('BLOCK_MANAGER_CATCHUP_BATCH_SIZE', 500n),
+        useCheckpoints: getEnvBool("BLOCK_MANAGER_USE_CHECKPOINTS", false)
     },
     BALANCE_MANAGER: {
         pollingIntervalMs: getEnvInt('BALANCE_MANAGER_POLLING_INTERVAL_MS', min(10)),

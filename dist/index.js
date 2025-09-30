@@ -225,7 +225,7 @@ function execFallbackSignature(signature) {
 function isReceiveSignature(signature) {
   return receiveSignatureRegex.test(signature);
 }
-var errorSignatureRegex, eventSignatureRegex, functionSignatureRegex, structSignatureRegex, constructorSignatureRegex, fallbackSignatureRegex, receiveSignatureRegex, eventModifiers, functionModifiers;
+var errorSignatureRegex, eventSignatureRegex, functionSignatureRegex, structSignatureRegex, constructorSignatureRegex, fallbackSignatureRegex, receiveSignatureRegex, modifiers, eventModifiers, functionModifiers;
 var init_signatures = __esm({
   "node_modules/abitype/dist/esm/human-readable/runtime/signatures.js"() {
     init_regex();
@@ -236,6 +236,12 @@ var init_signatures = __esm({
     constructorSignatureRegex = /^constructor\((?<parameters>.*?)\)(?:\s(?<stateMutability>payable{1}))?$/;
     fallbackSignatureRegex = /^fallback\(\) external(?:\s(?<stateMutability>payable{1}))?$/;
     receiveSignatureRegex = /^receive\(\) external payable$/;
+    modifiers = /* @__PURE__ */ new Set([
+      "memory",
+      "indexed",
+      "storage",
+      "calldata"
+    ]);
     eventModifiers = /* @__PURE__ */ new Set(["indexed"]);
     functionModifiers = /* @__PURE__ */ new Set([
       "calldata",
@@ -246,10 +252,24 @@ var init_signatures = __esm({
 });
 
 // node_modules/abitype/dist/esm/human-readable/errors/abiItem.js
-var UnknownTypeError, UnknownSolidityTypeError;
+var InvalidAbiItemError, UnknownTypeError, UnknownSolidityTypeError;
 var init_abiItem = __esm({
   "node_modules/abitype/dist/esm/human-readable/errors/abiItem.js"() {
     init_errors();
+    InvalidAbiItemError = class extends BaseError {
+      constructor({ signature }) {
+        super("Failed to parse ABI item.", {
+          details: `parseAbiItem(${JSON.stringify(signature, null, 2)})`,
+          docsPath: "/api/human#parseabiitem-1"
+        });
+        Object.defineProperty(this, "name", {
+          enumerable: true,
+          configurable: true,
+          writable: true,
+          value: "InvalidAbiItemError"
+        });
+      }
+    };
     UnknownTypeError = class extends BaseError {
       constructor({ type }) {
         super("Unknown type.", {
@@ -282,10 +302,24 @@ var init_abiItem = __esm({
 });
 
 // node_modules/abitype/dist/esm/human-readable/errors/abiParameter.js
-var InvalidParameterError, SolidityProtectedKeywordError, InvalidModifierError, InvalidFunctionModifierError, InvalidAbiTypeParameterError;
+var InvalidAbiParametersError, InvalidParameterError, SolidityProtectedKeywordError, InvalidModifierError, InvalidFunctionModifierError, InvalidAbiTypeParameterError;
 var init_abiParameter = __esm({
   "node_modules/abitype/dist/esm/human-readable/errors/abiParameter.js"() {
     init_errors();
+    InvalidAbiParametersError = class extends BaseError {
+      constructor({ params }) {
+        super("Failed to parse ABI parameters.", {
+          details: `parseAbiParameters(${JSON.stringify(params, null, 2)})`,
+          docsPath: "/api/human#parseabiparameters-1"
+        });
+        Object.defineProperty(this, "name", {
+          enumerable: true,
+          configurable: true,
+          writable: true,
+          value: "InvalidAbiParametersError"
+        });
+      }
+    };
     InvalidParameterError = class extends BaseError {
       constructor({ param }) {
         super("Invalid ABI parameter.", {
@@ -849,11 +883,80 @@ var init_parseAbi = __esm({
   }
 });
 
+// node_modules/abitype/dist/esm/human-readable/parseAbiItem.js
+function parseAbiItem(signature) {
+  let abiItem;
+  if (typeof signature === "string")
+    abiItem = parseSignature(signature);
+  else {
+    const structs = parseStructs(signature);
+    const length = signature.length;
+    for (let i = 0; i < length; i++) {
+      const signature_ = signature[i];
+      if (isStructSignature(signature_))
+        continue;
+      abiItem = parseSignature(signature_, structs);
+      break;
+    }
+  }
+  if (!abiItem)
+    throw new InvalidAbiItemError({ signature });
+  return abiItem;
+}
+var init_parseAbiItem = __esm({
+  "node_modules/abitype/dist/esm/human-readable/parseAbiItem.js"() {
+    init_abiItem();
+    init_signatures();
+    init_structs();
+    init_utils();
+  }
+});
+
+// node_modules/abitype/dist/esm/human-readable/parseAbiParameters.js
+function parseAbiParameters(params) {
+  const abiParameters = [];
+  if (typeof params === "string") {
+    const parameters = splitParameters(params);
+    const length = parameters.length;
+    for (let i = 0; i < length; i++) {
+      abiParameters.push(parseAbiParameter(parameters[i], { modifiers }));
+    }
+  } else {
+    const structs = parseStructs(params);
+    const length = params.length;
+    for (let i = 0; i < length; i++) {
+      const signature = params[i];
+      if (isStructSignature(signature))
+        continue;
+      const parameters = splitParameters(signature);
+      const length2 = parameters.length;
+      for (let k = 0; k < length2; k++) {
+        abiParameters.push(parseAbiParameter(parameters[k], { modifiers, structs }));
+      }
+    }
+  }
+  if (abiParameters.length === 0)
+    throw new InvalidAbiParametersError({ params });
+  return abiParameters;
+}
+var init_parseAbiParameters = __esm({
+  "node_modules/abitype/dist/esm/human-readable/parseAbiParameters.js"() {
+    init_abiParameter();
+    init_signatures();
+    init_structs();
+    init_utils();
+    init_utils();
+  }
+});
+
 // node_modules/abitype/dist/esm/exports/index.js
 var init_exports = __esm({
   "node_modules/abitype/dist/esm/exports/index.js"() {
     init_formatAbiItem();
+    init_formatAbiParameters();
     init_parseAbi();
+    init_parseAbiItem();
+    init_parseAbiParameters();
   }
 });
 
@@ -9502,10 +9605,10 @@ var require_supports_colors = __commonJS({
         return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
       }
       if ("TERM_PROGRAM" in env) {
-        var version5 = parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+        var version4 = parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
         switch (env.TERM_PROGRAM) {
           case "iTerm.app":
-            return version5 >= 3 ? 3 : 2;
+            return version4 >= 3 ? 3 : 2;
           case "Hyper":
             return 3;
           case "Apple_Terminal":
@@ -16083,9 +16186,9 @@ var require_color_string = __commonJS({
   }
 });
 
-// node_modules/color/node_modules/color-name/index.js
+// node_modules/color/node_modules/color-convert/node_modules/color-name/index.js
 var require_color_name2 = __commonJS({
-  "node_modules/color/node_modules/color-name/index.js"(exports2, module2) {
+  "node_modules/color/node_modules/color-convert/node_modules/color-name/index.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "aliceblue": [240, 248, 255],
@@ -36125,10 +36228,10 @@ var require_supports_color = __commonJS({
         return 3;
       }
       if ("TERM_PROGRAM" in env) {
-        const version5 = parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
+        const version4 = parseInt((env.TERM_PROGRAM_VERSION || "").split(".")[0], 10);
         switch (env.TERM_PROGRAM) {
           case "iTerm.app":
-            return version5 >= 3 ? 3 : 2;
+            return version4 >= 3 ? 3 : 2;
           case "Apple_Terminal":
             return 2;
         }
@@ -37731,23 +37834,23 @@ function sha2563(value, to_) {
 
 // node_modules/viem/_esm/utils/blob/commitmentToVersionedHash.js
 function commitmentToVersionedHash(parameters) {
-  const { commitment, version: version5 = 1 } = parameters;
+  const { commitment, version: version4 = 1 } = parameters;
   const to = parameters.to ?? (typeof commitment === "string" ? "hex" : "bytes");
   const versionedHash = sha2563(commitment, "bytes");
-  versionedHash.set([version5], 0);
+  versionedHash.set([version4], 0);
   return to === "bytes" ? versionedHash : bytesToHex(versionedHash);
 }
 
 // node_modules/viem/_esm/utils/blob/commitmentsToVersionedHashes.js
 function commitmentsToVersionedHashes(parameters) {
-  const { commitments, version: version5 } = parameters;
+  const { commitments, version: version4 } = parameters;
   const to = parameters.to ?? (typeof commitments[0] === "string" ? "hex" : "bytes");
   const hashes = [];
   for (const commitment of commitments) {
     hashes.push(commitmentToVersionedHash({
       commitment,
       to,
-      version: version5
+      version: version4
     }));
   }
   return hashes;
@@ -37789,11 +37892,11 @@ var InvalidVersionedHashSizeError = class extends BaseError2 {
   }
 };
 var InvalidVersionedHashVersionError = class extends BaseError2 {
-  constructor({ hash: hash3, version: version5 }) {
+  constructor({ hash: hash3, version: version4 }) {
     super(`Versioned hash "${hash3}" version is invalid.`, {
       metaMessages: [
         `Expected: ${versionedHashVersionKzg}`,
-        `Received: ${version5}`
+        `Received: ${version4}`
       ],
       name: "InvalidVersionedHashVersionError"
     });
@@ -39146,7 +39249,7 @@ var fallbackTransactionErrorMagicIdentifier = numberToHex(0, {
   size: 32
 });
 async function sendCalls(client, parameters) {
-  const { account: account_ = client.account, capabilities, chain = client.chain, experimental_fallback, experimental_fallbackDelay = 32, forceAtomic = false, id, version: version5 = "2.0.0" } = parameters;
+  const { account: account_ = client.account, capabilities, chain = client.chain, experimental_fallback, experimental_fallbackDelay = 32, forceAtomic = false, id, version: version4 = "2.0.0" } = parameters;
   const account = account_ ? parseAccount(account_) : null;
   const calls = parameters.calls.map((call_) => {
     const call2 = call_;
@@ -39172,7 +39275,7 @@ async function sendCalls(client, parameters) {
           chainId: numberToHex(chain.id),
           from: account?.address,
           id,
-          version: version5
+          version: version4
         }
       ]
     }, { retryCount: 0 });
@@ -39267,7 +39370,7 @@ async function getCallsStatus(client, parameters) {
       params: [id]
     });
   }
-  const { atomic = false, chainId, receipts, version: version5 = "2.0.0", ...response } = await getStatus(parameters.id);
+  const { atomic = false, chainId, receipts, version: version4 = "2.0.0", ...response } = await getStatus(parameters.id);
   const [status, statusCode] = (() => {
     const statusCode2 = response.status;
     if (statusCode2 >= 100 && statusCode2 < 200)
@@ -39295,7 +39398,7 @@ async function getCallsStatus(client, parameters) {
     })) ?? [],
     statusCode,
     status,
-    version: version5
+    version: version4
   };
 }
 
@@ -40164,7 +40267,7 @@ var Eip712DomainNotFoundError = class extends BaseError2 {
 async function getEip712Domain(client, parameters) {
   const { address, factory, factoryData } = parameters;
   try {
-    const [fields, name, version5, chainId, verifyingContract, salt, extensions] = await getAction(client, readContract, "readContract")({
+    const [fields, name, version4, chainId, verifyingContract, salt, extensions] = await getAction(client, readContract, "readContract")({
       abi,
       address,
       functionName: "eip712Domain",
@@ -40174,7 +40277,7 @@ async function getEip712Domain(client, parameters) {
     return {
       domain: {
         name,
-        version: version5,
+        version: version4,
         chainId: Number(chainId),
         verifyingContract,
         salt
@@ -40295,13 +40398,13 @@ function assertTransactionEIP4844(transaction) {
       throw new EmptyBlobError();
     for (const hash3 of blobVersionedHashes) {
       const size_ = size(hash3);
-      const version5 = hexToNumber(slice(hash3, 0, 1));
+      const version4 = hexToNumber(slice(hash3, 0, 1));
       if (size_ !== 32)
         throw new InvalidVersionedHashSizeError({ hash: hash3, size: size_ });
-      if (version5 !== versionedHashVersionKzg)
+      if (version4 !== versionedHashVersionKzg)
         throw new InvalidVersionedHashVersionError({
           hash: hash3,
-          version: version5
+          version: version4
         });
     }
   }
@@ -41194,786 +41297,8 @@ __export(SignatureErc8010_exports, {
   wrap: () => wrap
 });
 
-// node_modules/ox/node_modules/abitype/dist/esm/version.js
-var version4 = "1.1.1";
-
-// node_modules/ox/node_modules/abitype/dist/esm/errors.js
-var BaseError4 = class _BaseError extends Error {
-  constructor(shortMessage, args = {}) {
-    const details = args.cause instanceof _BaseError ? args.cause.details : args.cause?.message ? args.cause.message : args.details;
-    const docsPath8 = args.cause instanceof _BaseError ? args.cause.docsPath || args.docsPath : args.docsPath;
-    const message = [
-      shortMessage || "An error occurred.",
-      "",
-      ...args.metaMessages ? [...args.metaMessages, ""] : [],
-      ...docsPath8 ? [`Docs: https://abitype.dev${docsPath8}`] : [],
-      ...details ? [`Details: ${details}`] : [],
-      `Version: abitype@${version4}`
-    ].join("\n");
-    super(message);
-    Object.defineProperty(this, "details", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: void 0
-    });
-    Object.defineProperty(this, "docsPath", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: void 0
-    });
-    Object.defineProperty(this, "metaMessages", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: void 0
-    });
-    Object.defineProperty(this, "shortMessage", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: void 0
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "AbiTypeError"
-    });
-    if (args.cause)
-      this.cause = args.cause;
-    this.details = details;
-    this.docsPath = docsPath8;
-    this.metaMessages = args.metaMessages;
-    this.shortMessage = shortMessage;
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/regex.js
-function execTyped2(regex, string) {
-  const match = regex.exec(string);
-  return match?.groups;
-}
-var bytesRegex3 = /^bytes([1-9]|1[0-9]|2[0-9]|3[0-2])?$/;
-var integerRegex3 = /^u?int(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/;
-var isTupleRegex2 = /^\(.+?\).*?$/;
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/formatAbiParameter.js
-var tupleRegex2 = /^tuple(?<array>(\[(\d*)\])*)$/;
-function formatAbiParameter2(abiParameter) {
-  let type = abiParameter.type;
-  if (tupleRegex2.test(abiParameter.type) && "components" in abiParameter) {
-    type = "(";
-    const length = abiParameter.components.length;
-    for (let i = 0; i < length; i++) {
-      const component = abiParameter.components[i];
-      type += formatAbiParameter2(component);
-      if (i < length - 1)
-        type += ", ";
-    }
-    const result = execTyped2(tupleRegex2, abiParameter.type);
-    type += `)${result?.array ?? ""}`;
-    return formatAbiParameter2({
-      ...abiParameter,
-      type
-    });
-  }
-  if ("indexed" in abiParameter && abiParameter.indexed)
-    type = `${type} indexed`;
-  if (abiParameter.name)
-    return `${type} ${abiParameter.name}`;
-  return type;
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/formatAbiParameters.js
-function formatAbiParameters2(abiParameters) {
-  let params = "";
-  const length = abiParameters.length;
-  for (let i = 0; i < length; i++) {
-    const abiParameter = abiParameters[i];
-    params += formatAbiParameter2(abiParameter);
-    if (i !== length - 1)
-      params += ", ";
-  }
-  return params;
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/formatAbiItem.js
-function formatAbiItem3(abiItem) {
-  if (abiItem.type === "function")
-    return `function ${abiItem.name}(${formatAbiParameters2(abiItem.inputs)})${abiItem.stateMutability && abiItem.stateMutability !== "nonpayable" ? ` ${abiItem.stateMutability}` : ""}${abiItem.outputs?.length ? ` returns (${formatAbiParameters2(abiItem.outputs)})` : ""}`;
-  if (abiItem.type === "event")
-    return `event ${abiItem.name}(${formatAbiParameters2(abiItem.inputs)})`;
-  if (abiItem.type === "error")
-    return `error ${abiItem.name}(${formatAbiParameters2(abiItem.inputs)})`;
-  if (abiItem.type === "constructor")
-    return `constructor(${formatAbiParameters2(abiItem.inputs)})${abiItem.stateMutability === "payable" ? " payable" : ""}`;
-  if (abiItem.type === "fallback")
-    return `fallback() external${abiItem.stateMutability === "payable" ? " payable" : ""}`;
-  return "receive() external payable";
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/runtime/signatures.js
-var errorSignatureRegex2 = /^error (?<name>[a-zA-Z$_][a-zA-Z0-9$_]*)\((?<parameters>.*?)\)$/;
-function isErrorSignature2(signature) {
-  return errorSignatureRegex2.test(signature);
-}
-function execErrorSignature2(signature) {
-  return execTyped2(errorSignatureRegex2, signature);
-}
-var eventSignatureRegex2 = /^event (?<name>[a-zA-Z$_][a-zA-Z0-9$_]*)\((?<parameters>.*?)\)$/;
-function isEventSignature2(signature) {
-  return eventSignatureRegex2.test(signature);
-}
-function execEventSignature2(signature) {
-  return execTyped2(eventSignatureRegex2, signature);
-}
-var functionSignatureRegex2 = /^function (?<name>[a-zA-Z$_][a-zA-Z0-9$_]*)\((?<parameters>.*?)\)(?: (?<scope>external|public{1}))?(?: (?<stateMutability>pure|view|nonpayable|payable{1}))?(?: returns\s?\((?<returns>.*?)\))?$/;
-function isFunctionSignature2(signature) {
-  return functionSignatureRegex2.test(signature);
-}
-function execFunctionSignature2(signature) {
-  return execTyped2(functionSignatureRegex2, signature);
-}
-var structSignatureRegex2 = /^struct (?<name>[a-zA-Z$_][a-zA-Z0-9$_]*) \{(?<properties>.*?)\}$/;
-function isStructSignature2(signature) {
-  return structSignatureRegex2.test(signature);
-}
-function execStructSignature2(signature) {
-  return execTyped2(structSignatureRegex2, signature);
-}
-var constructorSignatureRegex2 = /^constructor\((?<parameters>.*?)\)(?:\s(?<stateMutability>payable{1}))?$/;
-function isConstructorSignature2(signature) {
-  return constructorSignatureRegex2.test(signature);
-}
-function execConstructorSignature2(signature) {
-  return execTyped2(constructorSignatureRegex2, signature);
-}
-var fallbackSignatureRegex2 = /^fallback\(\) external(?:\s(?<stateMutability>payable{1}))?$/;
-function isFallbackSignature2(signature) {
-  return fallbackSignatureRegex2.test(signature);
-}
-function execFallbackSignature2(signature) {
-  return execTyped2(fallbackSignatureRegex2, signature);
-}
-var receiveSignatureRegex2 = /^receive\(\) external payable$/;
-function isReceiveSignature2(signature) {
-  return receiveSignatureRegex2.test(signature);
-}
-var modifiers = /* @__PURE__ */ new Set([
-  "memory",
-  "indexed",
-  "storage",
-  "calldata"
-]);
-var eventModifiers2 = /* @__PURE__ */ new Set(["indexed"]);
-var functionModifiers2 = /* @__PURE__ */ new Set([
-  "calldata",
-  "memory",
-  "storage"
-]);
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/errors/abiItem.js
-var InvalidAbiItemError = class extends BaseError4 {
-  constructor({ signature }) {
-    super("Failed to parse ABI item.", {
-      details: `parseAbiItem(${JSON.stringify(signature, null, 2)})`,
-      docsPath: "/api/human#parseabiitem-1"
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidAbiItemError"
-    });
-  }
-};
-var UnknownTypeError2 = class extends BaseError4 {
-  constructor({ type }) {
-    super("Unknown type.", {
-      metaMessages: [
-        `Type "${type}" is not a valid ABI type. Perhaps you forgot to include a struct signature?`
-      ]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "UnknownTypeError"
-    });
-  }
-};
-var UnknownSolidityTypeError2 = class extends BaseError4 {
-  constructor({ type }) {
-    super("Unknown type.", {
-      metaMessages: [`Type "${type}" is not a valid ABI type.`]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "UnknownSolidityTypeError"
-    });
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/errors/abiParameter.js
-var InvalidAbiParametersError = class extends BaseError4 {
-  constructor({ params }) {
-    super("Failed to parse ABI parameters.", {
-      details: `parseAbiParameters(${JSON.stringify(params, null, 2)})`,
-      docsPath: "/api/human#parseabiparameters-1"
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidAbiParametersError"
-    });
-  }
-};
-var InvalidParameterError2 = class extends BaseError4 {
-  constructor({ param }) {
-    super("Invalid ABI parameter.", {
-      details: param
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidParameterError"
-    });
-  }
-};
-var SolidityProtectedKeywordError2 = class extends BaseError4 {
-  constructor({ param, name }) {
-    super("Invalid ABI parameter.", {
-      details: param,
-      metaMessages: [
-        `"${name}" is a protected Solidity keyword. More info: https://docs.soliditylang.org/en/latest/cheatsheet.html`
-      ]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "SolidityProtectedKeywordError"
-    });
-  }
-};
-var InvalidModifierError2 = class extends BaseError4 {
-  constructor({ param, type, modifier }) {
-    super("Invalid ABI parameter.", {
-      details: param,
-      metaMessages: [
-        `Modifier "${modifier}" not allowed${type ? ` in "${type}" type` : ""}.`
-      ]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidModifierError"
-    });
-  }
-};
-var InvalidFunctionModifierError2 = class extends BaseError4 {
-  constructor({ param, type, modifier }) {
-    super("Invalid ABI parameter.", {
-      details: param,
-      metaMessages: [
-        `Modifier "${modifier}" not allowed${type ? ` in "${type}" type` : ""}.`,
-        `Data location can only be specified for array, struct, or mapping types, but "${modifier}" was given.`
-      ]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidFunctionModifierError"
-    });
-  }
-};
-var InvalidAbiTypeParameterError2 = class extends BaseError4 {
-  constructor({ abiParameter }) {
-    super("Invalid ABI parameter.", {
-      details: JSON.stringify(abiParameter, null, 2),
-      metaMessages: ["ABI parameter type is invalid."]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidAbiTypeParameterError"
-    });
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/errors/signature.js
-var InvalidSignatureError2 = class extends BaseError4 {
-  constructor({ signature, type }) {
-    super(`Invalid ${type} signature.`, {
-      details: signature
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidSignatureError"
-    });
-  }
-};
-var UnknownSignatureError2 = class extends BaseError4 {
-  constructor({ signature }) {
-    super("Unknown signature.", {
-      details: signature
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "UnknownSignatureError"
-    });
-  }
-};
-var InvalidStructSignatureError2 = class extends BaseError4 {
-  constructor({ signature }) {
-    super("Invalid struct signature.", {
-      details: signature,
-      metaMessages: ["No properties exist."]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidStructSignatureError"
-    });
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/errors/struct.js
-var CircularReferenceError2 = class extends BaseError4 {
-  constructor({ type }) {
-    super("Circular reference detected.", {
-      metaMessages: [`Struct "${type}" is a circular reference.`]
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "CircularReferenceError"
-    });
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/errors/splitParameters.js
-var InvalidParenthesisError2 = class extends BaseError4 {
-  constructor({ current, depth }) {
-    super("Unbalanced parentheses.", {
-      metaMessages: [
-        `"${current.trim()}" has too many ${depth > 0 ? "opening" : "closing"} parentheses.`
-      ],
-      details: `Depth "${depth}"`
-    });
-    Object.defineProperty(this, "name", {
-      enumerable: true,
-      configurable: true,
-      writable: true,
-      value: "InvalidParenthesisError"
-    });
-  }
-};
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/runtime/cache.js
-function getParameterCacheKey2(param, type, structs) {
-  let structKey = "";
-  if (structs)
-    for (const struct of Object.entries(structs)) {
-      if (!struct)
-        continue;
-      let propertyKey = "";
-      for (const property of struct[1]) {
-        propertyKey += `[${property.type}${property.name ? `:${property.name}` : ""}]`;
-      }
-      structKey += `(${struct[0]}{${propertyKey}})`;
-    }
-  if (type)
-    return `${type}:${param}${structKey}`;
-  return param;
-}
-var parameterCache2 = /* @__PURE__ */ new Map([
-  // Unnamed
-  ["address", { type: "address" }],
-  ["bool", { type: "bool" }],
-  ["bytes", { type: "bytes" }],
-  ["bytes32", { type: "bytes32" }],
-  ["int", { type: "int256" }],
-  ["int256", { type: "int256" }],
-  ["string", { type: "string" }],
-  ["uint", { type: "uint256" }],
-  ["uint8", { type: "uint8" }],
-  ["uint16", { type: "uint16" }],
-  ["uint24", { type: "uint24" }],
-  ["uint32", { type: "uint32" }],
-  ["uint64", { type: "uint64" }],
-  ["uint96", { type: "uint96" }],
-  ["uint112", { type: "uint112" }],
-  ["uint160", { type: "uint160" }],
-  ["uint192", { type: "uint192" }],
-  ["uint256", { type: "uint256" }],
-  // Named
-  ["address owner", { type: "address", name: "owner" }],
-  ["address to", { type: "address", name: "to" }],
-  ["bool approved", { type: "bool", name: "approved" }],
-  ["bytes _data", { type: "bytes", name: "_data" }],
-  ["bytes data", { type: "bytes", name: "data" }],
-  ["bytes signature", { type: "bytes", name: "signature" }],
-  ["bytes32 hash", { type: "bytes32", name: "hash" }],
-  ["bytes32 r", { type: "bytes32", name: "r" }],
-  ["bytes32 root", { type: "bytes32", name: "root" }],
-  ["bytes32 s", { type: "bytes32", name: "s" }],
-  ["string name", { type: "string", name: "name" }],
-  ["string symbol", { type: "string", name: "symbol" }],
-  ["string tokenURI", { type: "string", name: "tokenURI" }],
-  ["uint tokenId", { type: "uint256", name: "tokenId" }],
-  ["uint8 v", { type: "uint8", name: "v" }],
-  ["uint256 balance", { type: "uint256", name: "balance" }],
-  ["uint256 tokenId", { type: "uint256", name: "tokenId" }],
-  ["uint256 value", { type: "uint256", name: "value" }],
-  // Indexed
-  [
-    "event:address indexed from",
-    { type: "address", name: "from", indexed: true }
-  ],
-  ["event:address indexed to", { type: "address", name: "to", indexed: true }],
-  [
-    "event:uint indexed tokenId",
-    { type: "uint256", name: "tokenId", indexed: true }
-  ],
-  [
-    "event:uint256 indexed tokenId",
-    { type: "uint256", name: "tokenId", indexed: true }
-  ]
-]);
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/runtime/utils.js
-function parseSignature2(signature, structs = {}) {
-  if (isFunctionSignature2(signature))
-    return parseFunctionSignature2(signature, structs);
-  if (isEventSignature2(signature))
-    return parseEventSignature2(signature, structs);
-  if (isErrorSignature2(signature))
-    return parseErrorSignature2(signature, structs);
-  if (isConstructorSignature2(signature))
-    return parseConstructorSignature2(signature, structs);
-  if (isFallbackSignature2(signature))
-    return parseFallbackSignature2(signature);
-  if (isReceiveSignature2(signature))
-    return {
-      type: "receive",
-      stateMutability: "payable"
-    };
-  throw new UnknownSignatureError2({ signature });
-}
-function parseFunctionSignature2(signature, structs = {}) {
-  const match = execFunctionSignature2(signature);
-  if (!match)
-    throw new InvalidSignatureError2({ signature, type: "function" });
-  const inputParams = splitParameters2(match.parameters);
-  const inputs = [];
-  const inputLength = inputParams.length;
-  for (let i = 0; i < inputLength; i++) {
-    inputs.push(parseAbiParameter2(inputParams[i], {
-      modifiers: functionModifiers2,
-      structs,
-      type: "function"
-    }));
-  }
-  const outputs = [];
-  if (match.returns) {
-    const outputParams = splitParameters2(match.returns);
-    const outputLength = outputParams.length;
-    for (let i = 0; i < outputLength; i++) {
-      outputs.push(parseAbiParameter2(outputParams[i], {
-        modifiers: functionModifiers2,
-        structs,
-        type: "function"
-      }));
-    }
-  }
-  return {
-    name: match.name,
-    type: "function",
-    stateMutability: match.stateMutability ?? "nonpayable",
-    inputs,
-    outputs
-  };
-}
-function parseEventSignature2(signature, structs = {}) {
-  const match = execEventSignature2(signature);
-  if (!match)
-    throw new InvalidSignatureError2({ signature, type: "event" });
-  const params = splitParameters2(match.parameters);
-  const abiParameters = [];
-  const length = params.length;
-  for (let i = 0; i < length; i++)
-    abiParameters.push(parseAbiParameter2(params[i], {
-      modifiers: eventModifiers2,
-      structs,
-      type: "event"
-    }));
-  return { name: match.name, type: "event", inputs: abiParameters };
-}
-function parseErrorSignature2(signature, structs = {}) {
-  const match = execErrorSignature2(signature);
-  if (!match)
-    throw new InvalidSignatureError2({ signature, type: "error" });
-  const params = splitParameters2(match.parameters);
-  const abiParameters = [];
-  const length = params.length;
-  for (let i = 0; i < length; i++)
-    abiParameters.push(parseAbiParameter2(params[i], { structs, type: "error" }));
-  return { name: match.name, type: "error", inputs: abiParameters };
-}
-function parseConstructorSignature2(signature, structs = {}) {
-  const match = execConstructorSignature2(signature);
-  if (!match)
-    throw new InvalidSignatureError2({ signature, type: "constructor" });
-  const params = splitParameters2(match.parameters);
-  const abiParameters = [];
-  const length = params.length;
-  for (let i = 0; i < length; i++)
-    abiParameters.push(parseAbiParameter2(params[i], { structs, type: "constructor" }));
-  return {
-    type: "constructor",
-    stateMutability: match.stateMutability ?? "nonpayable",
-    inputs: abiParameters
-  };
-}
-function parseFallbackSignature2(signature) {
-  const match = execFallbackSignature2(signature);
-  if (!match)
-    throw new InvalidSignatureError2({ signature, type: "fallback" });
-  return {
-    type: "fallback",
-    stateMutability: match.stateMutability ?? "nonpayable"
-  };
-}
-var abiParameterWithoutTupleRegex2 = /^(?<type>[a-zA-Z$_][a-zA-Z0-9$_]*(?:\spayable)?)(?<array>(?:\[\d*?\])+?)?(?:\s(?<modifier>calldata|indexed|memory|storage{1}))?(?:\s(?<name>[a-zA-Z$_][a-zA-Z0-9$_]*))?$/;
-var abiParameterWithTupleRegex2 = /^\((?<type>.+?)\)(?<array>(?:\[\d*?\])+?)?(?:\s(?<modifier>calldata|indexed|memory|storage{1}))?(?:\s(?<name>[a-zA-Z$_][a-zA-Z0-9$_]*))?$/;
-var dynamicIntegerRegex2 = /^u?int$/;
-function parseAbiParameter2(param, options) {
-  const parameterCacheKey = getParameterCacheKey2(param, options?.type, options?.structs);
-  if (parameterCache2.has(parameterCacheKey))
-    return parameterCache2.get(parameterCacheKey);
-  const isTuple = isTupleRegex2.test(param);
-  const match = execTyped2(isTuple ? abiParameterWithTupleRegex2 : abiParameterWithoutTupleRegex2, param);
-  if (!match)
-    throw new InvalidParameterError2({ param });
-  if (match.name && isSolidityKeyword2(match.name))
-    throw new SolidityProtectedKeywordError2({ param, name: match.name });
-  const name = match.name ? { name: match.name } : {};
-  const indexed = match.modifier === "indexed" ? { indexed: true } : {};
-  const structs = options?.structs ?? {};
-  let type;
-  let components = {};
-  if (isTuple) {
-    type = "tuple";
-    const params = splitParameters2(match.type);
-    const components_ = [];
-    const length = params.length;
-    for (let i = 0; i < length; i++) {
-      components_.push(parseAbiParameter2(params[i], { structs }));
-    }
-    components = { components: components_ };
-  } else if (match.type in structs) {
-    type = "tuple";
-    components = { components: structs[match.type] };
-  } else if (dynamicIntegerRegex2.test(match.type)) {
-    type = `${match.type}256`;
-  } else if (match.type === "address payable") {
-    type = "address";
-  } else {
-    type = match.type;
-    if (!(options?.type === "struct") && !isSolidityType2(type))
-      throw new UnknownSolidityTypeError2({ type });
-  }
-  if (match.modifier) {
-    if (!options?.modifiers?.has?.(match.modifier))
-      throw new InvalidModifierError2({
-        param,
-        type: options?.type,
-        modifier: match.modifier
-      });
-    if (functionModifiers2.has(match.modifier) && !isValidDataLocation2(type, !!match.array))
-      throw new InvalidFunctionModifierError2({
-        param,
-        type: options?.type,
-        modifier: match.modifier
-      });
-  }
-  const abiParameter = {
-    type: `${type}${match.array ?? ""}`,
-    ...name,
-    ...indexed,
-    ...components
-  };
-  parameterCache2.set(parameterCacheKey, abiParameter);
-  return abiParameter;
-}
-function splitParameters2(params, result = [], current = "", depth = 0) {
-  const length = params.trim().length;
-  for (let i = 0; i < length; i++) {
-    const char = params[i];
-    const tail = params.slice(i + 1);
-    switch (char) {
-      case ",":
-        return depth === 0 ? splitParameters2(tail, [...result, current.trim()]) : splitParameters2(tail, result, `${current}${char}`, depth);
-      case "(":
-        return splitParameters2(tail, result, `${current}${char}`, depth + 1);
-      case ")":
-        return splitParameters2(tail, result, `${current}${char}`, depth - 1);
-      default:
-        return splitParameters2(tail, result, `${current}${char}`, depth);
-    }
-  }
-  if (current === "")
-    return result;
-  if (depth !== 0)
-    throw new InvalidParenthesisError2({ current, depth });
-  result.push(current.trim());
-  return result;
-}
-function isSolidityType2(type) {
-  return type === "address" || type === "bool" || type === "function" || type === "string" || bytesRegex3.test(type) || integerRegex3.test(type);
-}
-var protectedKeywordsRegex2 = /^(?:after|alias|anonymous|apply|auto|byte|calldata|case|catch|constant|copyof|default|defined|error|event|external|false|final|function|immutable|implements|in|indexed|inline|internal|let|mapping|match|memory|mutable|null|of|override|partial|private|promise|public|pure|reference|relocatable|return|returns|sizeof|static|storage|struct|super|supports|switch|this|true|try|typedef|typeof|var|view|virtual)$/;
-function isSolidityKeyword2(name) {
-  return name === "address" || name === "bool" || name === "function" || name === "string" || name === "tuple" || bytesRegex3.test(name) || integerRegex3.test(name) || protectedKeywordsRegex2.test(name);
-}
-function isValidDataLocation2(type, isArray2) {
-  return isArray2 || type === "bytes" || type === "string" || type === "tuple";
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/runtime/structs.js
-function parseStructs2(signatures) {
-  const shallowStructs = {};
-  const signaturesLength = signatures.length;
-  for (let i = 0; i < signaturesLength; i++) {
-    const signature = signatures[i];
-    if (!isStructSignature2(signature))
-      continue;
-    const match = execStructSignature2(signature);
-    if (!match)
-      throw new InvalidSignatureError2({ signature, type: "struct" });
-    const properties = match.properties.split(";");
-    const components = [];
-    const propertiesLength = properties.length;
-    for (let k = 0; k < propertiesLength; k++) {
-      const property = properties[k];
-      const trimmed = property.trim();
-      if (!trimmed)
-        continue;
-      const abiParameter = parseAbiParameter2(trimmed, {
-        type: "struct"
-      });
-      components.push(abiParameter);
-    }
-    if (!components.length)
-      throw new InvalidStructSignatureError2({ signature });
-    shallowStructs[match.name] = components;
-  }
-  const resolvedStructs = {};
-  const entries = Object.entries(shallowStructs);
-  const entriesLength = entries.length;
-  for (let i = 0; i < entriesLength; i++) {
-    const [name, parameters] = entries[i];
-    resolvedStructs[name] = resolveStructs2(parameters, shallowStructs);
-  }
-  return resolvedStructs;
-}
-var typeWithoutTupleRegex2 = /^(?<type>[a-zA-Z$_][a-zA-Z0-9$_]*)(?<array>(?:\[\d*?\])+?)?$/;
-function resolveStructs2(abiParameters, structs, ancestors = /* @__PURE__ */ new Set()) {
-  const components = [];
-  const length = abiParameters.length;
-  for (let i = 0; i < length; i++) {
-    const abiParameter = abiParameters[i];
-    const isTuple = isTupleRegex2.test(abiParameter.type);
-    if (isTuple)
-      components.push(abiParameter);
-    else {
-      const match = execTyped2(typeWithoutTupleRegex2, abiParameter.type);
-      if (!match?.type)
-        throw new InvalidAbiTypeParameterError2({ abiParameter });
-      const { array, type } = match;
-      if (type in structs) {
-        if (ancestors.has(type))
-          throw new CircularReferenceError2({ type });
-        components.push({
-          ...abiParameter,
-          type: `tuple${array ?? ""}`,
-          components: resolveStructs2(structs[type] ?? [], structs, /* @__PURE__ */ new Set([...ancestors, type]))
-        });
-      } else {
-        if (isSolidityType2(type))
-          components.push(abiParameter);
-        else
-          throw new UnknownTypeError2({ type });
-      }
-    }
-  }
-  return components;
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/parseAbiItem.js
-function parseAbiItem(signature) {
-  let abiItem;
-  if (typeof signature === "string")
-    abiItem = parseSignature2(signature);
-  else {
-    const structs = parseStructs2(signature);
-    const length = signature.length;
-    for (let i = 0; i < length; i++) {
-      const signature_ = signature[i];
-      if (isStructSignature2(signature_))
-        continue;
-      abiItem = parseSignature2(signature_, structs);
-      break;
-    }
-  }
-  if (!abiItem)
-    throw new InvalidAbiItemError({ signature });
-  return abiItem;
-}
-
-// node_modules/ox/node_modules/abitype/dist/esm/human-readable/parseAbiParameters.js
-function parseAbiParameters(params) {
-  const abiParameters = [];
-  if (typeof params === "string") {
-    const parameters = splitParameters2(params);
-    const length = parameters.length;
-    for (let i = 0; i < length; i++) {
-      abiParameters.push(parseAbiParameter2(parameters[i], { modifiers }));
-    }
-  } else {
-    const structs = parseStructs2(params);
-    const length = params.length;
-    for (let i = 0; i < length; i++) {
-      const signature = params[i];
-      if (isStructSignature2(signature))
-        continue;
-      const parameters = splitParameters2(signature);
-      const length2 = parameters.length;
-      for (let k = 0; k < length2; k++) {
-        abiParameters.push(parseAbiParameter2(parameters[k], { modifiers, structs }));
-      }
-    }
-  }
-  if (abiParameters.length === 0)
-    throw new InvalidAbiParametersError({ params });
-  return abiParameters;
-}
+// node_modules/ox/_esm/core/AbiParameters.js
+init_exports();
 
 // node_modules/ox/_esm/core/Address.js
 init_Bytes();
@@ -42289,8 +41614,8 @@ init_Hex();
 
 // node_modules/ox/_esm/core/Solidity.js
 var arrayRegex = /^(.*)\[([0-9]*)\]$/;
-var bytesRegex4 = /^bytes([1-9]|1[0-9]|2[0-9]|3[0-2])?$/;
-var integerRegex4 = /^(u?int)(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/;
+var bytesRegex3 = /^bytes([1-9]|1[0-9]|2[0-9]|3[0-2])?$/;
+var integerRegex3 = /^(u?int)(8|16|24|32|40|48|56|64|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216|224|232|240|248|256)?$/;
 var maxInt82 = 2n ** (8n - 1n) - 1n;
 var maxInt162 = 2n ** (16n - 1n) - 1n;
 var maxInt242 = 2n ** (24n - 1n) - 1n;
@@ -42587,7 +41912,7 @@ function prepareParameter({ checksumAddress: checksumAddress2 = false, parameter
   }
   if (parameter.type.startsWith("uint") || parameter.type.startsWith("int")) {
     const signed = parameter.type.startsWith("int");
-    const [, , size5 = "256"] = integerRegex4.exec(parameter.type) ?? [];
+    const [, , size5 = "256"] = integerRegex3.exec(parameter.type) ?? [];
     return encodeNumber2(value, {
       signed,
       size: Number(size5)
@@ -43054,7 +42379,7 @@ function encodePacked(types, values) {
       return value;
     if (type === "bool")
       return padLeft(fromBoolean(value), isArray2 ? 32 : 1);
-    const intMatch = type.match(integerRegex4);
+    const intMatch = type.match(integerRegex3);
     if (intMatch) {
       const [_type, baseType, bits = "256"] = intMatch;
       const size5 = Number.parseInt(bits, 10) / 8;
@@ -43063,7 +42388,7 @@ function encodePacked(types, values) {
         signed: baseType === "int"
       });
     }
-    const bytesMatch = type.match(bytesRegex4);
+    const bytesMatch = type.match(bytesRegex3);
     if (bytesMatch) {
       const [_type, size5] = bytesMatch;
       if (Number.parseInt(size5, 10) !== (value.length - 2) / 2)
@@ -43099,7 +42424,7 @@ var DataSizeTooSmallError = class extends BaseError3 {
   constructor({ data, parameters, size: size5 }) {
     super(`Data size of ${size5} bytes is too small for given parameters.`, {
       metaMessages: [
-        `Params: (${formatAbiParameters2(parameters)})`,
+        `Params: (${formatAbiParameters(parameters)})`,
         `Data:   ${data} (${size5} bytes)`
       ]
     });
@@ -43934,6 +43259,7 @@ async function simulateBlocks(client, parameters) {
 }
 
 // node_modules/ox/_esm/core/AbiItem.js
+init_exports();
 init_Errors();
 init_Hex();
 
@@ -44133,7 +43459,7 @@ function getSignature(abiItem) {
   const signature = (() => {
     if (typeof abiItem === "string")
       return abiItem;
-    return formatAbiItem3(abiItem);
+    return formatAbiItem(abiItem);
   })();
   return normalizeSignature2(signature);
 }
@@ -44147,8 +43473,8 @@ var AmbiguityError = class extends BaseError3 {
     super("Found ambiguous types in overloaded ABI Items.", {
       metaMessages: [
         // TODO: abitype to add support for signature-formatted ABI items.
-        `\`${x.type}\` in \`${normalizeSignature2(formatAbiItem3(x.abiItem))}\`, and`,
-        `\`${y.type}\` in \`${normalizeSignature2(formatAbiItem3(y.abiItem))}\``,
+        `\`${x.type}\` in \`${normalizeSignature2(formatAbiItem(x.abiItem))}\`, and`,
+        `\`${y.type}\` in \`${normalizeSignature2(formatAbiItem(y.abiItem))}\``,
         "",
         "These types encode differently and cannot be distinguished at runtime.",
         "Remove one of the ambiguous items in the ABI."
@@ -49246,23 +48572,23 @@ var validators = {};
   };
 });
 var deprecatedWarnings = {};
-validators.transitional = function transitional(validator, version5, message) {
+validators.transitional = function transitional(validator, version4, message) {
   function formatMessage(opt, desc) {
     return "[Axios v" + VERSION + "] Transitional option '" + opt + "'" + desc + (message ? ". " + message : "");
   }
   return (value, opt, opts) => {
     if (validator === false) {
       throw new AxiosError_default(
-        formatMessage(opt, " has been removed" + (version5 ? " in " + version5 : "")),
+        formatMessage(opt, " has been removed" + (version4 ? " in " + version4 : "")),
         AxiosError_default.ERR_DEPRECATED
       );
     }
-    if (version5 && !deprecatedWarnings[opt]) {
+    if (version4 && !deprecatedWarnings[opt]) {
       deprecatedWarnings[opt] = true;
       console.warn(
         formatMessage(
           opt,
-          " has been deprecated since v" + version5 + " and will be removed in the near future"
+          " has been deprecated since v" + version4 + " and will be removed in the near future"
         )
       );
     }
@@ -52264,7 +51590,8 @@ var globalConfig = {
   },
   BLOCK_MANAGER: {
     pollingIntervalMs: getEnvInt("BLOCK_MANAGER_POLLING_INTERVAL_MS", sec(5)),
-    catchupBatchSize: getEnvBigint("BLOCK_MANAGER_CATCHUP_BATCH_SIZE", 500n)
+    catchupBatchSize: getEnvBigint("BLOCK_MANAGER_CATCHUP_BATCH_SIZE", 500n),
+    useCheckpoints: getEnvBool("BLOCK_MANAGER_USE_CHECKPOINTS", false)
   },
   BALANCE_MANAGER: {
     pollingIntervalMs: getEnvInt("BALANCE_MANAGER_POLLING_INTERVAL_MS", min(10)),
