@@ -51590,7 +51590,7 @@ var TxReader = class _TxReader {
     );
   }
   static createInstance(logger, viemClientManager, config) {
-    _TxReader.instance = new _TxReader(logger, viemClientManager, config);
+    _TxReader.instance = new _TxReader(config, logger, viemClientManager);
     return _TxReader.instance;
   }
   static getInstance() {
