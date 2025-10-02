@@ -45,5 +45,6 @@ export interface ITxReader {
 /** Configuration for TxReader */
 export interface TxReaderConfig {
     pollingIntervalMs: number;
+    getLogsBlockRange: bigint;
 }
 //# sourceMappingURL=ITxReader.d.ts.map

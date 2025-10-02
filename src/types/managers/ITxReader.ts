@@ -75,4 +75,5 @@ export interface ITxReader {
 /** Configuration for TxReader */
 export interface TxReaderConfig {
     pollingIntervalMs: number;
+    getLogsBlockRange: bigint;
 }

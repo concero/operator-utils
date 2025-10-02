@@ -1,6 +1,7 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery } from '../types/managers';
+export type LogsWatcherId = string;
 export interface BulkCallbackResult<V = unknown> {
     watcherId: string;
     network: ConceroNetwork;
@@ -18,8 +19,10 @@ export interface BulkCallbackPayload {
 }
 type BulkCallback = (payload: BulkCallbackPayload) => Promise<void>;
 export declare class TxReader implements ITxReader {
+    private readonly config;
     private readonly logger;
     private readonly viemClientManager;
+    private readonly logsListenerBlockCheckpointStore?;
     private static instance;
     private readonly logWatchers;
     private readonly readContractWatchers;
@@ -28,6 +31,9 @@ export declare class TxReader implements ITxReader {
     private globalReadInterval?;
     private isGlobalLoopRunning;
     private readonly pollingIntervalMs;
+    private targetBlockHeight;
+    private lastProcessedBlock;
+    private readonly pQueue;
     private constructor();
     static createInstance(logger: ILogger, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
     static getInstance(): TxReader;
@@ -65,8 +71,9 @@ export declare class TxReader implements ITxReader {
     private executeContractBatch;
     private executeMethodBatch;
     private withTimeout;
+    private pumpGetLogsQueue;
     private fetchLogsForWatcher;
-    getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]>;
+    getLogs(q: LogQuery, n: ConceroNetwork): Promise<import("viem").GetLogsReturnType<AbiEvent, [AbiEvent], undefined, bigint, bigint>>;
 }
 export {};
 //# sourceMappingURL=TxReader.d.ts.map

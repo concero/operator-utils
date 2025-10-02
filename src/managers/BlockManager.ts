@@ -1,5 +1,4 @@
 import { type PublicClient } from 'viem';
-import { IBlockCheckpointManager } from '@/types/managers/IBlockCheckpointManager';
 
 import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 import { generateUid } from '../utils';
@@ -36,7 +35,6 @@ export class BlockManager implements IBlockManager {
         network: ConceroNetwork,
         publicClient: PublicClient,
         logger: ILogger,
-        private blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         this.publicClient = publicClient;
         this.network = network;
@@ -49,10 +47,9 @@ export class BlockManager implements IBlockManager {
         network: ConceroNetwork,
         publicClient: PublicClient,
         logger: ILogger,
-        blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         logger.debug(`${network.name}: Creating new instance`);
-        return new BlockManager(config, network, publicClient, logger, blockCheckpointManager);
+        return new BlockManager(config, network, publicClient, logger);
     }
 
     public async startPolling() {
@@ -61,7 +58,7 @@ export class BlockManager implements IBlockManager {
             return;
         }
 
-        this.lastReportedBlockNumber = await this.getStartBlockNumber();
+        this.lastReportedBlockNumber = await this.fetchLastBlockNumber();
         this.isPolling = true;
 
         // await this.performCatchup();
@@ -91,10 +88,6 @@ export class BlockManager implements IBlockManager {
             if (this.latestBlock > this.lastReportedBlockNumber) {
                 await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
                 this.lastReportedBlockNumber = this.latestBlock;
-                await this.blockCheckpointManager?.updateLastProcessedBlock(
-                    Number(this.network.chainSelector),
-                    this.lastReportedBlockNumber,
-                );
             }
         } catch (error) {
             this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
@@ -111,18 +104,6 @@ export class BlockManager implements IBlockManager {
 
     private async fetchLastBlockNumber() {
         return await this.publicClient.getBlockNumber({ cacheTime: 0 });
-    }
-
-    private async getStartBlockNumber() {
-        const blockCheckpoint = await this.blockCheckpointManager?.getCheckpoint(
-            Number(this.network.chainSelector),
-        );
-
-        if (blockCheckpoint != undefined) {
-            return blockCheckpoint;
-        } else {
-            return await this.fetchLastBlockNumber();
-        }
     }
 
     private async notifySubscribers(startBlock: bigint, endBlock: bigint) {

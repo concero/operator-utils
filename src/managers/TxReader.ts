@@ -1,4 +1,8 @@
-import { Abi, AbiEvent, Address, Log } from 'viem';
+import { Abi, AbiEvent, Address, Log, withRetry } from 'viem';
+import { ILogsListenerBlockCheckpointStore } from '@/types/managers/ILogsListenerBlockCheckpointStore';
+import { asyncRetry } from '@/utils/asyncRetry';
+import { minBigint } from '@/utils/bigIntMath';
+import PQueue from 'p-queue';
 
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers';
@@ -21,6 +25,8 @@ type MethodWatcher = {
     bulkId?: string;
     timeoutMs?: number;
 };
+
+export type LogsWatcherId = string;
 
 export interface BulkCallbackResult<V = unknown> {
     watcherId: string;
@@ -54,10 +60,16 @@ export class TxReader implements ITxReader {
     private isGlobalLoopRunning = false;
     private readonly pollingIntervalMs: number;
 
+    private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
+    private lastProcessedBlock: Record<number, Record<Address, bigint>> = {};
+
+    private readonly pQueue = new PQueue({ concurrency: 1 });
+
     private constructor(
+        private readonly config: TxReaderConfig,
         private readonly logger: ILogger,
         private readonly viemClientManager: IViemClientManager,
-        config: TxReaderConfig,
+        private readonly logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore,
     ) {
         this.pollingIntervalMs = config.pollingIntervalMs;
         this.logger.debug(
@@ -79,7 +91,7 @@ export class TxReader implements ITxReader {
         return TxReader.instance;
     }
 
-    public async initialize(): Promise<void> {
+    public async initialize() {
         this.logger.info('Initialized');
     }
 
@@ -93,7 +105,9 @@ export class TxReader implements ITxReader {
         ): string => {
             const id = generateUid();
             const unwatch = blockManager.watchBlocks({
-                onBlockRange: (from: bigint, to: bigint) => this.fetchLogsForWatcher(id, from, to),
+                onBlockRange: (from: bigint, to: bigint) => {
+                    this.pumpGetLogsQueue(id, network, contractAddress, from, to);
+                },
             });
             this.logWatchers.set(id, {
                 id,
@@ -104,9 +118,25 @@ export class TxReader implements ITxReader {
                 blockManager,
                 unwatch,
             });
+
+            this.logsListenerBlockCheckpointStore
+                ?.getBlockCheckpoint(Number(network.chainSelector), contractAddress)
+                .then(res => {
+                    this.lastProcessedBlock[Number(network.chainSelector)][contractAddress] = res;
+                    this.logger.info(
+                        `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`,
+                    );
+                })
+                .catch(e => {
+                    this.logger.error(
+                        `Failed starting log listener from checkpoint ${network.name}:${contractAddress}`,
+                    );
+                });
+
             this.logger.debug(
                 `Created log watcher for ${network.name}:${contractAddress} (${event.name})`,
             );
+
             return id;
         },
         remove: (id: string): boolean => {
@@ -481,24 +511,65 @@ export class TxReader implements ITxReader {
         return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
     }
 
+    private pumpGetLogsQueue(
+        id: LogsWatcherId,
+        network: ConceroNetwork,
+        contractAddress: Address,
+        from: bigint,
+        to: bigint,
+    ) {
+        const numericChainSelector = Number(network.chainSelector);
+        this.targetBlockHeight[numericChainSelector][contractAddress] = to;
+
+        let fromBlockCursor = this.lastProcessedBlock[numericChainSelector][contractAddress];
+        let toBlockCursor = minBigint(to, from + this.config.getLogsBlockRange);
+        const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
+
+        while (toBlockCursor < targetBlock) {
+            this.pQueue
+                .add(() => this.fetchLogsForWatcher(id, fromBlockCursor, toBlockCursor))
+                .catch(e => {
+                    this.logger.debug(e);
+                });
+
+            fromBlockCursor = toBlockCursor + 1n;
+            toBlockCursor = minBigint(targetBlock, fromBlockCursor + this.config.getLogsBlockRange);
+        }
+    }
+
     private async fetchLogsForWatcher(id: string, from: bigint, to: bigint) {
         const w = this.logWatchers.get(id);
         if (!w) return;
 
         try {
-            const logs = await this.getLogs(
+            const logs = await asyncRetry(
+                () =>
+                    this.getLogs(
+                        {
+                            address: w.contractAddress,
+                            event: w.event!,
+                            fromBlock: from,
+                            toBlock: to,
+                        },
+                        w.network,
+                    ),
                 {
-                    address: w.contractAddress,
-                    event: w.event!,
-                    fromBlock: from,
-                    toBlock: to,
+                    maxRetries: 5,
                 },
-                w.network,
             );
-            if (logs.length)
+
+            if (logs.length) {
                 w.callback(logs, w.network).catch(e =>
                     this.logger.error(`fetchLogsForWatcher failed (${id})`, e),
                 );
+            }
+
+            this.lastProcessedBlock[Number(w.network.chainSelector)][w.contractAddress] = to;
+            await this.logsListenerBlockCheckpointStore?.updateBlockCheckpoint(
+                Number(w.network.chainSelector),
+                w.contractAddress,
+                to,
+            );
         } catch (e) {
             this.logger.error(
                 `fetchLogs failed (${id}): ${e instanceof Error ? e.message : String(e)}`,
@@ -506,7 +577,7 @@ export class TxReader implements ITxReader {
         }
     }
 
-    public async getLogs(q: LogQuery, n: ConceroNetwork): Promise<Log[]> {
+    public async getLogs(q: LogQuery, n: ConceroNetwork) {
         const { publicClient } = this.viemClientManager.getClients(n.name);
         try {
             return await publicClient.getLogs({

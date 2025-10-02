@@ -100,6 +100,7 @@ const globalConfig: GlobalConfig = {
     },
     TX_READER: {
         pollingIntervalMs: getEnvInt('TX_READER_POLLING_INTERVAL_MS', sec(10)),
+        getLogsBlockRange: getEnvBigint('TX_READER_GET_LOGS_RANGE', 100n),
     },
     TX_MONITOR: {
         maxInclusionWait: getEnvInt('TX_MONITOR_MAX_INCLUSION_WAIT', min(5)), // 5 minutes default
