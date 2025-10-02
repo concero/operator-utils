@@ -5,7 +5,7 @@ import { getGranularLogLevels, safeRequireJson } from '@/utils';
 import { min, sec } from '@/utils/time';
 
 const networkMode = getEnvString('NETWORK_MODE', 'testnet');
-const operatorPrivateKey = getEnvString('OPERATOR_PRIVATE_KEY');
+const operatorPrivateKey = getEnvString('OPERATOR_PRIVATE_KEY', '0x000');
 
 const globalConfig: GlobalConfig = {
     NETWORK_MODE: networkMode,

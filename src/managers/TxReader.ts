@@ -82,7 +82,7 @@ export class TxReader implements ITxReader {
         viemClientManager: IViemClientManager,
         config: TxReaderConfig,
     ): TxReader {
-        TxReader.instance = new TxReader(logger, viemClientManager, config);
+        TxReader.instance = new TxReader(config, logger, viemClientManager);
         return TxReader.instance;
     }
 
