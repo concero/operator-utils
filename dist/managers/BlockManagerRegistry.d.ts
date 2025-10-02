@@ -1,10 +1,8 @@
 import { PublicClient } from 'viem';
 import { BlockManager } from './BlockManager';
 import { ManagerBase } from './ManagerBase';
-import { IBlockCheckpointManager } from '@/types/managers/IBlockCheckpointManager';
 import { BlockManagerRegistryConfig, ConceroNetwork, IBlockManagerRegistry, IConceroNetworkManager, ILogger, IViemClientManager, NetworkUpdateListener } from '../types';
 export declare class BlockManagerRegistry extends ManagerBase implements IBlockManagerRegistry, NetworkUpdateListener {
-    private blockCheckpointManager?;
     private static instance;
     private blockManagers;
     private networkManager;
@@ -15,7 +13,7 @@ export declare class BlockManagerRegistry extends ManagerBase implements IBlockM
     onNetworksUpdated(networks: ConceroNetwork[]): Promise<void>;
     private ensureBlockManagerForNetwork;
     private updateBlockManagers;
-    static createInstance(config: BlockManagerRegistryConfig, logger: ILogger, networkManager: IConceroNetworkManager, viemClientManager: IViemClientManager, blockCheckpointManager?: IBlockCheckpointManager): BlockManagerRegistry;
+    static createInstance(config: BlockManagerRegistryConfig, logger: ILogger, networkManager: IConceroNetworkManager, viemClientManager: IViemClientManager): BlockManagerRegistry;
     static getInstance(): BlockManagerRegistry;
     initialize(): Promise<void>;
     createBlockManager(network: ConceroNetwork, publicClient: PublicClient): Promise<BlockManager>;

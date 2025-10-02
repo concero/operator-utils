@@ -49346,9 +49346,8 @@ var BlockManager = class _BlockManager {
 
 // src/managers/BlockManagerRegistry.ts
 var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
-  constructor(config, logger, networkManager, viemClientManager, blockCheckpointManager) {
+  constructor(config, logger, networkManager, viemClientManager) {
     super();
-    this.blockCheckpointManager = blockCheckpointManager;
     this.blockManagers = /* @__PURE__ */ new Map();
     this.logger = logger;
     this.networkManager = networkManager;
@@ -49404,13 +49403,12 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       );
     }
   }
-  static createInstance(config, logger, networkManager, viemClientManager, blockCheckpointManager) {
+  static createInstance(config, logger, networkManager, viemClientManager) {
     _BlockManagerRegistry.instance = new _BlockManagerRegistry(
       config,
       logger,
       networkManager,
-      viemClientManager,
-      blockCheckpointManager
+      viemClientManager
     );
     return _BlockManagerRegistry.instance;
   }
@@ -49440,8 +49438,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       this.config,
       network,
       publicClient,
-      this.logger,
-      this.blockCheckpointManager
+      this.logger
     );
     this.blockManagers.set(network.name, blockManager);
     this.logger.debug(`Created BlockManager for network ${network.name}`);
