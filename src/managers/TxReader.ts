@@ -135,7 +135,7 @@ export class TxReader implements ITxReader {
                 })
                 .catch(e => {
                     this.logger.error(
-                        `Failed starting log listener from checkpoint ${network.name}:${contractAddress}`,
+                        `Failed starting log listener from checkpoint ${network.name}:${contractAddress}, ${e}`,
                     );
                 });
 

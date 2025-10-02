@@ -51431,7 +51431,7 @@ var TxReader = class _TxReader {
           );
         }).catch((e) => {
           this.logger.error(
-            `Failed starting log listener from checkpoint ${network.name}:${contractAddress}`
+            `Failed starting log listener from checkpoint ${network.name}:${contractAddress}, ${e}`
           );
         });
         this.logger.debug(
