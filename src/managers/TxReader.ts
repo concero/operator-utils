@@ -98,6 +98,7 @@ export class TxReader implements ITxReader {
     }
 
     public async initialize() {
+        this.lastProcessedBlock = {};
         this.logger.info('Initialized');
     }
 
@@ -124,10 +125,12 @@ export class TxReader implements ITxReader {
                 blockManager,
                 unwatch,
             });
+            this.lastProcessedBlock[Number(network.chainSelector)] = {};
 
             this.logsListenerBlockCheckpointStore
                 ?.getBlockCheckpoint(Number(network.chainSelector), contractAddress)
                 .then(res => {
+                    if (!res) return;
                     this.lastProcessedBlock[Number(network.chainSelector)][contractAddress] = res;
                     this.logger.info(
                         `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`,
