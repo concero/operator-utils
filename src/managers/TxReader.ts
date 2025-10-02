@@ -78,11 +78,17 @@ export class TxReader implements ITxReader {
     }
 
     public static createInstance(
+        config: TxReaderConfig,
         logger: ILogger,
         viemClientManager: IViemClientManager,
-        config: TxReaderConfig,
+        logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore,
     ): TxReader {
-        TxReader.instance = new TxReader(config, logger, viemClientManager);
+        TxReader.instance = new TxReader(
+            config,
+            logger,
+            viemClientManager,
+            logsListenerBlockCheckpointStore,
+        );
         return TxReader.instance;
     }
 

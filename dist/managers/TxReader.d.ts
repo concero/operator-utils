@@ -1,4 +1,5 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
+import { ILogsListenerBlockCheckpointStore } from '@/types/managers/ILogsListenerBlockCheckpointStore';
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery } from '../types/managers';
 export type LogsWatcherId = string;
@@ -35,7 +36,7 @@ export declare class TxReader implements ITxReader {
     private lastProcessedBlock;
     private readonly pQueue;
     private constructor();
-    static createInstance(logger: ILogger, viemClientManager: IViemClientManager, config: TxReaderConfig): TxReader;
+    static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore): TxReader;
     static getInstance(): TxReader;
     initialize(): Promise<void>;
     logWatcher: {

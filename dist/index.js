@@ -51586,8 +51586,13 @@ var TxReader = class _TxReader {
       `TxReader: Initialized with watcher interval ${this.pollingIntervalMs} ms`
     );
   }
-  static createInstance(logger, viemClientManager, config) {
-    _TxReader.instance = new _TxReader(config, logger, viemClientManager);
+  static createInstance(config, logger, viemClientManager, logsListenerBlockCheckpointStore) {
+    _TxReader.instance = new _TxReader(
+      config,
+      logger,
+      viemClientManager,
+      logsListenerBlockCheckpointStore
+    );
     return _TxReader.instance;
   }
   static getInstance() {
