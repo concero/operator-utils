@@ -1,7 +1,6 @@
 import { PublicClient } from 'viem';
 import { BlockManager } from './BlockManager';
 import { ManagerBase } from './ManagerBase';
-import { IBlockCheckpointManager } from '@/types/managers/IBlockCheckpointManager';
 
 import {
     BlockManagerConfig,
@@ -30,7 +29,6 @@ export class BlockManagerRegistry
         logger: ILogger,
         networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        private blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         super();
         this.logger = logger;
@@ -101,14 +99,12 @@ export class BlockManagerRegistry
         logger: ILogger,
         networkManager: IConceroNetworkManager,
         viemClientManager: IViemClientManager,
-        blockCheckpointManager?: IBlockCheckpointManager,
     ) {
         BlockManagerRegistry.instance = new BlockManagerRegistry(
             config,
             logger,
             networkManager,
             viemClientManager,
-            blockCheckpointManager,
         );
         return BlockManagerRegistry.instance;
     }
@@ -144,7 +140,6 @@ export class BlockManagerRegistry
             network,
             publicClient,
             this.logger,
-            this.blockCheckpointManager,
         );
 
         this.blockManagers.set(network.name, blockManager);
