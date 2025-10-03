@@ -532,15 +532,16 @@ export class TxReader implements ITxReader {
         const numericChainSelector = Number(network.chainSelector);
         this.targetBlockHeight[numericChainSelector][contractAddress] = to;
 
-        let fromBlockCursor = this.lastProcessedBlock[numericChainSelector][contractAddress];
+        let fromBlockCursor =
+            this.lastProcessedBlock[numericChainSelector][contractAddress] ?? from;
         let toBlockCursor = minBigint(to, from + this.config.getLogsBlockRange);
         const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
 
-        while (toBlockCursor < targetBlock) {
+        while (toBlockCursor <= targetBlock) {
             this.pQueue
                 .add(() => this.fetchLogsForWatcher(id, fromBlockCursor, toBlockCursor))
                 .catch(e => {
-                    this.logger.debug(e);
+                    this.logger.debug(`PQueue task failed ${e}`);
                 });
 
             fromBlockCursor = toBlockCursor + 1n;
