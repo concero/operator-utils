@@ -51411,9 +51411,7 @@ var TxReader = class _TxReader {
       create: (contractAddress, network, onLogs, event, blockManager) => {
         const id = generateUid();
         const unwatch = blockManager.watchBlocks({
-          onBlockRange: (from14, to) => {
-            this.pumpGetLogsQueue(id, network, contractAddress, from14, to);
-          }
+          onBlockRange: (from14, to) => this.pumpGetLogsQueue(id, network, contractAddress, from14, to)
         });
         this.logWatchers.set(id, {
           id,

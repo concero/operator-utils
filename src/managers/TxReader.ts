@@ -112,9 +112,8 @@ export class TxReader implements ITxReader {
         ): string => {
             const id = generateUid();
             const unwatch = blockManager.watchBlocks({
-                onBlockRange: (from: bigint, to: bigint) => {
-                    this.pumpGetLogsQueue(id, network, contractAddress, from, to);
-                },
+                onBlockRange: (from: bigint, to: bigint) =>
+                    this.pumpGetLogsQueue(id, network, contractAddress, from, to),
             });
             this.logWatchers.set(id, {
                 id,
