@@ -51440,7 +51440,7 @@ var TxReader = class _TxReader {
     this.bulkCallbacks = /* @__PURE__ */ new Map();
     this.isGlobalLoopRunning = false;
     this.targetBlockHeight = {};
-    this.lastProcessedBlock = {};
+    this.lastRequestedBlocks = {};
     this.pQueue = new PQueue({ concurrency: 1, autoStart: true });
     this.logWatcher = {
       create: (contractAddress, network, onLogs, event, blockManager) => {
@@ -51458,11 +51458,11 @@ var TxReader = class _TxReader {
           unwatch
         });
         const numericChainSelector = Number(network.chainSelector);
-        this.lastProcessedBlock[numericChainSelector] ??= {};
+        this.lastRequestedBlocks[numericChainSelector] ??= {};
         this.targetBlockHeight[numericChainSelector] ??= {};
         this.logsListenerBlockCheckpointStore?.getBlockCheckpoint(numericChainSelector, contractAddress).then((res) => {
           if (!res) return;
-          this.lastProcessedBlock[numericChainSelector][contractAddress] = res;
+          this.lastRequestedBlocks[numericChainSelector][contractAddress] = res;
           this.logger.info(
             `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`
           );
@@ -51602,7 +51602,7 @@ var TxReader = class _TxReader {
     return _TxReader.instance;
   }
   async initialize() {
-    this.lastProcessedBlock = {};
+    this.lastRequestedBlocks = {};
     this.logger.info("Initialized");
   }
   ensureGlobalLoop() {
@@ -51780,19 +51780,20 @@ var TxReader = class _TxReader {
   async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
     this.targetBlockHeight[numericChainSelector][contractAddress] = to;
-    const last = this.lastProcessedBlock[numericChainSelector][contractAddress];
+    const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
     let fromBlockCursor = last !== void 0 ? last + 1n : from14;
     const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
     while (fromBlockCursor <= targetBlock) {
       const toBlockCursor = minBigint(
         targetBlock,
-        fromBlockCursor + this.config.getLogsBlockRange
+        fromBlockCursor + this.config.getLogsBlockRange - 1n
       );
       this.pQueue.add(() => this.fetchLogsForWatcher(id, fromBlockCursor, toBlockCursor)).catch((e) => {
         this.logger.debug(`PQueue task failed ${e}`);
       });
       fromBlockCursor = toBlockCursor + 1n;
     }
+    this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
   }
   async fetchLogsForWatcher(id, from14, to) {
     const w = this.logWatchers.get(id);
@@ -51817,7 +51818,6 @@ var TxReader = class _TxReader {
           (e) => this.logger.error(`fetchLogsForWatcher failed (${id})`, e)
         );
       }
-      this.lastProcessedBlock[Number(w.network.chainSelector)][w.contractAddress] = to;
       await this.logsListenerBlockCheckpointStore?.updateBlockCheckpoint(
         Number(w.network.chainSelector),
         w.contractAddress,

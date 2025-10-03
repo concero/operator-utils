@@ -61,7 +61,7 @@ export class TxReader implements ITxReader {
     private readonly pollingIntervalMs: number;
 
     private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
-    private lastProcessedBlock: Record<number, Record<Address, bigint>> = {};
+    private lastRequestedBlocks: Record<number, Record<Address, bigint>> = {};
 
     private readonly pQueue = new PQueue({ concurrency: 1, autoStart: true });
 
@@ -98,7 +98,7 @@ export class TxReader implements ITxReader {
     }
 
     public async initialize() {
-        this.lastProcessedBlock = {};
+        this.lastRequestedBlocks = {};
         this.logger.info('Initialized');
     }
 
@@ -126,14 +126,14 @@ export class TxReader implements ITxReader {
             });
             const numericChainSelector = Number(network.chainSelector);
 
-            this.lastProcessedBlock[numericChainSelector] ??= {};
+            this.lastRequestedBlocks[numericChainSelector] ??= {};
             this.targetBlockHeight[numericChainSelector] ??= {};
 
             this.logsListenerBlockCheckpointStore
                 ?.getBlockCheckpoint(numericChainSelector, contractAddress)
                 .then(res => {
                     if (!res) return;
-                    this.lastProcessedBlock[numericChainSelector][contractAddress] = res;
+                    this.lastRequestedBlocks[numericChainSelector][contractAddress] = res;
                     this.logger.info(
                         `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`,
                     );
@@ -532,14 +532,14 @@ export class TxReader implements ITxReader {
         const numericChainSelector = Number(network.chainSelector);
         this.targetBlockHeight[numericChainSelector][contractAddress] = to;
 
-        const last = this.lastProcessedBlock[numericChainSelector][contractAddress];
+        const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
         let fromBlockCursor = last !== undefined ? last + 1n : from;
         const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
 
         while (fromBlockCursor <= targetBlock) {
             const toBlockCursor = minBigint(
                 targetBlock,
-                fromBlockCursor + this.config.getLogsBlockRange,
+                fromBlockCursor + this.config.getLogsBlockRange - 1n,
             );
 
             this.pQueue
@@ -550,6 +550,8 @@ export class TxReader implements ITxReader {
 
             fromBlockCursor = toBlockCursor + 1n;
         }
+
+        this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
     }
 
     private async fetchLogsForWatcher(id: string, from: bigint, to: bigint) {
@@ -579,7 +581,6 @@ export class TxReader implements ITxReader {
                 );
             }
 
-            this.lastProcessedBlock[Number(w.network.chainSelector)][w.contractAddress] = to;
             await this.logsListenerBlockCheckpointStore?.updateBlockCheckpoint(
                 Number(w.network.chainSelector),
                 w.contractAddress,
