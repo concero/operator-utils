@@ -52104,7 +52104,7 @@ function getGranularLogLevels() {
 }
 
 // src/utils/safeRequireJson.ts
-function safeRequireJson2(filePath) {
+function safeRequireJson(filePath) {
   try {
     return __require(filePath);
   } catch {
@@ -52312,7 +52312,7 @@ export {
   isNonceError,
   localhostViemChain,
   min,
-  safeRequireJson2 as safeRequireJson,
+  safeRequireJson,
   sec
 };
 /*! Bundled license information:

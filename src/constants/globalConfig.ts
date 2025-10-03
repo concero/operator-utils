@@ -1,7 +1,7 @@
 import { getEnvBigint, getEnvBool, getEnvInt, getEnvString } from '../utils/getEnvVars';
 
 import { GlobalConfig } from '../types';
-import { getGranularLogLevels, min, sec } from '../utils';
+import { getGranularLogLevels, min, safeRequireJson, sec } from '../utils';
 
 const networkMode = getEnvString('NETWORK_MODE', 'testnet');
 const operatorPrivateKey = getEnvString('OPERATOR_PRIVATE_KEY', '0x000');

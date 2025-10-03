@@ -36943,7 +36943,7 @@ __export(index_exports, {
   isNonceError: () => isNonceError,
   localhostViemChain: () => localhostViemChain,
   min: () => min,
-  safeRequireJson: () => safeRequireJson2,
+  safeRequireJson: () => safeRequireJson,
   sec: () => sec
 });
 module.exports = __toCommonJS(index_exports);
@@ -52139,7 +52139,7 @@ function getGranularLogLevels() {
 }
 
 // src/utils/safeRequireJson.ts
-function safeRequireJson2(filePath) {
+function safeRequireJson(filePath) {
   try {
     return require(filePath);
   } catch {
