@@ -63,7 +63,7 @@ export class TxReader implements ITxReader {
     private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
     private lastProcessedBlock: Record<number, Record<Address, bigint>> = {};
 
-    private readonly pQueue = new PQueue({ concurrency: 1 });
+    private readonly pQueue = new PQueue({ concurrency: 1, autoStart: true });
 
     private constructor(
         private readonly config: TxReaderConfig,
