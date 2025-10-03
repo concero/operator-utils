@@ -85,7 +85,7 @@ export class BlockManager implements IBlockManager {
         try {
             this.latestBlock = await this.fetchLastBlockNumber();
 
-            if (this.latestBlock > this.lastReportedBlockNumber) {
+            if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
                 await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
                 this.lastReportedBlockNumber = this.latestBlock;
             }

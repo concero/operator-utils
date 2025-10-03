@@ -49254,7 +49254,7 @@ var BlockManager = class _BlockManager {
     if (!this.isPolling || this.isDisposed) return;
     try {
       this.latestBlock = await this.fetchLastBlockNumber();
-      if (this.latestBlock > this.lastReportedBlockNumber) {
+      if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
         await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
         this.lastReportedBlockNumber = this.latestBlock;
       }
@@ -50667,34 +50667,6 @@ var TxMonitor = class _TxMonitor {
   }
 };
 
-// src/utils/sleep.ts
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// src/utils/asyncRetry.ts
-async function asyncRetry(fn, options = {}) {
-  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
-  const logger = Logger.getInstance().getLogger("AsyncRetry");
-  let attempt = 0;
-  let lastError;
-  while (attempt <= maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (isRetryableError2(error) && attempt < maxRetries) {
-        ++attempt;
-        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
-        await sleep(delayMs);
-      } else {
-        throw error;
-      }
-    }
-  }
-  throw lastError;
-}
-
 // src/utils/bigIntMath.ts
 var minBigint = (a, b) => a < b ? a : b;
 
@@ -51767,19 +51739,14 @@ var TxReader = class _TxReader {
       `Fetching logs for ${w.network.name}:${w.contractAddress}. from: ${from14}, to: ${to} blocks`
     );
     try {
-      const logs = await asyncRetry(
-        () => this.getLogs(
-          {
-            address: w.contractAddress,
-            event: w.event,
-            fromBlock: from14,
-            toBlock: to
-          },
-          w.network
-        ),
+      const logs = await this.getLogs(
         {
-          maxRetries: 5
-        }
+          address: w.contractAddress,
+          event: w.event,
+          fromBlock: from14,
+          toBlock: to
+        },
+        w.network
       );
       if (logs.length) {
         w.callback(logs, w.network).catch(
@@ -52000,6 +51967,34 @@ var HttpClient = class _HttpClient extends ManagerBase {
     return this.request("POST", url2, config, body);
   }
 };
+
+// src/utils/sleep.ts
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// src/utils/asyncRetry.ts
+async function asyncRetry(fn, options = {}) {
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
+  const logger = Logger.getInstance().getLogger("AsyncRetry");
+  let attempt = 0;
+  let lastError;
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (isRetryableError2(error) && attempt < maxRetries) {
+        ++attempt;
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
 
 // src/utils/viemErrorParser.ts
 function isNonceError(error) {
