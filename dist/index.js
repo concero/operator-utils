@@ -51777,7 +51777,7 @@ var TxReader = class _TxReader {
     });
     return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
   }
-  pumpGetLogsQueue(id, network, contractAddress, from14, to) {
+  async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
     this.targetBlockHeight[numericChainSelector][contractAddress] = to;
     let fromBlockCursor = this.lastProcessedBlock[numericChainSelector][contractAddress];

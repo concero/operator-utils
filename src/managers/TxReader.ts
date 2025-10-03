@@ -522,7 +522,7 @@ export class TxReader implements ITxReader {
         return Promise.race([p.finally(() => clearTimeout(timeoutId)), timeoutPromise]);
     }
 
-    private pumpGetLogsQueue(
+    private async pumpGetLogsQueue(
         id: LogsWatcherId,
         network: ConceroNetwork,
         contractAddress: Address,
