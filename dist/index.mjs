@@ -51746,19 +51746,16 @@ var TxReader = class _TxReader {
   }
   async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
-    this.targetBlockHeight[numericChainSelector][contractAddress] = to;
+    const targetBlock = to;
+    this.targetBlockHeight[numericChainSelector][contractAddress] = targetBlock;
     const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
-    let fromBlockCursor = last !== void 0 ? last + 1n : from14;
-    const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
-    while (fromBlockCursor <= targetBlock) {
-      const toBlockCursor = minBigint(
-        targetBlock,
-        fromBlockCursor + this.config.getLogsBlockRange - 1n
-      );
-      this.pQueue.add(() => this.fetchLogsForWatcher(id, fromBlockCursor, toBlockCursor)).catch((e) => {
-        this.logger.debug(`PQueue task failed ${e}`);
-      });
-      fromBlockCursor = toBlockCursor + 1n;
+    let cursor = last !== void 0 ? last + 1n : from14;
+    const step = this.config.getLogsBlockRange;
+    while (cursor <= targetBlock) {
+      const start = cursor;
+      const end = minBigint(targetBlock, start + step);
+      this.pQueue.add(() => this.fetchLogsForWatcher(id, start, end)).catch((e) => this.logger.debug(`PQueue task failed ${e}`));
+      cursor = end + 1n;
     }
     this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
   }
