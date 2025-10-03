@@ -16,9 +16,6 @@
         "outDir": "./dist",
         "rootDir": "./src",
         "baseUrl": ".",
-        "paths": {
-            "@/*": ["src/*"]
-        },
         "composite": true,
         "incremental": true,
         "tsBuildInfoFile": "./dist/.tsbuildinfo",

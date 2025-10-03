@@ -36943,7 +36943,7 @@ __export(index_exports, {
   isNonceError: () => isNonceError,
   localhostViemChain: () => localhostViemChain,
   min: () => min,
-  safeRequireJson: () => safeRequireJson,
+  safeRequireJson: () => safeRequireJson2,
   sec: () => sec
 });
 module.exports = __toCommonJS(index_exports);
@@ -50702,9 +50702,6 @@ var TxMonitor = class _TxMonitor {
   }
 };
 
-// src/utils/bigIntMath.ts
-var minBigint = (a, b) => a < b ? a : b;
-
 // node_modules/eventemitter3/index.mjs
 var import_index = __toESM(require_eventemitter3(), 1);
 
@@ -51399,6 +51396,37 @@ var PQueue = class extends import_index.default {
   }
 };
 
+// src/utils/sleep.ts
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// src/utils/asyncRetry.ts
+async function asyncRetry(fn, options = {}) {
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
+  const logger = Logger.getInstance().getLogger("AsyncRetry");
+  let attempt = 0;
+  let lastError;
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (isRetryableError2(error) && attempt < maxRetries) {
+        ++attempt;
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
+// src/utils/bigIntMath.ts
+var minBigint = (a, b) => a < b ? a : b;
+
 // src/managers/TxReader.ts
 var TxReader = class _TxReader {
   constructor(config, logger, viemClientManager, logsListenerBlockCheckpointStore) {
@@ -51774,14 +51802,19 @@ var TxReader = class _TxReader {
       `Fetching logs for ${w.network.name}:${w.contractAddress}. from: ${from14}, to: ${to} blocks`
     );
     try {
-      const logs = await this.getLogs(
+      const logs = await asyncRetry(
+        () => this.getLogs(
+          {
+            address: w.contractAddress,
+            event: w.event,
+            fromBlock: from14,
+            toBlock: to
+          },
+          w.network
+        ),
         {
-          address: w.contractAddress,
-          event: w.event,
-          fromBlock: from14,
-          toBlock: to
-        },
-        w.network
+          maxRetries: 5
+        }
       );
       if (logs.length) {
         w.callback(logs, w.network).catch(
@@ -52003,34 +52036,6 @@ var HttpClient = class _HttpClient extends ManagerBase {
   }
 };
 
-// src/utils/sleep.ts
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// src/utils/asyncRetry.ts
-async function asyncRetry(fn, options = {}) {
-  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
-  const logger = Logger.getInstance().getLogger("AsyncRetry");
-  let attempt = 0;
-  let lastError;
-  while (attempt <= maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (isRetryableError2(error) && attempt < maxRetries) {
-        ++attempt;
-        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
-        await sleep(delayMs);
-      } else {
-        throw error;
-      }
-    }
-  }
-  throw lastError;
-}
-
 // src/utils/viemErrorParser.ts
 function isNonceError(error) {
   if (!error || typeof error !== "object") {
@@ -52134,7 +52139,7 @@ function getGranularLogLevels() {
 }
 
 // src/utils/safeRequireJson.ts
-function safeRequireJson(filePath) {
+function safeRequireJson2(filePath) {
   try {
     return require(filePath);
   } catch {

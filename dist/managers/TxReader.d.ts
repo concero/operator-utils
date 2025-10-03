@@ -1,7 +1,7 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
-import { ILogsListenerBlockCheckpointStore } from '@/types/managers/ILogsListenerBlockCheckpointStore';
 import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
 import { ILogger, ITxReader, LogQuery } from '../types/managers';
+import { ILogsListenerBlockCheckpointStore } from '../types/managers/ILogsListenerBlockCheckpointStore';
 export type LogsWatcherId = string;
 export interface BulkCallbackResult<V = unknown> {
     watcherId: string;

@@ -1,12 +1,20 @@
 import { Abi, AbiEvent, Address, Log, withRetry } from 'viem';
-import { ILogsListenerBlockCheckpointStore } from '@/types/managers/ILogsListenerBlockCheckpointStore';
-import { asyncRetry } from '@/utils/asyncRetry';
-import { minBigint } from '@/utils/bigIntMath';
 import PQueue from 'p-queue';
 
-import { ConceroNetwork, IViemClientManager, TxReaderConfig } from '../types';
-import { ILogger, ITxReader, LogQuery, LogWatcher, ReadContractWatcher } from '../types/managers';
+import {
+    ConceroNetwork,
+    ILogger,
+    ITxReader,
+    IViemClientManager,
+    LogQuery,
+    LogWatcher,
+    ReadContractWatcher,
+    TxReaderConfig,
+} from '../types';
+import { ILogsListenerBlockCheckpointStore } from '../types/managers/ILogsListenerBlockCheckpointStore';
 import { generateUid } from '../utils';
+import { asyncRetry } from '../utils/asyncRetry';
+import { minBigint } from '../utils/bigIntMath';
 
 type Watcher = ReadContractWatcher & {
     timeoutMs?: number;
@@ -563,30 +571,20 @@ export class TxReader implements ITxReader {
         );
 
         try {
-            // const logs = await asyncRetry(
-            //     () =>
-            //         this.getLogs(
-            //             {
-            //                 address: w.contractAddress,
-            //                 event: w.event!,
-            //                 fromBlock: from,
-            //                 toBlock: to,
-            //             },
-            //             w.network,
-            //         ),
-            //     {
-            //         maxRetries: 5,
-            //     },
-            // );
-
-            const logs = await this.getLogs(
+            const logs = await asyncRetry(
+                () =>
+                    this.getLogs(
+                        {
+                            address: w.contractAddress,
+                            event: w.event!,
+                            fromBlock: from,
+                            toBlock: to,
+                        },
+                        w.network,
+                    ),
                 {
-                    address: w.contractAddress,
-                    event: w.event!,
-                    fromBlock: from,
-                    toBlock: to,
+                    maxRetries: 5,
                 },
-                w.network,
             );
 
             if (logs.length) {
