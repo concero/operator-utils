@@ -51458,8 +51458,8 @@ var TxReader = class _TxReader {
           unwatch
         });
         const numericChainSelector = Number(network.chainSelector);
-        this.lastProcessedBlock[numericChainSelector] = {};
-        this.targetBlockHeight[numericChainSelector] = {};
+        this.lastProcessedBlock[numericChainSelector] ??= {};
+        this.targetBlockHeight[numericChainSelector] ??= {};
         this.logsListenerBlockCheckpointStore?.getBlockCheckpoint(numericChainSelector, contractAddress).then((res) => {
           if (!res) return;
           this.lastProcessedBlock[numericChainSelector][contractAddress] = res;
@@ -51780,15 +51780,18 @@ var TxReader = class _TxReader {
   async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
     this.targetBlockHeight[numericChainSelector][contractAddress] = to;
-    let fromBlockCursor = this.lastProcessedBlock[numericChainSelector][contractAddress] ?? from14;
-    let toBlockCursor = minBigint(to, from14 + this.config.getLogsBlockRange);
+    const last = this.lastProcessedBlock[numericChainSelector][contractAddress];
+    let fromBlockCursor = last !== void 0 ? last + 1n : from14;
     const targetBlock = this.targetBlockHeight[numericChainSelector][contractAddress];
-    while (toBlockCursor <= targetBlock) {
+    while (fromBlockCursor <= targetBlock) {
+      const toBlockCursor = minBigint(
+        targetBlock,
+        fromBlockCursor + this.config.getLogsBlockRange
+      );
       this.pQueue.add(() => this.fetchLogsForWatcher(id, fromBlockCursor, toBlockCursor)).catch((e) => {
         this.logger.debug(`PQueue task failed ${e}`);
       });
       fromBlockCursor = toBlockCursor + 1n;
-      toBlockCursor = minBigint(targetBlock, fromBlockCursor + this.config.getLogsBlockRange);
     }
   }
   async fetchLogsForWatcher(id, from14, to) {
