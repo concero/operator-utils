@@ -51763,6 +51763,9 @@ var TxReader = class _TxReader {
   async fetchLogsForWatcher(id, from14, to) {
     const w = this.logWatchers.get(id);
     if (!w) return;
+    this.logger.debug(
+      `Fetching logs for ${w.network.name}:${w.contractAddress}. from: ${from14}, to: ${to} blocks`
+    );
     try {
       const logs = await asyncRetry(
         () => this.getLogs(

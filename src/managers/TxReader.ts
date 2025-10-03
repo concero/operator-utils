@@ -558,6 +558,10 @@ export class TxReader implements ITxReader {
         const w = this.logWatchers.get(id);
         if (!w) return;
 
+        this.logger.debug(
+            `Fetching logs for ${w.network.name}:${w.contractAddress}. from: ${from}, to: ${to} blocks`,
+        );
+
         try {
             const logs = await asyncRetry(
                 () =>
