@@ -97,7 +97,6 @@ export class Logger {
 
     getLogger(consumer?: string): LoggerInterface {
         const name = consumer ?? 'default';
-        const threshold = this.config.logLevelsGranular[name] ?? this.config.logLevelDefault;
 
         if (this.fileLogger && !this.batchers.has(name)) {
             this.batchers.set(
@@ -111,7 +110,10 @@ export class Logger {
             );
         }
 
-        const shouldLog = (candidate: LogLevel) => this.lte(threshold, candidate);
+        const shouldLog = (candidate: LogLevel) => {
+            const threshold = this.config.logLevelsGranular[name] ?? this.config.logLevelDefault;
+            return this.lte(threshold, candidate);
+        };
 
         const write = (lvl: LogLevel, message: unknown, meta?: Record<string, unknown>) => {
             const fullMeta = { consumer: consumer ?? undefined, ...(meta ?? {}) };
@@ -192,12 +194,12 @@ export class Logger {
         );
 
         return winston.createLogger({
-            level: this.config.logLevelDefault,
+            level: 'debug',
             exitOnError: false,
             transports: this.config.enableConsoleTransport
                 ? [
                       new winston.transports.Console({
-                          level: this.config.logLevelDefault,
+                          level: 'debug',
                           format: fmt,
                       }),
                   ]

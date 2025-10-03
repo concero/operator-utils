@@ -45377,7 +45377,6 @@ var Logger = class _Logger {
   }
   getLogger(consumer) {
     const name = consumer ?? "default";
-    const threshold = this.config.logLevelsGranular[name] ?? this.config.logLevelDefault;
     if (this.fileLogger && !this.batchers.has(name)) {
       this.batchers.set(
         name,
@@ -45389,7 +45388,10 @@ var Logger = class _Logger {
         )
       );
     }
-    const shouldLog = (candidate) => this.lte(threshold, candidate);
+    const shouldLog = (candidate) => {
+      const threshold = this.config.logLevelsGranular[name] ?? this.config.logLevelDefault;
+      return this.lte(threshold, candidate);
+    };
     const write = (lvl, message, meta) => {
       const fullMeta = { consumer: consumer ?? void 0, ...meta ?? {} };
       if (this.config.enableConsoleTransport) {
@@ -45447,11 +45449,11 @@ var Logger = class _Logger {
       })
     );
     return import_winston.default.createLogger({
-      level: this.config.logLevelDefault,
+      level: "debug",
       exitOnError: false,
       transports: this.config.enableConsoleTransport ? [
         new import_winston.default.transports.Console({
-          level: this.config.logLevelDefault,
+          level: "debug",
           format: fmt
         })
       ] : [],
