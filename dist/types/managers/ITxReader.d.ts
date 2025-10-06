@@ -29,7 +29,7 @@ export interface ReadContractWatcher {
 export interface ITxReader {
     getLogs(query: LogQuery, network: ConceroNetwork): Promise<Log[]>;
     logWatcher: {
-        create(contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any): string;
+        create(contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any): Promise<string>;
         remove(watcherId: string): boolean;
     };
     readContractWatcher: {
