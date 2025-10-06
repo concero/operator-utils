@@ -33,7 +33,7 @@ export declare class TxReader implements ITxReader {
     private readonly pollingIntervalMs;
     private targetBlockHeight;
     private lastRequestedBlocks;
-    private readonly pQueue;
+    private readonly pQueues;
     private constructor();
     static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore): TxReader;
     static getInstance(): TxReader;

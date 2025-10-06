@@ -1,4 +1,4 @@
-import { Abi, AbiEvent, Address, Log, withRetry } from 'viem';
+import { Abi, AbiEvent, Address, Log } from 'viem';
 import PQueue from 'p-queue';
 
 import {
@@ -71,7 +71,7 @@ export class TxReader implements ITxReader {
     private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
     private lastRequestedBlocks: Record<number, Record<Address, bigint>> = {};
 
-    private readonly pQueue = new PQueue({ concurrency: 1, autoStart: true });
+    private readonly pQueues: Record<number, Record<string, PQueue>> = {};
 
     private constructor(
         private readonly config: TxReaderConfig,
@@ -136,6 +136,10 @@ export class TxReader implements ITxReader {
 
             this.lastRequestedBlocks[numericChainSelector] ??= {};
             this.targetBlockHeight[numericChainSelector] ??= {};
+            this.pQueues[numericChainSelector][contractAddress] ??= new PQueue({
+                concurrency: 1,
+                autoStart: true,
+            });
 
             this.logsListenerBlockCheckpointStore
                 ?.getBlockCheckpoint(numericChainSelector, contractAddress)
@@ -550,7 +554,7 @@ export class TxReader implements ITxReader {
             const start = cursor;
             const end = minBigint(targetBlock, start + step);
 
-            this.pQueue
+            this.pQueues[numericChainSelector][contractAddress]
                 .add(() => this.fetchLogsForWatcher(id, start, end))
                 .catch(e => this.logger.debug(`PQueue task failed ${e}`));
 
