@@ -111,7 +111,7 @@ export class TxReader implements ITxReader {
     }
 
     public logWatcher = {
-        create: (
+        create: async (
             contractAddress: Address,
             network: ConceroNetwork,
             onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>,
@@ -134,27 +134,23 @@ export class TxReader implements ITxReader {
             });
             const numericChainSelector = Number(network.chainSelector);
 
+            // TODO: clear all states in remove function
             this.lastRequestedBlocks[numericChainSelector] ??= {};
             this.targetBlockHeight[numericChainSelector] ??= {};
+            this.pQueues[numericChainSelector] ??= {};
             this.pQueues[numericChainSelector][contractAddress] ??= new PQueue({
                 concurrency: 1,
                 autoStart: true,
             });
 
-            this.logsListenerBlockCheckpointStore
-                ?.getBlockCheckpoint(numericChainSelector, contractAddress)
-                .then(res => {
-                    if (!res) return;
-                    this.lastRequestedBlocks[numericChainSelector][contractAddress] = res;
-                    this.logger.info(
-                        `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`,
-                    );
-                })
-                .catch(e => {
-                    this.logger.error(
-                        `Failed starting log listener from checkpoint ${network.name}:${contractAddress}, ${e}`,
-                    );
-                });
+            const checkpoint = await this.logsListenerBlockCheckpointStore?.getBlockCheckpoint(
+                numericChainSelector,
+                contractAddress,
+            );
+
+            if (checkpoint !== undefined) {
+                this.lastRequestedBlocks[numericChainSelector][contractAddress] = checkpoint;
+            }
 
             this.logger.debug(
                 `Created log watcher for ${network.name}:${contractAddress} (${event.name})`,

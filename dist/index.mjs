@@ -51410,7 +51410,7 @@ var TxReader = class _TxReader {
     this.lastRequestedBlocks = {};
     this.pQueues = {};
     this.logWatcher = {
-      create: (contractAddress, network, onLogs, event, blockManager) => {
+      create: async (contractAddress, network, onLogs, event, blockManager) => {
         const id = generateUid();
         const unwatch = blockManager.watchBlocks({
           onBlockRange: (from14, to) => this.pumpGetLogsQueue(id, network, contractAddress, from14, to)
@@ -51427,21 +51427,18 @@ var TxReader = class _TxReader {
         const numericChainSelector = Number(network.chainSelector);
         this.lastRequestedBlocks[numericChainSelector] ??= {};
         this.targetBlockHeight[numericChainSelector] ??= {};
+        this.pQueues[numericChainSelector] ??= {};
         this.pQueues[numericChainSelector][contractAddress] ??= new PQueue({
           concurrency: 1,
           autoStart: true
         });
-        this.logsListenerBlockCheckpointStore?.getBlockCheckpoint(numericChainSelector, contractAddress).then((res) => {
-          if (!res) return;
-          this.lastRequestedBlocks[numericChainSelector][contractAddress] = res;
-          this.logger.info(
-            `Starting log listener from checkpoint ${network.name}:${contractAddress} ${res}`
-          );
-        }).catch((e) => {
-          this.logger.error(
-            `Failed starting log listener from checkpoint ${network.name}:${contractAddress}, ${e}`
-          );
-        });
+        const checkpoint = await this.logsListenerBlockCheckpointStore?.getBlockCheckpoint(
+          numericChainSelector,
+          contractAddress
+        );
+        if (checkpoint !== void 0) {
+          this.lastRequestedBlocks[numericChainSelector][contractAddress] = checkpoint;
+        }
         this.logger.debug(
           `Created log watcher for ${network.name}:${contractAddress} (${event.name})`
         );
