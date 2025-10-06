@@ -117,7 +117,7 @@ export class TxReader implements ITxReader {
             onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>,
             event: AbiEvent,
             blockManager: any,
-        ): string => {
+        ): Promise<string> => {
             const id = generateUid();
             const unwatch = blockManager.watchBlocks({
                 onBlockRange: (from: bigint, to: bigint) =>

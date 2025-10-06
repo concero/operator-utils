@@ -39,7 +39,7 @@ export declare class TxReader implements ITxReader {
     static getInstance(): TxReader;
     initialize(): Promise<void>;
     logWatcher: {
-        create: (contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any) => string;
+        create: (contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any) => Promise<string>;
         remove: (id: string) => boolean;
     };
     readContractWatcher: {

@@ -41,7 +41,7 @@ export interface ITxReader {
             onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>,
             event: AbiEvent,
             blockManager: any,
-        ): string;
+        ): Promise<string>;
         remove(watcherId: string): boolean;
     };
 
