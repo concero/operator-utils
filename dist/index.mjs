@@ -51368,6 +51368,34 @@ var PQueue = class extends import_index.default {
   }
 };
 
+// src/utils/sleep.ts
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// src/utils/asyncRetry.ts
+async function asyncRetry(fn, options = {}) {
+  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
+  const logger = Logger.getInstance().getLogger("AsyncRetry");
+  let attempt = 0;
+  let lastError;
+  while (attempt <= maxRetries) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (isRetryableError2(error) && attempt < maxRetries) {
+        ++attempt;
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        await sleep(delayMs);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 // src/utils/bigIntMath.ts
 var minBigint = (a, b) => a < b ? a : b;
 
@@ -51746,14 +51774,20 @@ var TxReader = class _TxReader {
       `Fetching logs for ${w.network.name}:${w.contractAddress}. from: ${from14}, to: ${to} blocks`
     );
     try {
-      const logs = await this.getLogs(
+      const logs = await asyncRetry(
+        () => this.getLogs(
+          {
+            address: w.contractAddress,
+            event: w.event,
+            fromBlock: from14,
+            toBlock: to
+          },
+          w.network
+        ),
         {
-          address: w.contractAddress,
-          event: w.event,
-          fromBlock: from14,
-          toBlock: to
-        },
-        w.network
+          maxRetries: 5,
+          delayMs: 2e3
+        }
       );
       if (logs.length) {
         w.callback(logs, w.network).catch(
@@ -51974,34 +52008,6 @@ var HttpClient = class _HttpClient extends ManagerBase {
     return this.request("POST", url2, config, body);
   }
 };
-
-// src/utils/sleep.ts
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// src/utils/asyncRetry.ts
-async function asyncRetry(fn, options = {}) {
-  const { maxRetries = 3, delayMs = 2e3, isRetryableError: isRetryableError2 = () => false } = options;
-  const logger = Logger.getInstance().getLogger("AsyncRetry");
-  let attempt = 0;
-  let lastError;
-  while (attempt <= maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (isRetryableError2(error) && attempt < maxRetries) {
-        ++attempt;
-        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
-        await sleep(delayMs);
-      } else {
-        throw error;
-      }
-    }
-  }
-  throw lastError;
-}
 
 // src/utils/viemErrorParser.ts
 function isNonceError(error) {
