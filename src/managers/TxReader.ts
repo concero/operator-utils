@@ -569,20 +569,14 @@ export class TxReader implements ITxReader {
         );
 
         try {
-            const logs = await asyncRetry(
-                () =>
-                    this.getLogs(
-                        {
-                            address: w.contractAddress,
-                            event: w.event!,
-                            fromBlock: from,
-                            toBlock: to,
-                        },
-                        w.network,
-                    ),
+            const logs = await this.getLogs(
                 {
-                    maxRetries: 5,
+                    address: w.contractAddress,
+                    event: w.event!,
+                    fromBlock: from,
+                    toBlock: to,
                 },
+                w.network,
             );
 
             if (logs.length) {
