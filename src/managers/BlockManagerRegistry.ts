@@ -130,6 +130,12 @@ export class BlockManagerRegistry
         }
     }
 
+    public startPolling() {
+        for (const blockManager of this.getAllBlockManagers()) {
+            blockManager.startPolling().catch(e => this.logger.error(e));
+        }
+    }
+
     public async createBlockManager(network: ConceroNetwork, publicClient: PublicClient) {
         if (this.blockManagers.has(network.name)) {
             return this.blockManagers.get(network.name)!;

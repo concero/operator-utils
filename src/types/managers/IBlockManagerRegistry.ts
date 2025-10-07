@@ -5,6 +5,7 @@ export interface IBlockManagerRegistry {
     getBlockManager(networkName: string): any | null;
     getAllManagedNetworks(): string[];
     getLatestBlockForChain(networkName: string): Promise<bigint | null>;
+    startPolling(): void;
 }
 
 export interface BlockManagerRegistryConfig {}

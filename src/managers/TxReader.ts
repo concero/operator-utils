@@ -551,8 +551,10 @@ export class TxReader implements ITxReader {
             const end = minBigint(targetBlock, start + step);
 
             this.pQueues[numericChainSelector][contractAddress]
-                .add(() => this.fetchLogsForWatcher(id, start, end))
-                .catch(e => this.logger.debug(`PQueue task failed ${e}`));
+                .add(() =>
+                    this.fetchLogsForWatcher(id, start, end).catch(e => this.logger.error(e)),
+                )
+                .catch(e => this.logger.error(`PQueue task failed ${e}`));
 
             cursor = end + 1n;
         }

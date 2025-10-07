@@ -49467,6 +49467,11 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
       throw error;
     }
   }
+  startPolling() {
+    for (const blockManager of this.getAllBlockManagers()) {
+      blockManager.startPolling().catch((e) => this.logger.error(e));
+    }
+  }
   async createBlockManager(network, publicClient) {
     if (this.blockManagers.has(network.name)) {
       return this.blockManagers.get(network.name);
@@ -51762,7 +51767,9 @@ var TxReader = class _TxReader {
     while (cursor <= targetBlock) {
       const start = cursor;
       const end = minBigint(targetBlock, start + step);
-      this.pQueues[numericChainSelector][contractAddress].add(() => this.fetchLogsForWatcher(id, start, end)).catch((e) => this.logger.debug(`PQueue task failed ${e}`));
+      this.pQueues[numericChainSelector][contractAddress].add(
+        () => this.fetchLogsForWatcher(id, start, end).catch((e) => this.logger.error(e))
+      ).catch((e) => this.logger.error(`PQueue task failed ${e}`));
       cursor = end + 1n;
     }
     this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
