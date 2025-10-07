@@ -16,6 +16,7 @@ export declare class BlockManagerRegistry extends ManagerBase implements IBlockM
     static createInstance(config: BlockManagerRegistryConfig, logger: ILogger, networkManager: IConceroNetworkManager, viemClientManager: IViemClientManager): BlockManagerRegistry;
     static getInstance(): BlockManagerRegistry;
     initialize(): Promise<void>;
+    startPolling(): void;
     createBlockManager(network: ConceroNetwork, publicClient: PublicClient): Promise<BlockManager>;
     getBlockManager(networkName: string): BlockManager | undefined;
     getAllBlockManagers(): BlockManager[];
