@@ -541,7 +541,7 @@ export class TxReader implements ITxReader {
     ) {
         const numericChainSelector = Number(network.chainSelector);
 
-        if (this.pQueues[numericChainSelector][contractAddress].size <= MAX_GET_LOGS_QUEUE_SIZE)
+        if (this.pQueues[numericChainSelector][contractAddress].size >= MAX_GET_LOGS_QUEUE_SIZE)
             return;
 
         this.targetBlockHeight[numericChainSelector][contractAddress] = to;

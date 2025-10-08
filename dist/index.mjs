@@ -51754,7 +51754,7 @@ var TxReader = class _TxReader {
   }
   async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
-    if (this.pQueues[numericChainSelector][contractAddress].size <= MAX_GET_LOGS_QUEUE_SIZE)
+    if (this.pQueues[numericChainSelector][contractAddress].size >= MAX_GET_LOGS_QUEUE_SIZE)
       return;
     this.targetBlockHeight[numericChainSelector][contractAddress] = to;
     const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
