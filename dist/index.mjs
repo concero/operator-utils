@@ -51810,13 +51810,19 @@ var TxReader = class _TxReader {
   async getLogs(q, n) {
     const { publicClient } = this.viemClientManager.getClients(n.name);
     try {
-      return await publicClient.getLogs({
-        address: q.address,
-        fromBlock: q.fromBlock,
-        toBlock: q.toBlock,
-        event: q.event,
-        ...q.args && { args: q.args }
-      });
+      return await asyncRetry(
+        () => publicClient.getLogs({
+          address: q.address,
+          fromBlock: q.fromBlock,
+          toBlock: q.toBlock,
+          event: q.event,
+          ...q.args && { args: q.args }
+        }),
+        {
+          maxRetries: 20,
+          delayMs: 4e3
+        }
+      );
     } catch (e) {
       this.logger.error(
         `getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`
