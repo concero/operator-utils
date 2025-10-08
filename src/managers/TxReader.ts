@@ -11,7 +11,7 @@ import {
     ReadContractWatcher,
     TxReaderConfig,
 } from '../types';
-import { ILogsListenerBlockCheckpointStore } from '../types/managers/ILogsListenerBlockCheckpointStore';
+import { ILogsListenerStore } from '../types/managers/ILogsListenerStore';
 import { generateUid } from '../utils';
 import { asyncRetry } from '../utils/asyncRetry';
 import { minBigint } from '../utils/bigIntMath';
@@ -56,6 +56,8 @@ export interface BulkCallbackPayload {
 
 type BulkCallback = (payload: BulkCallbackPayload) => Promise<void>;
 
+const MAX_GET_LOGS_QUEUE_SIZE = 50;
+
 export class TxReader implements ITxReader {
     private static instance: TxReader | undefined;
 
@@ -70,14 +72,13 @@ export class TxReader implements ITxReader {
 
     private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
     private lastRequestedBlocks: Record<number, Record<Address, bigint>> = {};
-
     private readonly pQueues: Record<number, Record<string, PQueue>> = {};
 
     private constructor(
         private readonly config: TxReaderConfig,
         private readonly logger: ILogger,
         private readonly viemClientManager: IViemClientManager,
-        private readonly logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore,
+        private readonly logsListenerBlockCheckpointStore?: ILogsListenerStore,
     ) {
         this.pollingIntervalMs = config.pollingIntervalMs;
         this.logger.debug(
@@ -89,7 +90,7 @@ export class TxReader implements ITxReader {
         config: TxReaderConfig,
         logger: ILogger,
         viemClientManager: IViemClientManager,
-        logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore,
+        logsListenerBlockCheckpointStore?: ILogsListenerStore,
     ): TxReader {
         TxReader.instance = new TxReader(
             config,
@@ -111,13 +112,14 @@ export class TxReader implements ITxReader {
     }
 
     public logWatcher = {
+        // TODO: Rewrite the subscription creation process so that if two subscribers subscribe to the same contract on the same chain, there are not two requests for logs.
         create: async (
             contractAddress: Address,
             network: ConceroNetwork,
             onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>,
             event: AbiEvent,
             blockManager: any,
-        ): Promise<string> => {
+        ): Promise<LogsWatcherId> => {
             const id = generateUid();
             const unwatch = blockManager.watchBlocks({
                 onBlockRange: (from: bigint, to: bigint) =>
@@ -158,7 +160,7 @@ export class TxReader implements ITxReader {
 
             return id;
         },
-        remove: (id: string): boolean => {
+        remove: (id: LogsWatcherId): boolean => {
             const w = this.logWatchers.get(id);
             if (!w) return false;
             w.unwatch();
@@ -538,17 +540,18 @@ export class TxReader implements ITxReader {
         to: bigint,
     ) {
         const numericChainSelector = Number(network.chainSelector);
-        const targetBlock = to;
-        this.targetBlockHeight[numericChainSelector][contractAddress] = targetBlock;
+
+        if (this.pQueues[numericChainSelector][contractAddress].size <= MAX_GET_LOGS_QUEUE_SIZE)
+            return;
+
+        this.targetBlockHeight[numericChainSelector][contractAddress] = to;
 
         const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
         let cursor = last !== undefined ? last + 1n : from;
 
-        const step = this.config.getLogsBlockRange;
-
-        while (cursor <= targetBlock) {
+        while (cursor <= to) {
             const start = cursor;
-            const end = minBigint(targetBlock, start + step);
+            const end = minBigint(to, start + this.config.getLogsBlockRange);
 
             this.pQueues[numericChainSelector][contractAddress]
                 .add(() =>
@@ -559,7 +562,7 @@ export class TxReader implements ITxReader {
             cursor = end + 1n;
         }
 
-        this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
+        this.lastRequestedBlocks[numericChainSelector][contractAddress] = to;
     }
 
     private async fetchLogsForWatcher(id: string, from: bigint, to: bigint) {
@@ -583,7 +586,7 @@ export class TxReader implements ITxReader {
                         w.network,
                     ),
                 {
-                    maxRetries: 5,
+                    maxRetries: Infinity,
                     delayMs: 2000,
                 },
             );

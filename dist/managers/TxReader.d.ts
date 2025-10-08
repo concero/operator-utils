@@ -1,6 +1,6 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
 import { ConceroNetwork, ILogger, ITxReader, IViemClientManager, LogQuery, TxReaderConfig } from '../types';
-import { ILogsListenerBlockCheckpointStore } from '../types/managers/ILogsListenerBlockCheckpointStore';
+import { ILogsListenerStore } from '../types/managers/ILogsListenerStore';
 export type LogsWatcherId = string;
 export interface BulkCallbackResult<V = unknown> {
     watcherId: string;
@@ -35,12 +35,12 @@ export declare class TxReader implements ITxReader {
     private lastRequestedBlocks;
     private readonly pQueues;
     private constructor();
-    static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerBlockCheckpointStore): TxReader;
+    static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerStore): TxReader;
     static getInstance(): TxReader;
     initialize(): Promise<void>;
     logWatcher: {
-        create: (contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any) => Promise<string>;
-        remove: (id: string) => boolean;
+        create: (contractAddress: Address, network: ConceroNetwork, onLogs: (logs: Log[], network: ConceroNetwork) => Promise<void>, event: AbiEvent, blockManager: any) => Promise<LogsWatcherId>;
+        remove: (id: LogsWatcherId) => boolean;
     };
     readContractWatcher: {
         create: (contractAddress: Address, network: ConceroNetwork, functionName: string, abi: Abi, callback: (result: any, network: ConceroNetwork) => Promise<void>, intervalMs?: number, args?: any[]) => string;

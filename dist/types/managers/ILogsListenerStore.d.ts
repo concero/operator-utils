@@ -1,6 +1,10 @@
 import { Address } from 'viem';
-export interface ILogsListenerBlockCheckpointStore {
+export interface IStuckBlockRange {
+    from: bigint;
+    to: bigint;
+}
+export interface ILogsListenerStore {
     getBlockCheckpoint(chainSelector: number, contractAddress: Address): Promise<bigint | undefined>;
     updateBlockCheckpoint(chainSelector: number, contractAddress: Address, blockNumber: bigint): Promise<void>;
 }
-//# sourceMappingURL=ILogsListenerBlockCheckpointStore.d.ts.map
+//# sourceMappingURL=ILogsListenerStore.d.ts.map

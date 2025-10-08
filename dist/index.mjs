@@ -50715,7 +50715,7 @@ function pTimeout(promise, options) {
       return;
     }
     const timeoutError = new TimeoutError2();
-    timer = customTimers.setTimeout(() => {
+    timer = customTimers.setTimeout.call(void 0, () => {
       if (fallback2) {
         try {
           resolve(fallback2());
@@ -50744,7 +50744,7 @@ function pTimeout(promise, options) {
     }
   });
   cancelablePromise.clear = () => {
-    customTimers.clearTimeout(timer);
+    customTimers.clearTimeout.call(void 0, timer);
     timer = void 0;
   };
   return cancelablePromise;
@@ -51386,7 +51386,7 @@ async function asyncRetry(fn, options = {}) {
       lastError = error;
       if (isRetryableError2(error) && attempt < maxRetries) {
         ++attempt;
-        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs}ms...`);
+        logger.debug(`Retry attempt ${attempt} failed. Retrying in ${delayMs} ms...`);
         await sleep(delayMs);
       } else {
         throw error;
@@ -51400,6 +51400,7 @@ async function asyncRetry(fn, options = {}) {
 var minBigint = (a, b) => a < b ? a : b;
 
 // src/managers/TxReader.ts
+var MAX_GET_LOGS_QUEUE_SIZE = 50;
 var TxReader = class _TxReader {
   constructor(config, logger, viemClientManager, logsListenerBlockCheckpointStore) {
     this.config = config;
@@ -51415,6 +51416,7 @@ var TxReader = class _TxReader {
     this.lastRequestedBlocks = {};
     this.pQueues = {};
     this.logWatcher = {
+      // TODO: Rewrite the subscription creation process so that if two subscribers subscribe to the same contract on the same chain, there are not two requests for logs.
       create: async (contractAddress, network, onLogs, event, blockManager) => {
         const id = generateUid();
         const unwatch = blockManager.watchBlocks({
@@ -51752,20 +51754,20 @@ var TxReader = class _TxReader {
   }
   async pumpGetLogsQueue(id, network, contractAddress, from14, to) {
     const numericChainSelector = Number(network.chainSelector);
-    const targetBlock = to;
-    this.targetBlockHeight[numericChainSelector][contractAddress] = targetBlock;
+    if (this.pQueues[numericChainSelector][contractAddress].size <= MAX_GET_LOGS_QUEUE_SIZE)
+      return;
+    this.targetBlockHeight[numericChainSelector][contractAddress] = to;
     const last = this.lastRequestedBlocks[numericChainSelector][contractAddress];
     let cursor = last !== void 0 ? last + 1n : from14;
-    const step = this.config.getLogsBlockRange;
-    while (cursor <= targetBlock) {
+    while (cursor <= to) {
       const start = cursor;
-      const end = minBigint(targetBlock, start + step);
+      const end = minBigint(to, start + this.config.getLogsBlockRange);
       this.pQueues[numericChainSelector][contractAddress].add(
         () => this.fetchLogsForWatcher(id, start, end).catch((e) => this.logger.error(e))
       ).catch((e) => this.logger.error(`PQueue task failed ${e}`));
       cursor = end + 1n;
     }
-    this.lastRequestedBlocks[numericChainSelector][contractAddress] = targetBlock;
+    this.lastRequestedBlocks[numericChainSelector][contractAddress] = to;
   }
   async fetchLogsForWatcher(id, from14, to) {
     const w = this.logWatchers.get(id);
@@ -51785,7 +51787,7 @@ var TxReader = class _TxReader {
           w.network
         ),
         {
-          maxRetries: 5,
+          maxRetries: Infinity,
           delayMs: 2e3
         }
       );
