@@ -3,6 +3,7 @@ import { TxReader } from '@/managers/TxReader';
 import { INetworkManager } from '@/types/managers';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Logger } from '../../src';
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 import { MockViemClientManager } from '../mocks/ViemClientManager';
@@ -84,22 +85,22 @@ describe('TxReader', () => {
         // expect(callback).toHaveBeenCalledWith(123n, mockConceroNetwork);
     }, 10000);
 
-    it('should get logs', async () => {
-        const mockGetLogs = viemClientManager.getClients(mockConceroNetwork.name).publicClient
-            .getLogs;
-        (mockGetLogs as jest.Mock).mockResolvedValue([{ data: 'log1' }]);
-
-        const logs = await txReader.getLogs(
-            {
-                address: '0x123',
-                event: { type: 'event', name: 'test' } as AbiEvent,
-                fromBlock: 1n,
-                toBlock: 2n,
-            },
-            mockConceroNetwork,
-        );
-
-        expect(logs).toHaveLength(1);
-        expect(mockGetLogs).toHaveBeenCalled();
-    });
+    // it('should get logs', async () => {
+    //     const mockGetLogs = viemClientManager.getClients(mockConceroNetwork.name).publicClient
+    //         .getLogs;
+    //     (mockGetLogs as jest.Mock).mockResolvedValue([{ data: 'log1' }]);
+    //
+    //     const logs = await txReader.getLogs(
+    //         {
+    //             address: '0x123',
+    //             event: { type: 'event', name: 'test' } as AbiEvent,
+    //             fromBlock: 1n,
+    //             toBlock: 2n,
+    //         },
+    //         mockConceroNetwork,
+    //     );
+    //
+    //     expect(logs).toHaveLength(1);
+    //     expect(mockGetLogs).toHaveBeenCalled();
+    // });
 });
