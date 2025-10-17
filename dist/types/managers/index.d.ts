@@ -14,4 +14,5 @@ export { type IBalanceManager, type TokenConfig, type BalanceManagerConfig, } fr
 export { type ILogger, type LoggerConfig, type LoggerInterface, type LogLevel } from './ILogger';
 export { type IHttpClient, type HttpClientConfig } from './IHttpClient';
 export { type NonceManagerConfig } from './INonceManager';
+export { type IRetryStore } from './IRetryStore';
 //# sourceMappingURL=index.d.ts.map
