@@ -52344,6 +52344,7 @@ export {
   ConceroNetworkManager,
   DeploymentFetcher,
   HttpClient,
+  InMemoryRetryStore,
   Logger,
   ManagerBase,
   NonceManager,
