@@ -13,13 +13,13 @@ import { generateUid } from '../utils';
 
 interface Subscriber {
     id: string;
-    finalityCallback?: (txHash: string, chainName: string, isFinalized: boolean) => Promise<void>;
+    finalityCallback?: (txHash: Hash, chainName: string, isFinalized: boolean) => void;
     inclusionCallback?: (
-        txHash: string,
+        txHash: Hash,
         networkName: string,
         blockNumber: bigint,
         isIncluded: boolean,
-    ) => Promise<void>;
+    ) => void;
 }
 
 interface TransactionMonitor {
@@ -87,7 +87,7 @@ export class TxMonitor implements ITxMonitor {
     public ensureTxFinality(
         txHash: Hash,
         chainName: string,
-        onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
+        onFinalityCallback: (txHash: Hash, chainName: string, isFinalized: boolean) => void,
     ): void {
         const existingMonitor = this.monitors.get(txHash);
         const subscriberId = generateUid();

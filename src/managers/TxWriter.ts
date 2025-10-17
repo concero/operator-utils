@@ -1,9 +1,11 @@
 import { Hash, SimulateContractParameters } from 'viem';
 
+import { InMemoryRetryStore } from '../stores/InMemoryRetryStore';
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
 import { ILogger } from '../types/managers/ILogger';
+import { IRetryStore } from '../types/managers/IRetryStore';
 import { ITxWriter } from '../types/managers/ITxWriter';
 import { callContract } from '../utils';
 
@@ -15,18 +17,24 @@ export class TxWriter implements ITxWriter {
     private config: TxWriterConfig;
     private nonceManager: INonceManager;
 
+    private readonly retryStore: IRetryStore;
+
+    private static readonly BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600] as const;
+
     private constructor(
         logger: ILogger,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ) {
         this.viemClientManager = viemClientManager;
         this.txMonitor = txMonitor;
         this.logger = logger;
         this.config = config;
         this.nonceManager = nonceManager;
+        this.retryStore = retryStore ?? new InMemoryRetryStore();
     }
 
     public static createInstance(
@@ -35,6 +43,7 @@ export class TxWriter implements ITxWriter {
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ): TxWriter {
         TxWriter.instance = new TxWriter(
             logger,
@@ -42,6 +51,7 @@ export class TxWriter implements ITxWriter {
             txMonitor,
             nonceManager,
             config,
+            retryStore,
         );
         return TxWriter.instance;
     }
@@ -56,6 +66,7 @@ export class TxWriter implements ITxWriter {
     public async initialize(): Promise<void> {
         this.logger.info('Initialized');
     }
+
     public async callContract(
         network: ConceroNetwork,
         params: SimulateContractParameters,
@@ -77,7 +88,7 @@ export class TxWriter implements ITxWriter {
                 this.logger.info(
                     `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`,
                 );
-                return `0xdry${Date.now().toString(16)}`;
+                return `0xdry${Date.now().toString(16)}` as Hash;
             }
 
             const txHash = await callContract(
@@ -120,41 +131,62 @@ export class TxWriter implements ITxWriter {
         }
     }
 
+    private nextDelaySeconds(attempt: number): number {
+        const last = TxWriter.BACKOFF_SECONDS[TxWriter.BACKOFF_SECONDS.length - 1];
+        return attempt <= TxWriter.BACKOFF_SECONDS.length
+            ? TxWriter.BACKOFF_SECONDS[attempt - 1]
+            : last;
+    }
+
+    private deriveOperationId(network: ConceroNetwork, params: SimulateContractParameters): string {
+        return `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
+    }
+
     private createRetryCallback(
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality: boolean,
         attempt: number,
     ): (txHash: Hash, success: boolean) => void {
-        return async (txHash: Hash, success: boolean): Promise<void> => {
+        const opId = this.deriveOperationId(network, params);
+
+        return (txHash: Hash, success: boolean): void => {
             if (success) {
+                this.retryStore.clearRetry(opId, network.name).catch(() => {});
                 this.logger.debug(
                     `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`,
                 );
                 return;
             }
 
-            if (attempt >= this.config.maxCallbackRetries) {
+            if (ensureTxFinality) {
                 this.logger.error(
-                    `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`,
+                    `[${network.name}] Transaction ${txHash} did not reach finality (attempt ${attempt}). No retry (rule: inclusion-only).`,
                 );
-                this.logger.error(`Tx Params: ${params}`);
                 return;
             }
 
+            const delaySec = this.nextDelaySeconds(attempt);
+            const nextTryAt = new Date(Date.now() + delaySec * 1000);
+
+            this.retryStore
+                .saveRetryAttempt(opId, network.name, attempt, nextTryAt)
+                .catch(() => {});
+
             this.logger.warn(
-                `[${network.name}] Transaction ${txHash} failed (attempt ${attempt}), retrying...`,
+                `[${network.name}] Transaction ${txHash} not included (attempt ${attempt}). Retrying in ${delaySec}s...`,
             );
 
-            await this.nonceManager.refresh(network.name);
-
-            try {
-                await this.callContractWithMonitoring(network, params, false, attempt + 1);
-            } catch (error) {
-                this.logger.error(
-                    `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`,
-                );
-            }
+            setTimeout(async () => {
+                try {
+                    await this.nonceManager.refresh(network.name);
+                    await this.callContractWithMonitoring(network, params, false, attempt + 1);
+                } catch (error) {
+                    this.logger.error(
+                        `[${network.name}] Retry attempt ${attempt + 1} failed to send: ${error}`,
+                    );
+                }
+            }, delaySec * 1000);
         };
     }
 }
