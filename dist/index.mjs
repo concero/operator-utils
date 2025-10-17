@@ -51832,22 +51832,46 @@ var TxReader = class _TxReader {
   }
 };
 
+// src/stores/InMemoryRetryStore.ts
+var InMemoryRetryStore = class {
+  constructor() {
+    this.store = /* @__PURE__ */ new Map();
+  }
+  key(k, chain) {
+    return `${chain}:${k}`;
+  }
+  async saveRetryAttempt(key, chainName, attempt, nextTryAt) {
+    this.store.set(this.key(key, chainName), { attempt, nextTryAt });
+  }
+  async getRetryState(key, chainName) {
+    return this.store.get(this.key(key, chainName)) ?? null;
+  }
+  async clearRetry(key, chainName) {
+    this.store.delete(this.key(key, chainName));
+  }
+};
+
 // src/managers/TxWriter.ts
 var TxWriter = class _TxWriter {
-  constructor(logger, viemClientManager, txMonitor, nonceManager, config) {
+  static {
+    this.BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600];
+  }
+  constructor(logger, viemClientManager, txMonitor, nonceManager, config, retryStore) {
     this.viemClientManager = viemClientManager;
     this.txMonitor = txMonitor;
     this.logger = logger;
     this.config = config;
     this.nonceManager = nonceManager;
+    this.retryStore = retryStore ?? new InMemoryRetryStore();
   }
-  static createInstance(logger, viemClientManager, txMonitor, nonceManager, config) {
+  static createInstance(logger, viemClientManager, txMonitor, nonceManager, config, retryStore) {
     _TxWriter.instance = new _TxWriter(
       logger,
       viemClientManager,
       txMonitor,
       nonceManager,
-      config
+      config,
+      retryStore
     );
     return _TxWriter.instance;
   }
@@ -51908,32 +51932,47 @@ var TxWriter = class _TxWriter {
       throw error;
     }
   }
+  nextDelaySeconds(attempt) {
+    const last = _TxWriter.BACKOFF_SECONDS[_TxWriter.BACKOFF_SECONDS.length - 1];
+    return attempt <= _TxWriter.BACKOFF_SECONDS.length ? _TxWriter.BACKOFF_SECONDS[attempt - 1] : last;
+  }
+  deriveOperationId(network, params) {
+    return `op:${network.name}:${String(params.address ?? "0x")}:${params.functionName ?? "fn"}:${JSON.stringify(params.args ?? [])}`;
+  }
   createRetryCallback(network, params, ensureTxFinality, attempt) {
-    return async (txHash, success) => {
+    const opId = this.deriveOperationId(network, params);
+    return (txHash, success) => {
       if (success) {
+        this.retryStore.clearRetry(opId, network.name).catch(() => {
+        });
         this.logger.debug(
           `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`
         );
         return;
       }
-      if (attempt >= this.config.maxCallbackRetries) {
+      if (ensureTxFinality) {
         this.logger.error(
-          `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`
+          `[${network.name}] Transaction ${txHash} did not reach finality (attempt ${attempt}). No retry (rule: inclusion-only).`
         );
-        this.logger.error(`Tx Params: ${params}`);
         return;
       }
+      const delaySec = this.nextDelaySeconds(attempt);
+      const nextTryAt = new Date(Date.now() + delaySec * 1e3);
+      this.retryStore.saveRetryAttempt(opId, network.name, attempt, nextTryAt).catch(() => {
+      });
       this.logger.warn(
-        `[${network.name}] Transaction ${txHash} failed (attempt ${attempt}), retrying...`
+        `[${network.name}] Transaction ${txHash} not included (attempt ${attempt}). Retrying in ${delaySec}s...`
       );
-      await this.nonceManager.refresh(network.name);
-      try {
-        await this.callContractWithMonitoring(network, params, false, attempt + 1);
-      } catch (error) {
-        this.logger.error(
-          `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`
-        );
-      }
+      setTimeout(async () => {
+        try {
+          await this.nonceManager.refresh(network.name);
+          await this.callContractWithMonitoring(network, params, false, attempt + 1);
+        } catch (error) {
+          this.logger.error(
+            `[${network.name}] Retry attempt ${attempt + 1} failed to send: ${error}`
+          );
+        }
+      }, delaySec * 1e3);
     };
   }
 };

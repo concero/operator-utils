@@ -12,7 +12,7 @@ export declare class TxMonitor implements ITxMonitor {
     constructor(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig);
     static createInstance(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig): TxMonitor;
     static getInstance(): TxMonitor;
-    ensureTxFinality(txHash: Hash, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
+    ensureTxFinality(txHash: Hash, chainName: string, onFinalityCallback: (txHash: Hash, chainName: string, isFinalized: boolean) => void): void;
     ensureTxInclusion(txHash: Hash, chainName: string, onTxIncluded: (txHash: Hash, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
     private checkTransactionStatus;
     private notifyFinalitySubscribers;
