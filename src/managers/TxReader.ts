@@ -1,13 +1,9 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
 import PQueue from 'p-queue';
 
-import { InMemoryRetryStore } from 'src/stores';
 import {
     ConceroNetwork,
     ILogger,
-    INonceManager,
-    IRetryStore,
-    ITxMonitor,
     ITxReader,
     IViemClientManager,
     LogQuery,
@@ -77,30 +73,17 @@ export class TxReader implements ITxReader {
     private targetBlockHeight: Record<number, Record<Address, bigint>> = {};
     private lastRequestedBlocks: Record<number, Record<Address, bigint>> = {};
     private readonly pQueues: Record<number, Record<string, PQueue>> = {};
-    private readonly txMonitor: ITxMonitor;
-    private readonly retryStore: IRetryStore;
-    private readonly nonceManager?: INonceManager;
-
-    // последний шаг бэкоффа – 60 минут, повторяем бесконечно
-    private static readonly BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600] as const;
 
     private constructor(
         private readonly config: TxReaderConfig,
         private readonly logger: ILogger,
         private readonly viemClientManager: IViemClientManager,
         private readonly logsListenerBlockCheckpointStore?: ILogsListenerStore,
-        txMonitor?: ITxMonitor,
-        retryStore?: IRetryStore,
-        nonceManager?: INonceManager,
     ) {
         this.pollingIntervalMs = config.pollingIntervalMs;
         this.logger.debug(
             `TxReader: Initialized with watcher interval ${this.pollingIntervalMs} ms`,
         );
-        if (!txMonitor) throw new Error('TxReader requires txMonitor');
-        this.txMonitor = txMonitor;
-        this.retryStore = retryStore ?? new InMemoryRetryStore();
-        this.nonceManager = nonceManager;
     }
 
     public static createInstance(
@@ -108,18 +91,12 @@ export class TxReader implements ITxReader {
         logger: ILogger,
         viemClientManager: IViemClientManager,
         logsListenerBlockCheckpointStore?: ILogsListenerStore,
-        txMonitor?: ITxMonitor,
-        retryStore?: IRetryStore,
-        nonceManager?: INonceManager,
     ): TxReader {
         TxReader.instance = new TxReader(
             config,
             logger,
             viemClientManager,
             logsListenerBlockCheckpointStore,
-            txMonitor,
-            retryStore,
-            nonceManager,
         );
         return TxReader.instance;
     }
@@ -635,20 +612,13 @@ export class TxReader implements ITxReader {
     public async getLogs(q: LogQuery, n: ConceroNetwork) {
         const { publicClient } = this.viemClientManager.getClients(n.name);
         try {
-            return await asyncRetry(
-                () =>
-                    publicClient.getLogs({
-                        address: q.address,
-                        fromBlock: q.fromBlock,
-                        toBlock: q.toBlock,
-                        event: q.event,
-                        ...(q.args && { args: q.args }),
-                    }),
-                {
-                    maxRetries: 20,
-                    delayMs: 4000,
-                },
-            );
+            return await publicClient.getLogs({
+                address: q.address,
+                fromBlock: q.fromBlock,
+                toBlock: q.toBlock,
+                event: q.event,
+                ...(q.args && { args: q.args }),
+            });
         } catch (e) {
             this.logger.error(
                 `getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`,
