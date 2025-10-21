@@ -1,9 +1,9 @@
 import { Hash, SimulateContractParameters } from 'viem';
-import { ITxResultSubscriber } from 'src/types/managers/ITxResultSubscriber';
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
 import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
 import { ILogger } from '../types/managers/ILogger';
+import { ITxResultSubscriber } from '../types/managers/ITxResultSubscriber';
 import { ITxWriter } from '../types/managers/ITxWriter';
 export declare class TxWriter implements ITxWriter, ITxResultSubscriber {
     private static instance;

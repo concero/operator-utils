@@ -178,7 +178,7 @@ describe('TxWriter', () => {
         expect(txMonitor.trackTxFinality).toHaveBeenCalledWith(
             '0x123',
             'test-network',
-            "tx-writer"
+            'tx-writer',
         );
         expect(txMonitor.trackTxInclusion).not.toHaveBeenCalled();
     });

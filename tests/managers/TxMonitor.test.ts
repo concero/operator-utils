@@ -1,6 +1,10 @@
 import { Hash } from 'viem';
 import { TxMonitor } from '@/managers/TxMonitor';
-import { IBlockManagerRegistry, IConceroNetworkManager, ITxResultSubscriber } from '@/types/managers';
+import {
+    IBlockManagerRegistry,
+    IConceroNetworkManager,
+    ITxResultSubscriber,
+} from '@/types/managers';
 import { TxNotificationHub } from '@/types/managers/ITxResultSubscriber';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';

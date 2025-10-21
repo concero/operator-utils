@@ -1,6 +1,6 @@
 import { Hash } from 'viem';
 import { IBlockManagerRegistry, IConceroNetworkManager, ILogger, ITxMonitor, IViemClientManager, TxMonitorConfig } from '../types';
-import { ITxMonitorStore } from '../types/managers/ITxMonitorStore';
+import { ITxMonitorStore } from '../types/managers';
 export declare class TxMonitor implements ITxMonitor {
     private static instance;
     private viemClientManager;

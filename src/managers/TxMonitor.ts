@@ -1,6 +1,5 @@
 import { Hash } from 'viem';
 
-import { generateUid } from '../utils';
 import {
     ConceroNetwork,
     IBlockManagerRegistry,
@@ -13,6 +12,7 @@ import {
 import { ITxMonitorStore, PersistedMonitor } from '../types/managers';
 import { InMemoryTxMonitorStore } from '../types/managers/ITxMonitorStore';
 import { TxNotificationHub } from '../types/managers/ITxResultSubscriber';
+import { generateUid } from '../utils';
 
 export class TxMonitor implements ITxMonitor {
     private static instance: TxMonitor | undefined;
