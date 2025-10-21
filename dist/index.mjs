@@ -50565,232 +50565,6 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
   }
 };
 
-// src/types/managers/ITxResultSubscriber.ts
-var TxNotificationHub = class _TxNotificationHub {
-  constructor() {
-    this.sinks = /* @__PURE__ */ new Map();
-  }
-  static getInstance() {
-    if (!this.instance) this.instance = new _TxNotificationHub();
-    return this.instance;
-  }
-  register(sub) {
-    this.sinks.set(sub.id, sub);
-  }
-  async notify(subscriberId, payload) {
-    const sub = this.sinks.get(subscriberId);
-    if (!sub) return;
-    await sub.notifyTxResult(payload).catch(() => {
-    });
-  }
-  async notifyMany(subscriberIds, payload) {
-    await Promise.all(subscriberIds.map((id) => this.notify(id, payload)));
-  }
-};
-
-// src/types/managers/ITxMonitorStore.ts
-var InMemoryTxMonitorStore = class {
-  constructor() {
-    this.map = /* @__PURE__ */ new Map();
-  }
-  async upsertMonitor(m) {
-    this.map.set(m.txHash, m);
-  }
-  async getMonitor(txHash) {
-    return this.map.get(txHash) ?? null;
-  }
-  async listMonitorsByNetwork(chainName) {
-    return [...this.map.values()].filter((m) => m.chainName === chainName);
-  }
-  async addSubscriber(txHash, subscriberId) {
-    const m = this.map.get(txHash);
-    if (!m) return;
-    if (!m.subscribers.includes(subscriberId)) m.subscribers.push(subscriberId);
-  }
-  async removeMonitor(txHash) {
-    this.map.delete(txHash);
-  }
-  async setInclusionBlock(txHash, block) {
-    const m = this.map.get(txHash);
-    if (!m) return;
-    m.inclusionBlockNumber = block;
-    this.map.set(txHash, m);
-  }
-  async setFinalityTarget(txHash, block) {
-    const m = this.map.get(txHash);
-    if (!m) return;
-    m.finalityBlockNumber = block;
-    this.map.set(txHash, m);
-  }
-};
-
-// src/managers/TxMonitor.ts
-var TxMonitor = class _TxMonitor {
-  constructor(logger, viemClientManager, blockManagerRegistry, networkManager, config, store) {
-    this.networkSubscriptions = /* @__PURE__ */ new Map();
-    this.hub = TxNotificationHub.getInstance();
-    this.viemClientManager = viemClientManager;
-    this.logger = logger;
-    this.config = config;
-    this.blockManagerRegistry = blockManagerRegistry;
-    this.networkManager = networkManager;
-    this.store = store ?? new InMemoryTxMonitorStore();
-    this.logger.info("initialized");
-  }
-  static createInstance(logger, viemClientManager, blockManagerRegistry, networkManager, config, store) {
-    if (!_TxMonitor.instance) {
-      _TxMonitor.instance = new _TxMonitor(
-        logger,
-        viemClientManager,
-        blockManagerRegistry,
-        networkManager,
-        config,
-        store
-      );
-    }
-    return _TxMonitor.instance;
-  }
-  static getInstance() {
-    if (!_TxMonitor.instance) throw new Error("TxMonitor is not initialized.");
-    return _TxMonitor.instance;
-  }
-  trackTxFinality(txHash, chainName, subscriberId) {
-    this.upsertMonitor({
-      txHash,
-      chainName,
-      type: "finality",
-      requiredConfirmations: 1,
-      startTime: Date.now(),
-      subscribers: [subscriberId]
-    });
-  }
-  trackTxInclusion(txHash, chainName, subscriberId, confirmations = 1) {
-    this.upsertMonitor({
-      txHash,
-      chainName,
-      type: "inclusion",
-      requiredConfirmations: confirmations,
-      startTime: Date.now(),
-      subscribers: [subscriberId]
-    });
-  }
-  async cancel(txHash, subscriberId) {
-    if (!subscriberId) {
-      await this.store.removeMonitor(txHash);
-      return;
-    }
-    const m = await this.store.getMonitor(txHash);
-    if (!m) return;
-    m.subscribers = m.subscribers.filter((s) => s !== subscriberId);
-    if (m.subscribers.length === 0) await this.store.removeMonitor(txHash);
-    else await this.store.upsertMonitor(m);
-  }
-  async upsertMonitor(m) {
-    const existing = await this.store.getMonitor(m.txHash);
-    if (existing) {
-      const merged = {
-        ...existing,
-        type: existing.type,
-        requiredConfirmations: m.requiredConfirmations ?? existing.requiredConfirmations,
-        startTime: existing.startTime ?? m.startTime,
-        subscribers: Array.from(/* @__PURE__ */ new Set([...existing.subscribers, ...m.subscribers]))
-      };
-      await this.store.upsertMonitor(merged);
-    } else {
-      await this.store.upsertMonitor(m);
-    }
-    this.subscribeToNetwork(m.chainName);
-    this.logger.debug(`Started tracking ${m.type} for ${m.txHash} on ${m.chainName}`);
-  }
-  async checkNetworkTransactions(networkName, endBlock) {
-    const network = this.networkManager.getNetworkByName(networkName);
-    if (!network) return;
-    const finalityConfirmations = BigInt(
-      network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations()
-    );
-    const monitors = await this.store.listMonitorsByNetwork(networkName);
-    for (const monitor of monitors) {
-      await this.checkTransactionStatus(monitor, endBlock, finalityConfirmations, network);
-    }
-  }
-  async checkTransactionStatus(monitor, currentBlock, finalityConfirmations, network) {
-    try {
-      const elapsed = Date.now() - monitor.startTime;
-      if (monitor.type === "inclusion" && this.config.maxInclusionWait && elapsed >= this.config.maxInclusionWait) {
-        this.logger.warn(`Tx ${monitor.txHash} inclusion timeout after ${elapsed}ms`);
-        await this.notifySubscribers(monitor, false, 0n);
-        await this.store.removeMonitor(monitor.txHash);
-        return;
-      }
-      if (monitor.type === "finality" && this.config.maxFinalityWait && elapsed >= this.config.maxFinalityWait) {
-        this.logger.warn(`Tx ${monitor.txHash} finality timeout after ${elapsed}ms`);
-        await this.notifySubscribers(monitor, false);
-        await this.store.removeMonitor(monitor.txHash);
-        return;
-      }
-      const { publicClient } = this.viemClientManager.getClients(network.name);
-      let inclusionBlock = monitor.inclusionBlockNumber;
-      if (!inclusionBlock) {
-        const receipt = await publicClient.getTransactionReceipt({ hash: monitor.txHash }).catch(() => null);
-        if (!receipt) return;
-        inclusionBlock = receipt.blockNumber;
-        await this.store.setInclusionBlock(monitor.txHash, inclusionBlock);
-      }
-      if (monitor.type === "inclusion") {
-        const confirmations = currentBlock - inclusionBlock + 1n;
-        if (confirmations >= BigInt(monitor.requiredConfirmations)) {
-          await this.notifySubscribers(monitor, true, inclusionBlock);
-          await this.store.removeMonitor(monitor.txHash);
-        }
-      } else {
-        if (!monitor.finalityBlockNumber) {
-          await this.store.setFinalityTarget(
-            monitor.txHash,
-            inclusionBlock + finalityConfirmations
-          );
-          monitor = await this.store.getMonitor(monitor.txHash);
-        }
-        if (currentBlock >= monitor.finalityBlockNumber) {
-          const receiptStillThere = await publicClient.getTransactionReceipt({ hash: monitor.txHash }).catch(() => null);
-          await this.notifySubscribers(monitor, !!receiptStillThere);
-          await this.store.removeMonitor(monitor.txHash);
-        }
-      }
-    } catch (e) {
-      this.logger.error(`Error checking tx ${monitor.txHash}: ${e}`);
-      await this.notifySubscribers(monitor, false);
-      await this.store.removeMonitor(monitor.txHash);
-    }
-  }
-  async notifySubscribers(m, success, blockNumber) {
-    this.logger.debug(
-      `Tx ${m.txHash} ${m.type}: ${success ? "OK" : "FAIL"} \u2014 notifying [${m.subscribers.join(", ")}]`
-    );
-    await this.hub.notifyMany(m.subscribers, {
-      txHash: m.txHash,
-      chainName: m.chainName,
-      type: m.type,
-      success,
-      blockNumber
-    });
-  }
-  subscribeToNetwork(networkName) {
-    if (this.networkSubscriptions.has(networkName)) return;
-    const blockManager = this.blockManagerRegistry.getBlockManager(networkName);
-    if (!blockManager) {
-      this.logger.warn(`BlockManager for ${networkName} not found`);
-      return;
-    }
-    const unsubscribe = blockManager.watchBlocks({
-      onBlockRange: async (_start, end) => {
-        await this.checkNetworkTransactions(networkName, end);
-      }
-    });
-    this.networkSubscriptions.set(networkName, unsubscribe);
-    this.logger.debug(`Subscribed to blocks for ${networkName}`);
-  }
-};
-
 // node_modules/eventemitter3/index.mjs
 var import_index = __toESM(require_eventemitter3(), 1);
 
@@ -51485,25 +51259,6 @@ var PQueue = class extends import_index.default {
   }
 };
 
-// src/stores/InMemoryRetryStore.ts
-var InMemoryRetryStore = class {
-  constructor() {
-    this.store = /* @__PURE__ */ new Map();
-  }
-  key(k, chain) {
-    return `${chain}:${k}`;
-  }
-  async saveRetryAttempt(key, chainName, attempt, nextTryAt) {
-    this.store.set(this.key(key, chainName), { attempt, nextTryAt });
-  }
-  async getRetryState(key, chainName) {
-    return this.store.get(this.key(key, chainName)) ?? null;
-  }
-  async clearRetry(key, chainName) {
-    this.store.delete(this.key(key, chainName));
-  }
-};
-
 // src/utils/sleep.ts
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -51538,7 +51293,7 @@ var minBigint = (a, b) => a < b ? a : b;
 // src/managers/TxReader.ts
 var MAX_GET_LOGS_QUEUE_SIZE = 50;
 var TxReader = class _TxReader {
-  constructor(config, logger, viemClientManager, logsListenerBlockCheckpointStore, txMonitor, retryStore, nonceManager) {
+  constructor(config, logger, viemClientManager, logsListenerBlockCheckpointStore) {
     this.config = config;
     this.logger = logger;
     this.viemClientManager = viemClientManager;
@@ -51698,24 +51453,13 @@ var TxReader = class _TxReader {
     this.logger.debug(
       `TxReader: Initialized with watcher interval ${this.pollingIntervalMs} ms`
     );
-    if (!txMonitor) throw new Error("TxReader requires txMonitor");
-    this.txMonitor = txMonitor;
-    this.retryStore = retryStore ?? new InMemoryRetryStore();
-    this.nonceManager = nonceManager;
   }
-  static {
-    // последний шаг бэкоффа – 60 минут, повторяем бесконечно
-    this.BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600];
-  }
-  static createInstance(config, logger, viemClientManager, logsListenerBlockCheckpointStore, txMonitor, retryStore, nonceManager) {
+  static createInstance(config, logger, viemClientManager, logsListenerBlockCheckpointStore) {
     _TxReader.instance = new _TxReader(
       config,
       logger,
       viemClientManager,
-      logsListenerBlockCheckpointStore,
-      txMonitor,
-      retryStore,
-      nonceManager
+      logsListenerBlockCheckpointStore
     );
     return _TxReader.instance;
   }
@@ -51957,25 +51701,42 @@ var TxReader = class _TxReader {
   async getLogs(q, n) {
     const { publicClient } = this.viemClientManager.getClients(n.name);
     try {
-      return await asyncRetry(
-        () => publicClient.getLogs({
-          address: q.address,
-          fromBlock: q.fromBlock,
-          toBlock: q.toBlock,
-          event: q.event,
-          ...q.args && { args: q.args }
-        }),
-        {
-          maxRetries: 20,
-          delayMs: 4e3
-        }
-      );
+      return await publicClient.getLogs({
+        address: q.address,
+        fromBlock: q.fromBlock,
+        toBlock: q.toBlock,
+        event: q.event,
+        ...q.args && { args: q.args }
+      });
     } catch (e) {
       this.logger.error(
         `getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`
       );
       return [];
     }
+  }
+};
+
+// src/types/managers/ITxResultSubscriber.ts
+var TxNotificationHub = class _TxNotificationHub {
+  constructor() {
+    this.sinks = /* @__PURE__ */ new Map();
+  }
+  static getInstance() {
+    if (!this.instance) this.instance = new _TxNotificationHub();
+    return this.instance;
+  }
+  register(sub) {
+    this.sinks.set(sub.id, sub);
+  }
+  async notify(subscriberId, payload) {
+    const sub = this.sinks.get(subscriberId);
+    if (!sub) return;
+    await sub.notifyTxResult(payload).catch(() => {
+    });
+  }
+  async notifyMany(subscriberIds, payload) {
+    await Promise.all(subscriberIds.map((id) => this.notify(id, payload)));
   }
 };
 
@@ -52430,6 +52191,25 @@ var globalConfig = {
     // 10 minutes default
   }
 };
+
+// src/stores/InMemoryRetryStore.ts
+var InMemoryRetryStore = class {
+  constructor() {
+    this.store = /* @__PURE__ */ new Map();
+  }
+  key(k, chain) {
+    return `${chain}:${k}`;
+  }
+  async saveRetryAttempt(key, chainName, attempt, nextTryAt) {
+    this.store.set(this.key(key, chainName), { attempt, nextTryAt });
+  }
+  async getRetryState(key, chainName) {
+    return this.store.get(this.key(key, chainName)) ?? null;
+  }
+  async clearRetry(key, chainName) {
+    this.store.delete(this.key(key, chainName));
+  }
+};
 export {
   AppError,
   AppErrorEnum,
@@ -52444,7 +52224,6 @@ export {
   ManagerBase,
   NonceManager,
   RpcManager,
-  TxMonitor,
   TxReader,
   TxWriter,
   ViemClientManager,

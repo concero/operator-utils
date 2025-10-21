@@ -1,5 +1,5 @@
 import { Abi, AbiEvent, Address, Log } from 'viem';
-import { ConceroNetwork, ILogger, INonceManager, IRetryStore, ITxMonitor, ITxReader, IViemClientManager, LogQuery, TxReaderConfig } from '../types';
+import { ConceroNetwork, ILogger, ITxReader, IViemClientManager, LogQuery, TxReaderConfig } from '../types';
 import { ILogsListenerStore } from '../types/managers/ILogsListenerStore';
 export type LogsWatcherId = string;
 export interface BulkCallbackResult<V = unknown> {
@@ -34,12 +34,8 @@ export declare class TxReader implements ITxReader {
     private targetBlockHeight;
     private lastRequestedBlocks;
     private readonly pQueues;
-    private readonly txMonitor;
-    private readonly retryStore;
-    private readonly nonceManager?;
-    private static readonly BACKOFF_SECONDS;
     private constructor();
-    static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerStore, txMonitor?: ITxMonitor, retryStore?: IRetryStore, nonceManager?: INonceManager): TxReader;
+    static createInstance(config: TxReaderConfig, logger: ILogger, viemClientManager: IViemClientManager, logsListenerBlockCheckpointStore?: ILogsListenerStore): TxReader;
     static getInstance(): TxReader;
     initialize(): Promise<void>;
     logWatcher: {
