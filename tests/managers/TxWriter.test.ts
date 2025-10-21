@@ -53,7 +53,7 @@ describe('TxWriter', () => {
 
         expect(txHash).toBe('0x123');
         expect(callContractMock).toHaveBeenCalled();
-        expect(txMonitor.ensureTxInclusion).toHaveBeenCalled();
+        expect(txMonitor.trackTxInclusion).toHaveBeenCalled();
     });
 
     it('should handle dry run mode', async () => {
@@ -152,13 +152,13 @@ describe('TxWriter', () => {
         const txHash = await txWriter.callContract(mockConceroNetwork, params, false);
 
         expect(txHash).toBe('0x123');
-        expect(txMonitor.ensureTxInclusion).toHaveBeenCalledWith(
+        expect(txMonitor.trackTxInclusion).toHaveBeenCalledWith(
             '0x123',
             'test-network',
-            expect.any(Function),
+            'tx-writer',
             1,
         );
-        expect(txMonitor.ensureTxFinality).not.toHaveBeenCalled();
+        expect(txMonitor.trackTxFinality).not.toHaveBeenCalled();
     });
 
     it('should use finality monitoring when ensureTxFinality=true', async () => {
@@ -175,11 +175,11 @@ describe('TxWriter', () => {
         const txHash = await txWriter.callContract(mockConceroNetwork, params, true);
 
         expect(txHash).toBe('0x123');
-        expect(txMonitor.ensureTxFinality).toHaveBeenCalledWith(
+        expect(txMonitor.trackTxFinality).toHaveBeenCalledWith(
             '0x123',
             'test-network',
-            expect.any(Function),
+            "tx-writer"
         );
-        expect(txMonitor.ensureTxInclusion).not.toHaveBeenCalled();
+        expect(txMonitor.trackTxInclusion).not.toHaveBeenCalled();
     });
 });

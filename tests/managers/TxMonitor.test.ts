@@ -1,6 +1,7 @@
 import { Hash } from 'viem';
 import { TxMonitor } from '@/managers/TxMonitor';
-import { IBlockManagerRegistry, IConceroNetworkManager } from '@/types/managers';
+import { IBlockManagerRegistry, IConceroNetworkManager, ITxResultSubscriber } from '@/types/managers';
+import { TxNotificationHub } from '@/types/managers/ITxResultSubscriber';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
@@ -15,6 +16,9 @@ describe('TxMonitor', () => {
     let mockWatchBlocks: jest.Mock;
 
     beforeEach(() => {
+        // Reset TxNotificationHub singleton BEFORE creating TxMonitor
+        (TxNotificationHub as any).instance = undefined;
+
         logger = new MockLogger();
         viemClientManager = new MockViemClientManager();
         mockWatchBlocks = jest.fn().mockReturnValue(() => {});
@@ -43,36 +47,63 @@ describe('TxMonitor', () => {
     });
 
     it('should monitor a transaction for finality', async () => {
-        const onFinality = jest.fn();
+        const subscriberId = 'test-subscriber';
         const txHash: Hash = '0x123';
         const chainName = 'test-network';
+        const onFinality = jest.fn().mockResolvedValue(undefined);
 
-        txMonitor.ensureTxFinality(txHash, chainName, onFinality);
+        // Register subscriber
+        const subscriber: ITxResultSubscriber = {
+            id: subscriberId,
+            notifyTxResult: onFinality,
+        };
+        TxNotificationHub.getInstance().register(subscriber);
+
+        // Set up the mock before tracking
+        const mockGetTransactionReceipt =
+            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransactionReceipt;
+        (mockGetTransactionReceipt as jest.Mock).mockResolvedValue({ blockNumber: 100n });
+
+        txMonitor.trackTxFinality(txHash, chainName, subscriberId);
+
+        // Wait for async operations to complete
+        await new Promise(resolve => setImmediate(resolve));
 
         expect(blockManagerRegistry.getBlockManager).toHaveBeenCalledWith('test-network');
         expect(mockWatchBlocks).toHaveBeenCalled();
 
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;
 
-        // Simulate transaction receipt
-        const mockGetTransactionReceipt =
-            viemClientManager.getClients(mockConceroNetwork).publicClient.getTransactionReceipt;
-        (mockGetTransactionReceipt as jest.Mock).mockResolvedValue({ blockNumber: 100n });
-
         // Simulate new blocks until finality
         await onBlockRange(100n, 110n);
 
-        expect(onFinality).toHaveBeenCalledWith(txHash, chainName, true);
+        expect(onFinality).toHaveBeenCalledWith({
+            txHash,
+            chainName,
+            type: 'finality',
+            success: true,
+            blockNumber: undefined,
+        });
     });
 
     it('should handle transaction not found', async () => {
-        const onFinality = jest.fn();
+        const subscriberId = 'test-subscriber';
         const txHash: Hash = '0x123';
         const chainName = 'test-network';
+        const onFinality = jest.fn().mockResolvedValue(undefined);
 
-        txMonitor.ensureTxFinality(txHash, chainName, onFinality);
+        // Register subscriber
+        const subscriber: ITxResultSubscriber = {
+            id: subscriberId,
+            notifyTxResult: onFinality,
+        };
+        TxNotificationHub.getInstance().register(subscriber);
 
-        expect(blockManagerRegistry.getBlockManager).toHaveBeenCalledWith('test-network');
+        txMonitor.trackTxFinality(txHash, chainName, subscriberId);
+
+        // Wait for async operations to complete
+        await new Promise(resolve => setImmediate(resolve));
+
         expect(mockWatchBlocks).toHaveBeenCalled();
 
         const onBlockRange = mockWatchBlocks.mock.calls[0][0].onBlockRange;

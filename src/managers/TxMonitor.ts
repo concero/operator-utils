@@ -1,6 +1,6 @@
 import { Hash } from 'viem';
 
-import { TxNotificationHub } from 'src/types/managers/ITxResultSubscriber';
+import { generateUid } from '../utils';
 import {
     ConceroNetwork,
     IBlockManagerRegistry,
@@ -10,11 +10,9 @@ import {
     IViemClientManager,
     TxMonitorConfig,
 } from '../types';
-import {
-    InMemoryTxMonitorStore,
-    ITxMonitorStore,
-    PersistedMonitor,
-} from '../types/managers/ITxMonitorStore';
+import { ITxMonitorStore, PersistedMonitor } from '../types/managers';
+import { InMemoryTxMonitorStore } from '../types/managers/ITxMonitorStore';
+import { TxNotificationHub } from '../types/managers/ITxResultSubscriber';
 
 export class TxMonitor implements ITxMonitor {
     private static instance: TxMonitor | undefined;
@@ -226,7 +224,6 @@ export class TxMonitor implements ITxMonitor {
             blockNumber,
         });
     }
-
     private subscribeToNetwork(networkName: string): void {
         if (this.networkSubscriptions.has(networkName)) return;
 
