@@ -1,12 +1,13 @@
-import { IRetryStore } from '../types/managers/IRetryStore';
+import { Hash } from 'viem';
+import { IRetryStore, RetryState } from '../types/managers/IRetryStore';
 export declare class InMemoryRetryStore implements IRetryStore {
-    private store;
-    private key;
-    saveRetryAttempt(key: string, chainName: string, attempt: number, nextTryAt: Date): Promise<void>;
-    getRetryState(key: string, chainName: string): Promise<{
-        attempt: number;
-        nextTryAt: Date;
-    } | null>;
+    private ops;
+    private txIndex;
+    saveRetryAttempt<T = any>(key: string, chainName: string, attempt: number, nextTryAt: Date, payload?: T): Promise<void>;
+    getRetryState<T = any>(key: string, chainName: string): Promise<RetryState<T> | null>;
     clearRetry(key: string, chainName: string): Promise<void>;
+    saveTxIndex(chainName: string, txHash: Hash, opId: string): Promise<void>;
+    getOpIdByTx(chainName: string, txHash: Hash): Promise<string | null>;
+    clearTxIndex(chainName: string, txHash: Hash): Promise<void>;
 }
 //# sourceMappingURL=InMemoryRetryStore.d.ts.map

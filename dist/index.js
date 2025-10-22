@@ -45782,8 +45782,10 @@ function merge() {
       result[targetKey] = merge({}, val);
     } else if (isArray(val)) {
       result[targetKey] = val.slice();
-    } else if (!skipUndefined || !isUndefined(val)) {
-      result[targetKey] = val;
+    } else {
+      if (!skipUndefined || !isUndefined(val)) {
+        result[targetKey] = val;
+      }
     }
   };
   for (let i = 0, l = arguments.length; i < l; i++) {
@@ -46962,7 +46964,7 @@ var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 var import_zlib = __toESM(require("zlib"), 1);
 
 // node_modules/axios/lib/env/data.js
-var VERSION = "1.12.2";
+var VERSION = "1.12.0";
 
 // node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
@@ -48329,7 +48331,8 @@ var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
 // node_modules/axios/lib/adapters/fetch.js
 var DEFAULT_CHUNK_SIZE = 64 * 1024;
 var { isFunction: isFunction2 } = utils_default;
-var globalFetchAPI = (({ Request: Request2, Response }) => ({
+var globalFetchAPI = (({ fetch: fetch2, Request: Request2, Response }) => ({
+  fetch: fetch2,
   Request: Request2,
   Response
 }))(utils_default.global);
@@ -48345,11 +48348,8 @@ var test = (fn, ...args) => {
   }
 };
 var factory = (env) => {
-  env = utils_default.merge.call({
-    skipUndefined: true
-  }, globalFetchAPI, env);
-  const { fetch: envFetch, Request: Request2, Response } = env;
-  const isFetchSupported = envFetch ? isFunction2(envFetch) : typeof fetch === "function";
+  const { fetch: fetch2, Request: Request2, Response } = Object.assign({}, globalFetchAPI, env);
+  const isFetchSupported = isFunction2(fetch2);
   const isRequestSupported = isFunction2(Request2);
   const isResponseSupported = isFunction2(Response);
   if (!isFetchSupported) {
@@ -48427,7 +48427,6 @@ var factory = (env) => {
       withCredentials = "same-origin",
       fetchOptions
     } = resolveConfig_default(config);
-    let _fetch = envFetch || fetch;
     responseType = responseType ? (responseType + "").toLowerCase() : "text";
     let composedSignal = composeSignals_default([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
     let request = null;
@@ -48468,7 +48467,7 @@ var factory = (env) => {
         credentials: isCredentialsSupported ? withCredentials : void 0
       };
       request = isRequestSupported && new Request2(url2, resolvedOptions);
-      let response = await (isRequestSupported ? _fetch(request, fetchOptions) : _fetch(url2, resolvedOptions));
+      let response = await (isRequestSupported ? fetch2(request, fetchOptions) : fetch2(url2, resolvedOptions));
       const isStreamResponse = supportsResponseStream && (responseType === "stream" || responseType === "response");
       if (supportsResponseStream && (onDownloadProgress || isStreamResponse && unsubscribe)) {
         const options = {};
@@ -48517,7 +48516,9 @@ var factory = (env) => {
 };
 var seedCache = /* @__PURE__ */ new Map();
 var getFetch = (config) => {
-  let env = config ? config.env : {};
+  let env = utils_default.merge.call({
+    skipUndefined: true
+  }, globalFetchAPI, config ? config.env : null);
   const { fetch: fetch2, Request: Request2, Response } = env;
   const seeds = [
     Request2,
@@ -48817,6 +48818,7 @@ var Axios = class {
     }
     len = requestInterceptorChain.length;
     let newConfig = config;
+    i = 0;
     while (i < len) {
       const onFulfilled = requestInterceptorChain[i++];
       const onRejected = requestInterceptorChain[i++];
@@ -50662,18 +50664,18 @@ var TxNotificationHub = class _TxNotificationHub {
 
 // src/managers/TxMonitor.ts
 var TxMonitor = class _TxMonitor {
-  constructor(logger, viemClientManager, blockManagerRegistry, networkManager, config, store) {
+  constructor(logger, viemClientManager, blockManagerRegistry, networkManager, config, store, hub) {
     this.networkSubscriptions = /* @__PURE__ */ new Map();
-    this.hub = TxNotificationHub.getInstance();
     this.viemClientManager = viemClientManager;
     this.logger = logger;
     this.config = config;
     this.blockManagerRegistry = blockManagerRegistry;
     this.networkManager = networkManager;
     this.store = store ?? new InMemoryTxMonitorStore();
+    this.hub = hub ?? TxNotificationHub.getInstance();
     this.logger.info("initialized");
   }
-  static createInstance(logger, viemClientManager, blockManagerRegistry, networkManager, config, store) {
+  static createInstance(logger, viemClientManager, blockManagerRegistry, networkManager, config, store, hub) {
     if (!_TxMonitor.instance) {
       _TxMonitor.instance = new _TxMonitor(
         logger,
@@ -50681,7 +50683,8 @@ var TxMonitor = class _TxMonitor {
         blockManagerRegistry,
         networkManager,
         config,
-        store
+        store,
+        hub
       );
     }
     return _TxMonitor.instance;
@@ -50751,15 +50754,18 @@ var TxMonitor = class _TxMonitor {
   }
   async checkTransactionStatus(monitor, currentBlock, finalityConfirmations, network) {
     try {
-      const elapsed = Date.now() - monitor.startTime;
-      if (monitor.type === "inclusion" && this.config.maxInclusionWait && elapsed >= this.config.maxInclusionWait) {
-        this.logger.warn(`Tx ${monitor.txHash} inclusion timeout after ${elapsed}ms`);
+      if (monitor.type === "inclusion" && this.config.maxInclusionWait && Date.now() >= monitor.startTime + this.config.maxInclusionWait) {
+        this.logger.warn(
+          `Tx ${monitor.txHash} inclusion timeout after ${Date.now() - monitor.startTime}ms`
+        );
         await this.notifySubscribers(monitor, false, 0n);
         await this.store.removeMonitor(monitor.txHash);
         return;
       }
-      if (monitor.type === "finality" && this.config.maxFinalityWait && elapsed >= this.config.maxFinalityWait) {
-        this.logger.warn(`Tx ${monitor.txHash} finality timeout after ${elapsed}ms`);
+      if (monitor.type === "finality" && this.config.maxFinalityWait && Date.now() >= monitor.startTime + this.config.maxFinalityWait) {
+        this.logger.warn(
+          `Tx ${monitor.txHash} finality timeout after ${Date.now() - monitor.startTime}ms`
+        );
         await this.notifySubscribers(monitor, false);
         await this.store.removeMonitor(monitor.txHash);
         return;
@@ -51979,28 +51985,57 @@ var TxReader = class _TxReader {
   }
 };
 
+// src/stores/InMemoryRetryStore.ts
+var opKey = (chain, key) => `${chain}:${key}`;
+var txKey = (chain, tx) => `${chain}:${tx}`;
+var InMemoryRetryStore = class {
+  constructor() {
+    this.ops = /* @__PURE__ */ new Map();
+    this.txIndex = /* @__PURE__ */ new Map();
+  }
+  async saveRetryAttempt(key, chainName, attempt, nextTryAt, payload) {
+    this.ops.set(opKey(chainName, key), { attempt, nextTryAt, payload });
+  }
+  async getRetryState(key, chainName) {
+    return this.ops.get(opKey(chainName, key)) ?? null;
+  }
+  async clearRetry(key, chainName) {
+    this.ops.delete(opKey(chainName, key));
+  }
+  async saveTxIndex(chainName, txHash, opId) {
+    this.txIndex.set(txKey(chainName, txHash), opId);
+  }
+  async getOpIdByTx(chainName, txHash) {
+    return this.txIndex.get(txKey(chainName, txHash)) ?? null;
+  }
+  async clearTxIndex(chainName, txHash) {
+    this.txIndex.delete(txKey(chainName, txHash));
+  }
+};
+
 // src/managers/TxWriter.ts
 var TxWriter = class _TxWriter {
-  constructor(logger, viemClientManager, txMonitor, nonceManager, config) {
-    this.ctxByTx = /* @__PURE__ */ new Map();
+  constructor(logger, viemClientManager, txMonitor, nonceManager, config, retryStore) {
     this.id = "tx-writer";
     this.viemClientManager = viemClientManager;
     this.txMonitor = txMonitor;
     this.logger = logger;
     this.config = config;
     this.nonceManager = nonceManager;
+    this.retryStore = retryStore ?? new InMemoryRetryStore();
     TxNotificationHub.getInstance().register(this);
   }
   static {
     this.BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600];
   }
-  static createInstance(logger, viemClientManager, txMonitor, nonceManager, config) {
+  static createInstance(logger, viemClientManager, txMonitor, nonceManager, config, retryStore) {
     _TxWriter.instance = new _TxWriter(
       logger,
       viemClientManager,
       txMonitor,
       nonceManager,
-      config
+      config,
+      retryStore
     );
     return _TxWriter.instance;
   }
@@ -52015,33 +52050,47 @@ var TxWriter = class _TxWriter {
     this.logger.info("Initialized");
   }
   async callContract(network, params, ensureTxFinality = false) {
-    const hash3 = await this.send(network, params, ensureTxFinality, 1);
-    return hash3;
+    return this.send(network, params, ensureTxFinality, 1);
   }
-  async notifyTxResult({ txHash, chainName, type, success }) {
-    const ctx = this.ctxByTx.get(txHash);
-    if (!ctx) {
+  async notifyTxResult({
+    txHash,
+    chainName,
+    type,
+    success
+  }) {
+    const opId = await this.retryStore.getOpIdByTx(chainName, txHash);
+    if (!opId) return;
+    const state = await this.retryStore.getRetryState(opId, chainName);
+    if (!state || !state.payload) {
+      await this.retryStore.clearTxIndex(chainName, txHash);
       return;
     }
+    const attempt = state.attempt ?? 1;
+    const { network, params, ensureTxFinality } = state.payload;
     if (success) {
-      this.logger.debug(`[${chainName}] ${type} OK for ${txHash}, attempt ${ctx.attempt}`);
-      this.ctxByTx.delete(txHash);
+      await Promise.all([
+        this.retryStore.clearRetry(opId, chainName),
+        this.retryStore.clearTxIndex(chainName, txHash)
+      ]);
+      this.logger.debug(`[${chainName}] ${type} OK for ${txHash}, attempt ${attempt}`);
       return;
     }
-    if (ctx.ensureTxFinality) {
-      this.logger.error(`[${chainName}] finality failed for ${txHash} \u2014 no retry by writer`);
-      this.ctxByTx.delete(txHash);
-      return;
-    }
-    const delaySec = this.nextDelaySeconds(ctx.attempt);
+    const nextAttempt = attempt + 1;
+    const delaySec = this.nextDelaySeconds(nextAttempt);
+    const nextTryAt = new Date(Date.now() + delaySec * 1e3);
     this.logger.warn(
-      `[${chainName}] inclusion failed for ${txHash}, retry in ${delaySec}s (attempt ${ctx.attempt + 1})`
+      `[${chainName}] ${type} failed for ${txHash}, retry in ${delaySec}s (attempt ${nextAttempt})`
     );
+    await this.retryStore.saveRetryAttempt(opId, chainName, nextAttempt, nextTryAt, {
+      network,
+      params,
+      ensureTxFinality
+    });
     setTimeout(async () => {
       try {
         await this.nonceManager.refresh(chainName);
-        const newHash = await this.send(ctx.network, ctx.params, false, ctx.attempt + 1);
-        this.ctxByTx.delete(txHash);
+        const newHash = await this.send(network, params, ensureTxFinality, nextAttempt);
+        await this.retryStore.clearTxIndex(chainName, txHash);
         this.logger.info(`[${chainName}] resent -> ${newHash}`);
       } catch (e) {
         this.logger.error(`[${chainName}] resend failed: ${e}`);
@@ -52054,11 +52103,17 @@ var TxWriter = class _TxWriter {
       this.logger.info(`[DRY_RUN][${network.name}] Contract call: ${params.functionName}`);
       return `0xdry${Date.now().toString(16)}`;
     }
+    const opId = this.deriveOperationId(network, params);
+    await this.retryStore.saveRetryAttempt(opId, network.name, attempt, /* @__PURE__ */ new Date(), {
+      network,
+      params,
+      ensureTxFinality
+    });
     const txHash = await callContract(publicClient, walletClient, params, this.nonceManager, {
       simulateTx: this.config.simulateTx,
       defaultGasLimit: this.config.defaultGasLimit
     });
-    this.ctxByTx.set(txHash, { network, params, ensureTxFinality, attempt });
+    await this.retryStore.saveTxIndex(network.name, txHash, opId);
     if (ensureTxFinality) {
       this.txMonitor.trackTxFinality(txHash, network.name, this.id);
     } else {
@@ -52069,6 +52124,9 @@ var TxWriter = class _TxWriter {
   nextDelaySeconds(attempt) {
     const last = _TxWriter.BACKOFF_SECONDS[_TxWriter.BACKOFF_SECONDS.length - 1];
     return attempt <= _TxWriter.BACKOFF_SECONDS.length ? _TxWriter.BACKOFF_SECONDS[attempt - 1] : last;
+  }
+  deriveOperationId(network, params) {
+    return `op:${network.name}:${String(params.address ?? "0x")}:${params.functionName ?? "fn"}:${JSON.stringify(params.args ?? [])}`;
   }
 };
 
@@ -52428,25 +52486,6 @@ var globalConfig = {
     // 5 minutes default
     maxFinalityWait: getEnvInt("TX_MONITOR_MAX_FINALITY_WAIT", min(15))
     // 10 minutes default
-  }
-};
-
-// src/stores/InMemoryRetryStore.ts
-var InMemoryRetryStore = class {
-  constructor() {
-    this.store = /* @__PURE__ */ new Map();
-  }
-  key(k, chain) {
-    return `${chain}:${k}`;
-  }
-  async saveRetryAttempt(key, chainName, attempt, nextTryAt) {
-    this.store.set(this.key(key, chainName), { attempt, nextTryAt });
-  }
-  async getRetryState(key, chainName) {
-    return this.store.get(this.key(key, chainName)) ?? null;
-  }
-  async clearRetry(key, chainName) {
-    this.store.delete(this.key(key, chainName));
   }
 };
 // Annotate the CommonJS export names for ESM import in node:
