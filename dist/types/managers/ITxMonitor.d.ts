@@ -1,9 +1,9 @@
 import { Hash } from 'viem';
 export interface ITxMonitor {
-    ensureTxFinality(txHash: Hash, chainName: string, onFinalityCallback: (txHash: Hash, chainName: string, isFinalized: boolean) => void): void;
-    ensureTxInclusion(txHash: Hash, chainName: string, onTxIncluded: (txHash: Hash, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
+    trackTxInclusion(txHash: Hash, chainName: string, subscriberId: string, confirmations?: number): void;
+    trackTxFinality(txHash: Hash, chainName: string, subscriberId: string): void;
+    cancel(txHash: Hash, subscriberId?: string): Promise<void>;
 }
-/** Configuration for TxMonitor */
 export interface TxMonitorConfig {
     maxInclusionWait?: number;
     maxFinalityWait?: number;

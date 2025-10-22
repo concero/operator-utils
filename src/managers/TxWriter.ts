@@ -1,19 +1,32 @@
 import { Hash, SimulateContractParameters } from 'viem';
 
+import { InMemoryRetryStore } from '../stores/InMemoryRetryStore';
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
-import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { INonceManager, IRetryStore, ITxMonitor, IViemClientManager } from '../types/managers';
 import { ILogger } from '../types/managers/ILogger';
+import { ITxResultSubscriber, TxNotificationHub } from '../types/managers/ITxResultSubscriber';
 import { ITxWriter } from '../types/managers/ITxWriter';
 import { callContract } from '../utils';
 
-export class TxWriter implements ITxWriter {
+type OpPayload = {
+    network: ConceroNetwork;
+    params: SimulateContractParameters;
+    ensureTxFinality: boolean;
+};
+
+export class TxWriter implements ITxWriter, ITxResultSubscriber {
     private static instance: TxWriter | undefined;
     private viemClientManager: IViemClientManager;
     private txMonitor: ITxMonitor;
     private logger: ILogger;
     private config: TxWriterConfig;
     private nonceManager: INonceManager;
+    private retryStore: IRetryStore;
+
+    public readonly id = 'tx-writer';
+
+    private static readonly BACKOFF_SECONDS = [5, 10, 30, 120, 300, 600, 1200, 3600] as const;
 
     private constructor(
         logger: ILogger,
@@ -21,20 +34,25 @@ export class TxWriter implements ITxWriter {
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ) {
         this.viemClientManager = viemClientManager;
         this.txMonitor = txMonitor;
         this.logger = logger;
         this.config = config;
         this.nonceManager = nonceManager;
+        this.retryStore = retryStore ?? new InMemoryRetryStore();
+
+        TxNotificationHub.getInstance().register(this);
     }
 
-    public static createInstance(
+    static createInstance(
         logger: ILogger,
         viemClientManager: IViemClientManager,
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ): TxWriter {
         TxWriter.instance = new TxWriter(
             logger,
@@ -42,119 +60,135 @@ export class TxWriter implements ITxWriter {
             txMonitor,
             nonceManager,
             config,
+            retryStore,
         );
         return TxWriter.instance;
     }
 
-    public static getInstance(): TxWriter {
-        if (!TxWriter.instance) {
-            throw new Error('TxWriter is not initialized. Call createInstance() first.');
-        }
+    static getInstance(): TxWriter {
+        if (!TxWriter.instance) throw new Error('TxWriter is not initialized.');
         return TxWriter.instance;
     }
 
-    public async initialize(): Promise<void> {
+    get name(): string {
+        return 'TxWriter';
+    }
+
+    async initialize(): Promise<void> {
         this.logger.info('Initialized');
     }
+
     public async callContract(
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality = false,
     ): Promise<Hash> {
-        return this.callContractWithMonitoring(network, params, ensureTxFinality, 1);
+        return this.send(network, params, ensureTxFinality, 1);
     }
 
-    private async callContractWithMonitoring(
-        network: ConceroNetwork,
-        params: SimulateContractParameters,
-        ensureTxFinality: boolean,
-        callbackRetryAttempt: number,
-    ): Promise<Hash> {
-        try {
-            const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
+    public async notifyTxResult({
+        txHash,
+        chainName,
+        type,
+        success,
+    }: {
+        txHash: Hash;
+        chainName: string;
+        type: 'inclusion' | 'finality';
+        success: boolean;
+        blockNumber?: bigint;
+    }): Promise<void> {
+        const opId = await this.retryStore.getOpIdByTx(chainName, txHash);
+        if (!opId) return;
 
-            if (this.config.dryRun) {
-                this.logger.info(
-                    `[DRY_RUN][${network.name}] Contract call: ${params.functionName}`,
-                );
-                return `0xdry${Date.now().toString(16)}`;
-            }
-
-            const txHash = await callContract(
-                publicClient,
-                walletClient,
-                params,
-                this.nonceManager,
-                {
-                    simulateTx: this.config.simulateTx,
-                    defaultGasLimit: this.config.defaultGasLimit,
-                },
-            );
-
-            const retryCallback = this.createRetryCallback(
-                network,
-                params,
-                ensureTxFinality,
-                callbackRetryAttempt,
-            );
-
-            if (ensureTxFinality) {
-                this.txMonitor.ensureTxFinality(
-                    txHash,
-                    network.name,
-                    (hash, _network, isFinalized) => retryCallback(hash, isFinalized),
-                );
-            } else {
-                this.txMonitor.ensureTxInclusion(
-                    txHash,
-                    network.name,
-                    (hash, _network, _blockNumber, isIncluded) => retryCallback(hash, isIncluded),
-                    1,
-                );
-            }
-
-            return txHash;
-        } catch (error) {
-            this.logger.error(`[${network.name}] Contract call failed: ${error}`);
-            throw error;
+        const state = await this.retryStore.getRetryState<OpPayload>(opId, chainName);
+        if (!state || !state.payload) {
+            await this.retryStore.clearTxIndex(chainName, txHash);
+            return;
         }
+
+        const attempt = state.attempt ?? 1;
+        const { network, params, ensureTxFinality } = state.payload;
+
+        if (success) {
+            await Promise.all([
+                this.retryStore.clearRetry(opId, chainName),
+                this.retryStore.clearTxIndex(chainName, txHash),
+            ]);
+            this.logger.debug(`[${chainName}] ${type} OK for ${txHash}, attempt ${attempt}`);
+            return;
+        }
+
+        const nextAttempt = attempt + 1;
+        const delaySec = this.nextDelaySeconds(nextAttempt);
+        const nextTryAt = new Date(Date.now() + delaySec * 1000);
+
+        this.logger.warn(
+            `[${chainName}] ${type} failed for ${txHash}, retry in ${delaySec}s (attempt ${nextAttempt})`,
+        );
+
+        await this.retryStore.saveRetryAttempt<OpPayload>(opId, chainName, nextAttempt, nextTryAt, {
+            network,
+            params,
+            ensureTxFinality,
+        });
+
+        setTimeout(async () => {
+            try {
+                await this.nonceManager.refresh(chainName);
+                const newHash = await this.send(network, params, ensureTxFinality, nextAttempt);
+                await this.retryStore.clearTxIndex(chainName, txHash);
+                this.logger.info(`[${chainName}] resent -> ${newHash}`);
+            } catch (e) {
+                this.logger.error(`[${chainName}] resend failed: ${e}`);
+            }
+        }, delaySec * 1000);
     }
 
-    private createRetryCallback(
+    private async send(
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality: boolean,
         attempt: number,
-    ): (txHash: Hash, success: boolean) => void {
-        return async (txHash: Hash, success: boolean): Promise<void> => {
-            if (success) {
-                this.logger.debug(
-                    `[${network.name}] Transaction ${txHash} succeeded on attempt ${attempt}`,
-                );
-                return;
-            }
+    ): Promise<Hash> {
+        const { walletClient, publicClient } = this.viemClientManager.getClients(network.name);
 
-            if (attempt >= this.config.maxCallbackRetries) {
-                this.logger.error(
-                    `[${network.name}] Transaction ${txHash} failed after ${attempt} attempts, giving up`,
-                );
-                this.logger.error(`Tx Params: ${params}`);
-                return;
-            }
+        if (this.config.dryRun) {
+            this.logger.info(`[DRY_RUN][${network.name}] Contract call: ${params.functionName}`);
+            return `0xdry${Date.now().toString(16)}` as Hash;
+        }
 
-            this.logger.warn(
-                `[${network.name}] Transaction ${txHash} failed (attempt ${attempt}), retrying...`,
-            );
+        const opId = this.deriveOperationId(network, params);
+        await this.retryStore.saveRetryAttempt<OpPayload>(opId, network.name, attempt, new Date(), {
+            network,
+            params,
+            ensureTxFinality,
+        });
 
-            await this.nonceManager.refresh(network.name);
+        const txHash = await callContract(publicClient, walletClient, params, this.nonceManager, {
+            simulateTx: this.config.simulateTx,
+            defaultGasLimit: this.config.defaultGasLimit,
+        });
 
-            try {
-                await this.callContractWithMonitoring(network, params, false, attempt + 1);
-            } catch (error) {
-                this.logger.error(
-                    `[${network.name}] Retry attempt ${attempt + 1} failed: ${error}`,
-                );
-            }
-        };
+        await this.retryStore.saveTxIndex(network.name, txHash, opId);
+
+        if (ensureTxFinality) {
+            this.txMonitor.trackTxFinality(txHash, network.name, this.id);
+        } else {
+            this.txMonitor.trackTxInclusion(txHash, network.name, this.id, 1);
+        }
+
+        return txHash;
+    }
+
+    private nextDelaySeconds(attempt: number): number {
+        const last = TxWriter.BACKOFF_SECONDS[TxWriter.BACKOFF_SECONDS.length - 1];
+        return attempt <= TxWriter.BACKOFF_SECONDS.length
+            ? TxWriter.BACKOFF_SECONDS[attempt - 1]
+            : last;
+    }
+
+    private deriveOperationId(network: ConceroNetwork, params: SimulateContractParameters): string {
+        return `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
     }
 }

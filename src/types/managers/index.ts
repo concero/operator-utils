@@ -27,3 +27,6 @@ export {
 export { type ILogger, type LoggerConfig, type LoggerInterface, type LogLevel } from './ILogger';
 export { type IHttpClient, type HttpClientConfig } from './IHttpClient';
 export { type NonceManagerConfig } from './INonceManager';
+export { type IRetryStore } from './IRetryStore';
+export { type ITxResultSubscriber, type TxResultNotification } from './ITxResultSubscriber';
+export { type ITxMonitorStore, type MonitorType, type PersistedMonitor } from './ITxMonitorStore';

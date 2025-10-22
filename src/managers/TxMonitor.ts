@@ -9,33 +9,14 @@ import {
     IViemClientManager,
     TxMonitorConfig,
 } from '../types';
+import { ITxMonitorStore, PersistedMonitor } from '../types/managers';
+import { InMemoryTxMonitorStore } from '../types/managers/ITxMonitorStore';
+import { TxNotificationHub } from '../types/managers/ITxResultSubscriber';
 import { generateUid } from '../utils';
-
-interface Subscriber {
-    id: string;
-    finalityCallback?: (txHash: string, chainName: string, isFinalized: boolean) => Promise<void>;
-    inclusionCallback?: (
-        txHash: string,
-        networkName: string,
-        blockNumber: bigint,
-        isIncluded: boolean,
-    ) => Promise<void>;
-}
-
-interface TransactionMonitor {
-    txHash: Hash;
-    chainName: string;
-    subscribers: Map<string, Subscriber>;
-    type: 'inclusion' | 'finality';
-    requiredConfirmations: number; // Used for both inclusion and finality, depending on type
-    inclusionBlockNumber?: bigint;
-    finalityBlockNumber?: bigint;
-    startTime: number;
-}
 
 export class TxMonitor implements ITxMonitor {
     private static instance: TxMonitor | undefined;
-    private monitors: Map<string, TransactionMonitor> = new Map();
+
     private viemClientManager: IViemClientManager;
     private logger: ILogger;
     private config: TxMonitorConfig;
@@ -43,18 +24,25 @@ export class TxMonitor implements ITxMonitor {
     private blockManagerRegistry: IBlockManagerRegistry;
     private networkManager: IConceroNetworkManager;
 
+    private store: ITxMonitorStore;
+    private hub: TxNotificationHub;
+
     constructor(
         logger: ILogger,
         viemClientManager: IViemClientManager,
         blockManagerRegistry: IBlockManagerRegistry,
         networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
+        store?: ITxMonitorStore,
+        hub?: TxNotificationHub,
     ) {
         this.viemClientManager = viemClientManager;
         this.logger = logger;
         this.config = config;
         this.blockManagerRegistry = blockManagerRegistry;
         this.networkManager = networkManager;
+        this.store = store ?? new InMemoryTxMonitorStore();
+        this.hub = hub ?? TxNotificationHub.getInstance();
         this.logger.info('initialized');
     }
 
@@ -64,6 +52,8 @@ export class TxMonitor implements ITxMonitor {
         blockManagerRegistry: IBlockManagerRegistry,
         networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
+        store?: ITxMonitorStore,
+        hub?: TxNotificationHub,
     ): TxMonitor {
         if (!TxMonitor.instance) {
             TxMonitor.instance = new TxMonitor(
@@ -72,285 +62,190 @@ export class TxMonitor implements ITxMonitor {
                 blockManagerRegistry,
                 networkManager,
                 config,
+                store,
+                hub,
             );
         }
         return TxMonitor.instance;
     }
 
     public static getInstance(): TxMonitor {
-        if (!TxMonitor.instance) {
-            throw new Error('TxMonitor is not initialized. Call createInstance() first.');
-        }
+        if (!TxMonitor.instance) throw new Error('TxMonitor is not initialized.');
         return TxMonitor.instance;
     }
 
-    public ensureTxFinality(
-        txHash: Hash,
-        chainName: string,
-        onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void,
-    ): void {
-        const existingMonitor = this.monitors.get(txHash);
-        const subscriberId = generateUid();
-
-        if (existingMonitor) {
-            existingMonitor.subscribers.set(subscriberId, {
-                id: subscriberId,
-                finalityCallback: onFinalityCallback,
-            });
-            this.logger.debug(
-                `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`,
-            );
-            return;
-        }
-
-        const monitor: TransactionMonitor = {
+    public trackTxFinality(txHash: Hash, chainName: string, subscriberId: string): void {
+        this.upsertMonitor({
             txHash,
             chainName,
-            subscribers: new Map(),
             type: 'finality',
             requiredConfirmations: 1,
             startTime: Date.now(),
-        };
-
-        monitor.subscribers.set(subscriberId, {
-            id: subscriberId,
-            finalityCallback: onFinalityCallback,
+            subscribers: [subscriberId],
         });
-
-        this.subscribeToNetwork(chainName);
-
-        this.monitors.set(txHash, monitor);
-        this.logger.debug(`Started monitoring tx ${txHash} on ${chainName} for finality`);
     }
 
-    public ensureTxInclusion(
+    public trackTxInclusion(
         txHash: Hash,
         chainName: string,
-        onTxIncluded: (
-            txHash: Hash,
-            networkName: string,
-            blockNumber: bigint,
-            isIncluded: boolean,
-        ) => void,
+        subscriberId: string,
         confirmations = 1,
     ): void {
-        const existingMonitor = this.monitors.get(txHash);
-        const subscriberId = generateUid();
-
-        if (existingMonitor) {
-            existingMonitor.subscribers.set(subscriberId, {
-                id: subscriberId,
-                inclusionCallback: onTxIncluded,
-            });
-            this.logger.debug(
-                `Added subscriber ${subscriberId} to existing monitor for tx ${txHash}`,
-            );
-            return;
-        }
-
-        const monitor: TransactionMonitor = {
+        this.upsertMonitor({
             txHash,
             chainName,
-            subscribers: new Map(),
             type: 'inclusion',
             requiredConfirmations: confirmations,
             startTime: Date.now(),
-        };
-
-        monitor.subscribers.set(subscriberId, {
-            id: subscriberId,
-            inclusionCallback: onTxIncluded,
+            subscribers: [subscriberId],
         });
-
-        this.subscribeToNetwork(chainName);
-
-        this.monitors.set(txHash, monitor);
-        this.logger.debug(
-            `Started monitoring tx ${txHash} on ${chainName} for inclusion with ${confirmations} confirmations`,
-        );
     }
 
-    private async checkTransactionStatus(
-        monitor: TransactionMonitor,
-        currentBlock: bigint,
-        finalityConfirmations: bigint,
-        network: ConceroNetwork,
-    ): Promise<void> {
-        try {
-            const elapsedTime = Date.now() - monitor.startTime;
-
-            if (
-                monitor.type === 'inclusion' &&
-                this.config.maxInclusionWait &&
-                elapsedTime >= this.config.maxInclusionWait
-            ) {
-                this.logger.warn(
-                    `Transaction ${monitor.txHash} inclusion monitoring timed out after ${elapsedTime}ms`,
-                );
-                this.notifyInclusionSubscribers(monitor, 0n, false);
-                this.removeMonitor(monitor.txHash);
-                return;
-            }
-
-            if (
-                monitor.type === 'finality' &&
-                this.config.maxFinalityWait &&
-                elapsedTime >= this.config.maxFinalityWait
-            ) {
-                this.logger.warn(
-                    `Transaction ${monitor.txHash} finality monitoring timed out after ${elapsedTime}ms`,
-                );
-                this.notifyFinalitySubscribers(monitor, false);
-                this.removeMonitor(monitor.txHash);
-                return;
-            }
-
-            const { publicClient } = this.viemClientManager.getClients(network.name);
-
-            let inclusionBlockNumber = monitor.inclusionBlockNumber;
-            if (!inclusionBlockNumber) {
-                const receipt = await publicClient
-                    .getTransactionReceipt({
-                        hash: monitor.txHash,
-                    })
-                    .catch(() => null);
-
-                if (!receipt) {
-                    return;
-                }
-
-                inclusionBlockNumber = receipt.blockNumber;
-                monitor.inclusionBlockNumber = inclusionBlockNumber;
-            }
-
-            if (monitor.type === 'inclusion') {
-                const confirmations = currentBlock - inclusionBlockNumber + 1n;
-
-                if (confirmations >= BigInt(monitor.requiredConfirmations)) {
-                    this.notifyInclusionSubscribers(monitor, inclusionBlockNumber);
-                    this.removeMonitor(monitor.txHash);
-                }
-            } else if (monitor.type === 'finality') {
-                if (!monitor.finalityBlockNumber) {
-                    monitor.finalityBlockNumber = inclusionBlockNumber + finalityConfirmations;
-                }
-
-                if (currentBlock >= monitor.finalityBlockNumber) {
-                    const currentReceipt = await publicClient
-                        .getTransactionReceipt({
-                            hash: monitor.txHash,
-                        })
-                        .catch(() => null);
-
-                    if (currentReceipt) {
-                        this.notifyFinalitySubscribers(monitor, true);
-                    } else {
-                        this.notifyFinalitySubscribers(monitor, false);
-                    }
-
-                    this.removeMonitor(monitor.txHash);
-                }
-            }
-        } catch (error) {
-            this.logger.error(`Error checking transaction ${monitor.txHash}: ${error}`);
-
-            if (monitor.type === 'finality') {
-                this.notifyFinalitySubscribers(monitor, false);
-            } else {
-                this.notifyInclusionSubscribers(monitor, 0n, false);
-            }
-            this.removeMonitor(monitor.txHash);
+    public async cancel(txHash: Hash, subscriberId?: string): Promise<void> {
+        if (!subscriberId) {
+            await this.store.removeMonitor(txHash);
+            return;
         }
+        const m = await this.store.getMonitor(txHash);
+        if (!m) return;
+        m.subscribers = m.subscribers.filter(s => s !== subscriberId);
+        if (m.subscribers.length === 0) await this.store.removeMonitor(txHash);
+        else await this.store.upsertMonitor(m);
     }
 
-    private notifyFinalitySubscribers(monitor: TransactionMonitor, isFinalized: boolean): void {
-        this.logger.debug(
-            `Transaction ${monitor.txHash} ${isFinalized ? 'finalized' : 'failed/dropped'} - notifying finality subscribers`,
-        );
-
-        monitor.subscribers.forEach(subscriber => {
-            if (subscriber.finalityCallback) {
-                try {
-                    subscriber.finalityCallback(monitor.txHash, monitor.chainName, isFinalized);
-                } catch (error) {
-                    this.logger.error(
-                        `Error in finality callback for tx ${monitor.txHash}: ${error}`,
-                    );
-                }
-            }
-        });
-    }
-
-    private notifyInclusionSubscribers(
-        monitor: TransactionMonitor,
-        blockNumber: bigint,
-        isIncluded = true,
-    ): void {
-        this.logger.debug(
-            `Transaction ${monitor.txHash} ${isIncluded ? 'included' : 'dropped'} at block ${blockNumber} - notifying inclusion subscribers`,
-        );
-
-        monitor.subscribers.forEach(subscriber => {
-            if (subscriber.inclusionCallback) {
-                try {
-                    subscriber.inclusionCallback(
-                        monitor.txHash,
-                        monitor.chainName,
-                        blockNumber,
-                        isIncluded,
-                    );
-                } catch (error) {
-                    this.logger.error(
-                        `Error in inclusion callback for tx ${monitor.txHash}: ${error}`,
-                    );
-                }
-            }
-        });
+    private async upsertMonitor(m: PersistedMonitor) {
+        const existing = await this.store.getMonitor(m.txHash);
+        if (existing) {
+            const merged: PersistedMonitor = {
+                ...existing,
+                type: existing.type,
+                requiredConfirmations: m.requiredConfirmations ?? existing.requiredConfirmations,
+                startTime: existing.startTime ?? m.startTime,
+                subscribers: Array.from(new Set([...existing.subscribers, ...m.subscribers])),
+            };
+            await this.store.upsertMonitor(merged);
+        } else {
+            await this.store.upsertMonitor(m);
+        }
+        this.subscribeToNetwork(m.chainName);
+        this.logger.debug(`Started tracking ${m.type} for ${m.txHash} on ${m.chainName}`);
     }
 
     private async checkNetworkTransactions(networkName: string, endBlock: bigint): Promise<void> {
         const network = this.networkManager.getNetworkByName(networkName);
         if (!network) return;
 
-        const activeMonitors = Array.from(this.monitors.values()).filter(
-            monitor => monitor.chainName === networkName,
-        );
-
         const finalityConfirmations = BigInt(
             network.finalityConfirmations ?? this.networkManager.getDefaultFinalityConfirmations(),
         );
 
-        for (const monitor of activeMonitors) {
-            if (!this.monitors.has(monitor.txHash)) {
-                continue;
-            }
-
+        const monitors = await this.store.listMonitorsByNetwork(networkName);
+        for (const monitor of monitors) {
             await this.checkTransactionStatus(monitor, endBlock, finalityConfirmations, network);
         }
     }
 
-    private subscribeToNetwork(networkName: string): void {
-        if (this.networkSubscriptions.has(networkName)) {
-            return;
+    private async checkTransactionStatus(
+        monitor: PersistedMonitor,
+        currentBlock: bigint,
+        finalityConfirmations: bigint,
+        network: ConceroNetwork,
+    ): Promise<void> {
+        try {
+            if (
+                monitor.type === 'inclusion' &&
+                this.config.maxInclusionWait &&
+                Date.now() >= monitor.startTime + this.config.maxInclusionWait
+            ) {
+                this.logger.warn(
+                    `Tx ${monitor.txHash} inclusion timeout after ${Date.now() - monitor.startTime}ms`,
+                );
+                await this.notifySubscribers(monitor, false, 0n);
+                await this.store.removeMonitor(monitor.txHash);
+                return;
+            }
+
+            if (
+                monitor.type === 'finality' &&
+                this.config.maxFinalityWait &&
+                Date.now() >= monitor.startTime + this.config.maxFinalityWait
+            ) {
+                this.logger.warn(
+                    `Tx ${monitor.txHash} finality timeout after ${Date.now() - monitor.startTime}ms`,
+                );
+                await this.notifySubscribers(monitor, false);
+                await this.store.removeMonitor(monitor.txHash);
+                return;
+            }
+
+            const { publicClient } = this.viemClientManager.getClients(network.name);
+
+            let inclusionBlock = monitor.inclusionBlockNumber;
+            if (!inclusionBlock) {
+                const receipt = await publicClient
+                    .getTransactionReceipt({ hash: monitor.txHash })
+                    .catch(() => null);
+                if (!receipt) return;
+                inclusionBlock = receipt.blockNumber;
+                await this.store.setInclusionBlock(monitor.txHash, inclusionBlock);
+            }
+
+            if (monitor.type === 'inclusion') {
+                const confirmations = currentBlock - inclusionBlock + 1n;
+                if (confirmations >= BigInt(monitor.requiredConfirmations)) {
+                    await this.notifySubscribers(monitor, true, inclusionBlock);
+                    await this.store.removeMonitor(monitor.txHash);
+                }
+            } else {
+                if (!monitor.finalityBlockNumber) {
+                    await this.store.setFinalityTarget(
+                        monitor.txHash,
+                        inclusionBlock + finalityConfirmations,
+                    );
+                    monitor = (await this.store.getMonitor(monitor.txHash))!;
+                }
+                if (currentBlock >= monitor.finalityBlockNumber!) {
+                    const receiptStillThere = await publicClient
+                        .getTransactionReceipt({ hash: monitor.txHash })
+                        .catch(() => null);
+                    await this.notifySubscribers(monitor, !!receiptStillThere);
+                    await this.store.removeMonitor(monitor.txHash);
+                }
+            }
+        } catch (e) {
+            this.logger.error(`Error checking tx ${monitor.txHash}: ${e}`);
+            await this.notifySubscribers(monitor, false);
+            await this.store.removeMonitor(monitor.txHash);
         }
+    }
+
+    private async notifySubscribers(m: PersistedMonitor, success: boolean, blockNumber?: bigint) {
+        this.logger.debug(
+            `Tx ${m.txHash} ${m.type}: ${success ? 'OK' : 'FAIL'} — notifying [${m.subscribers.join(', ')}]`,
+        );
+        await this.hub.notifyMany(m.subscribers, {
+            txHash: m.txHash,
+            chainName: m.chainName,
+            type: m.type,
+            success,
+            blockNumber,
+        });
+    }
+
+    private subscribeToNetwork(networkName: string): void {
+        if (this.networkSubscriptions.has(networkName)) return;
 
         const blockManager = this.blockManagerRegistry.getBlockManager(networkName);
         if (!blockManager) {
             this.logger.warn(`BlockManager for ${networkName} not found`);
             return;
         }
-
         const unsubscribe = blockManager.watchBlocks({
-            onBlockRange: async (startBlock: bigint, endBlock: bigint) => {
-                await this.checkNetworkTransactions(networkName, endBlock);
+            onBlockRange: async (_start: bigint, end: bigint) => {
+                await this.checkNetworkTransactions(networkName, end);
             },
         });
-
         this.networkSubscriptions.set(networkName, unsubscribe);
-        this.logger.debug(`Subscribed to blocks for network ${networkName}`);
-    }
-
-    private removeMonitor(txHash: string): void {
-        this.monitors.delete(txHash);
+        this.logger.debug(`Subscribed to blocks for ${networkName}`);
     }
 }

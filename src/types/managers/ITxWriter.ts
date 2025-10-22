@@ -1,4 +1,4 @@
-import { SimulateContractParameters } from 'viem';
+import { Hash, SimulateContractParameters } from 'viem';
 
 import { ConceroNetwork } from '../ConceroNetwork';
 
@@ -7,7 +7,11 @@ export interface ITxWriter {
         network: ConceroNetwork,
         params: SimulateContractParameters,
         ensureTxFinality?: boolean,
-    ): Promise<string>;
+        opts?: {
+            confirmations?: number; // TODO(v3)
+            operationId?: string;
+        },
+    ): Promise<Hash>;
     initialize(): Promise<void>;
 }
 

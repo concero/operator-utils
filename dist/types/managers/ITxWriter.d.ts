@@ -1,7 +1,10 @@
-import { SimulateContractParameters } from 'viem';
+import { Hash, SimulateContractParameters } from 'viem';
 import { ConceroNetwork } from '../ConceroNetwork';
 export interface ITxWriter {
-    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<string>;
+    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean, opts?: {
+        confirmations?: number;
+        operationId?: string;
+    }): Promise<Hash>;
     initialize(): Promise<void>;
 }
 /** Configuration for TxWriter */

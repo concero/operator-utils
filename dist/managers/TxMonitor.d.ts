@@ -1,24 +1,26 @@
 import { Hash } from 'viem';
 import { IBlockManagerRegistry, IConceroNetworkManager, ILogger, ITxMonitor, IViemClientManager, TxMonitorConfig } from '../types';
+import { ITxMonitorStore } from '../types/managers';
 export declare class TxMonitor implements ITxMonitor {
     private static instance;
-    private monitors;
     private viemClientManager;
     private logger;
     private config;
     private networkSubscriptions;
     private blockManagerRegistry;
     private networkManager;
-    constructor(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig);
-    static createInstance(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig): TxMonitor;
+    private store;
+    private hub;
+    constructor(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig, store?: ITxMonitorStore);
+    static createInstance(logger: ILogger, viemClientManager: IViemClientManager, blockManagerRegistry: IBlockManagerRegistry, networkManager: IConceroNetworkManager, config: TxMonitorConfig, store?: ITxMonitorStore): TxMonitor;
     static getInstance(): TxMonitor;
-    ensureTxFinality(txHash: Hash, chainName: string, onFinalityCallback: (txHash: string, chainName: string, isFinalized: boolean) => void): void;
-    ensureTxInclusion(txHash: Hash, chainName: string, onTxIncluded: (txHash: Hash, networkName: string, blockNumber: bigint, isIncluded: boolean) => void, confirmations?: number): void;
-    private checkTransactionStatus;
-    private notifyFinalitySubscribers;
-    private notifyInclusionSubscribers;
+    trackTxFinality(txHash: Hash, chainName: string, subscriberId: string): void;
+    trackTxInclusion(txHash: Hash, chainName: string, subscriberId: string, confirmations?: number): void;
+    cancel(txHash: Hash, subscriberId?: string): Promise<void>;
+    private upsertMonitor;
     private checkNetworkTransactions;
+    private checkTransactionStatus;
+    private notifySubscribers;
     private subscribeToNetwork;
-    private removeMonitor;
 }
 //# sourceMappingURL=TxMonitor.d.ts.map
