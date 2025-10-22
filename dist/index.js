@@ -45783,8 +45783,10 @@ function merge() {
       result[targetKey] = merge({}, val);
     } else if (isArray(val)) {
       result[targetKey] = val.slice();
-    } else if (!skipUndefined || !isUndefined(val)) {
-      result[targetKey] = val;
+    } else {
+      if (!skipUndefined || !isUndefined(val)) {
+        result[targetKey] = val;
+      }
     }
   };
   for (let i = 0, l = arguments.length; i < l; i++) {
@@ -46963,7 +46965,7 @@ var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 var import_zlib = __toESM(require("zlib"), 1);
 
 // node_modules/axios/lib/env/data.js
-var VERSION = "1.12.2";
+var VERSION = "1.12.0";
 
 // node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
@@ -48330,7 +48332,8 @@ var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
 // node_modules/axios/lib/adapters/fetch.js
 var DEFAULT_CHUNK_SIZE = 64 * 1024;
 var { isFunction: isFunction2 } = utils_default;
-var globalFetchAPI = (({ Request: Request2, Response }) => ({
+var globalFetchAPI = (({ fetch: fetch2, Request: Request2, Response }) => ({
+  fetch: fetch2,
   Request: Request2,
   Response
 }))(utils_default.global);
@@ -48346,11 +48349,8 @@ var test = (fn, ...args) => {
   }
 };
 var factory = (env) => {
-  env = utils_default.merge.call({
-    skipUndefined: true
-  }, globalFetchAPI, env);
-  const { fetch: envFetch, Request: Request2, Response } = env;
-  const isFetchSupported = envFetch ? isFunction2(envFetch) : typeof fetch === "function";
+  const { fetch: fetch2, Request: Request2, Response } = Object.assign({}, globalFetchAPI, env);
+  const isFetchSupported = isFunction2(fetch2);
   const isRequestSupported = isFunction2(Request2);
   const isResponseSupported = isFunction2(Response);
   if (!isFetchSupported) {
@@ -48428,7 +48428,6 @@ var factory = (env) => {
       withCredentials = "same-origin",
       fetchOptions
     } = resolveConfig_default(config);
-    let _fetch = envFetch || fetch;
     responseType = responseType ? (responseType + "").toLowerCase() : "text";
     let composedSignal = composeSignals_default([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
     let request = null;
@@ -48469,7 +48468,7 @@ var factory = (env) => {
         credentials: isCredentialsSupported ? withCredentials : void 0
       };
       request = isRequestSupported && new Request2(url2, resolvedOptions);
-      let response = await (isRequestSupported ? _fetch(request, fetchOptions) : _fetch(url2, resolvedOptions));
+      let response = await (isRequestSupported ? fetch2(request, fetchOptions) : fetch2(url2, resolvedOptions));
       const isStreamResponse = supportsResponseStream && (responseType === "stream" || responseType === "response");
       if (supportsResponseStream && (onDownloadProgress || isStreamResponse && unsubscribe)) {
         const options = {};
@@ -48518,7 +48517,9 @@ var factory = (env) => {
 };
 var seedCache = /* @__PURE__ */ new Map();
 var getFetch = (config) => {
-  let env = config ? config.env : {};
+  let env = utils_default.merge.call({
+    skipUndefined: true
+  }, globalFetchAPI, config ? config.env : null);
   const { fetch: fetch2, Request: Request2, Response } = env;
   const seeds = [
     Request2,
@@ -48818,6 +48819,7 @@ var Axios = class {
     }
     len = requestInterceptorChain.length;
     let newConfig = config;
+    i = 0;
     while (i < len) {
       const onFulfilled = requestInterceptorChain[i++];
       const onRejected = requestInterceptorChain[i++];
