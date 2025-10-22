@@ -1,18 +1,18 @@
 import { Hash, SimulateContractParameters } from 'viem';
 
+import { InMemoryRetryStore } from '../stores/InMemoryRetryStore';
 import { TxWriterConfig } from '../types';
 import { ConceroNetwork } from '../types/ConceroNetwork';
-import { INonceManager, ITxMonitor, IViemClientManager } from '../types/managers';
+import { INonceManager, IRetryStore, ITxMonitor, IViemClientManager } from '../types/managers';
 import { ILogger } from '../types/managers/ILogger';
 import { ITxResultSubscriber, TxNotificationHub } from '../types/managers/ITxResultSubscriber';
 import { ITxWriter } from '../types/managers/ITxWriter';
 import { callContract } from '../utils';
 
-type OpCtx = {
+type OpPayload = {
     network: ConceroNetwork;
     params: SimulateContractParameters;
     ensureTxFinality: boolean;
-    attempt: number;
 };
 
 export class TxWriter implements ITxWriter, ITxResultSubscriber {
@@ -22,8 +22,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
     private logger: ILogger;
     private config: TxWriterConfig;
     private nonceManager: INonceManager;
-
-    private readonly ctxByTx = new Map<Hash, OpCtx>();
+    private retryStore: IRetryStore;
 
     public readonly id = 'tx-writer';
 
@@ -35,12 +34,14 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ) {
         this.viemClientManager = viemClientManager;
         this.txMonitor = txMonitor;
         this.logger = logger;
         this.config = config;
         this.nonceManager = nonceManager;
+        this.retryStore = retryStore ?? new InMemoryRetryStore();
 
         TxNotificationHub.getInstance().register(this);
     }
@@ -51,6 +52,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
         txMonitor: ITxMonitor,
         nonceManager: INonceManager,
         config: TxWriterConfig,
+        retryStore?: IRetryStore,
     ): TxWriter {
         TxWriter.instance = new TxWriter(
             logger,
@@ -58,6 +60,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
             txMonitor,
             nonceManager,
             config,
+            retryStore,
         );
         return TxWriter.instance;
     }
@@ -70,6 +73,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
     get name(): string {
         return 'TxWriter';
     }
+
     async initialize(): Promise<void> {
         this.logger.info('Initialized');
     }
@@ -79,38 +83,61 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
         params: SimulateContractParameters,
         ensureTxFinality = false,
     ): Promise<Hash> {
-        const hash = await this.send(network, params, ensureTxFinality, 1);
-        return hash;
+        return this.send(network, params, ensureTxFinality, 1);
     }
 
-    public async notifyTxResult({ txHash, chainName, type, success }: any): Promise<void> {
-        const ctx = this.ctxByTx.get(txHash as Hash);
-        if (!ctx) {
+    public async notifyTxResult({
+        txHash,
+        chainName,
+        type,
+        success,
+    }: {
+        txHash: Hash;
+        chainName: string;
+        type: 'inclusion' | 'finality';
+        success: boolean;
+        blockNumber?: bigint;
+    }): Promise<void> {
+        const opId = await this.retryStore.getOpIdByTx(chainName, txHash);
+        if (!opId) return;
+
+        const state = await this.retryStore.getRetryState<OpPayload>(opId, chainName);
+        if (!state || !state.payload) {
+            await this.retryStore.clearTxIndex(chainName, txHash);
             return;
         }
+
+        const attempt = state.attempt ?? 1;
+        const { network, params, ensureTxFinality } = state.payload;
 
         if (success) {
-            this.logger.debug(`[${chainName}] ${type} OK for ${txHash}, attempt ${ctx.attempt}`);
-            this.ctxByTx.delete(txHash as Hash);
+            await Promise.all([
+                this.retryStore.clearRetry(opId, chainName),
+                this.retryStore.clearTxIndex(chainName, txHash),
+            ]);
+            this.logger.debug(`[${chainName}] ${type} OK for ${txHash}, attempt ${attempt}`);
             return;
         }
 
-        if (ctx.ensureTxFinality) {
-            this.logger.error(`[${chainName}] finality failed for ${txHash} — no retry by writer`);
-            this.ctxByTx.delete(txHash as Hash);
-            return;
-        }
+        const nextAttempt = attempt + 1;
+        const delaySec = this.nextDelaySeconds(nextAttempt);
+        const nextTryAt = new Date(Date.now() + delaySec * 1000);
 
-        const delaySec = this.nextDelaySeconds(ctx.attempt);
         this.logger.warn(
-            `[${chainName}] inclusion failed for ${txHash}, retry in ${delaySec}s (attempt ${ctx.attempt + 1})`,
+            `[${chainName}] ${type} failed for ${txHash}, retry in ${delaySec}s (attempt ${nextAttempt})`,
         );
+
+        await this.retryStore.saveRetryAttempt<OpPayload>(opId, chainName, nextAttempt, nextTryAt, {
+            network,
+            params,
+            ensureTxFinality,
+        });
 
         setTimeout(async () => {
             try {
                 await this.nonceManager.refresh(chainName);
-                const newHash = await this.send(ctx.network, ctx.params, false, ctx.attempt + 1);
-                this.ctxByTx.delete(txHash as Hash);
+                const newHash = await this.send(network, params, ensureTxFinality, nextAttempt);
+                await this.retryStore.clearTxIndex(chainName, txHash);
                 this.logger.info(`[${chainName}] resent -> ${newHash}`);
             } catch (e) {
                 this.logger.error(`[${chainName}] resend failed: ${e}`);
@@ -131,12 +158,19 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
             return `0xdry${Date.now().toString(16)}` as Hash;
         }
 
+        const opId = this.deriveOperationId(network, params);
+        await this.retryStore.saveRetryAttempt<OpPayload>(opId, network.name, attempt, new Date(), {
+            network,
+            params,
+            ensureTxFinality,
+        });
+
         const txHash = await callContract(publicClient, walletClient, params, this.nonceManager, {
             simulateTx: this.config.simulateTx,
             defaultGasLimit: this.config.defaultGasLimit,
         });
 
-        this.ctxByTx.set(txHash, { network, params, ensureTxFinality, attempt });
+        await this.retryStore.saveTxIndex(network.name, txHash, opId);
 
         if (ensureTxFinality) {
             this.txMonitor.trackTxFinality(txHash, network.name, this.id);
@@ -152,5 +186,9 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
         return attempt <= TxWriter.BACKOFF_SECONDS.length
             ? TxWriter.BACKOFF_SECONDS[attempt - 1]
             : last;
+    }
+
+    private deriveOperationId(network: ConceroNetwork, params: SimulateContractParameters): string {
+        return `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
     }
 }

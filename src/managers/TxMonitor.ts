@@ -25,7 +25,7 @@ export class TxMonitor implements ITxMonitor {
     private networkManager: IConceroNetworkManager;
 
     private store: ITxMonitorStore;
-    private hub = TxNotificationHub.getInstance();
+    private hub: TxNotificationHub;
 
     constructor(
         logger: ILogger,
@@ -34,6 +34,7 @@ export class TxMonitor implements ITxMonitor {
         networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
         store?: ITxMonitorStore,
+        hub?: TxNotificationHub,
     ) {
         this.viemClientManager = viemClientManager;
         this.logger = logger;
@@ -41,6 +42,7 @@ export class TxMonitor implements ITxMonitor {
         this.blockManagerRegistry = blockManagerRegistry;
         this.networkManager = networkManager;
         this.store = store ?? new InMemoryTxMonitorStore();
+        this.hub = hub ?? TxNotificationHub.getInstance();
         this.logger.info('initialized');
     }
 
@@ -51,6 +53,7 @@ export class TxMonitor implements ITxMonitor {
         networkManager: IConceroNetworkManager,
         config: TxMonitorConfig,
         store?: ITxMonitorStore,
+        hub?: TxNotificationHub,
     ): TxMonitor {
         if (!TxMonitor.instance) {
             TxMonitor.instance = new TxMonitor(
@@ -60,6 +63,7 @@ export class TxMonitor implements ITxMonitor {
                 networkManager,
                 config,
                 store,
+                hub,
             );
         }
         return TxMonitor.instance;
@@ -148,24 +152,27 @@ export class TxMonitor implements ITxMonitor {
         network: ConceroNetwork,
     ): Promise<void> {
         try {
-            const elapsed = Date.now() - monitor.startTime;
-
             if (
                 monitor.type === 'inclusion' &&
                 this.config.maxInclusionWait &&
-                elapsed >= this.config.maxInclusionWait
+                Date.now() >= monitor.startTime + this.config.maxInclusionWait
             ) {
-                this.logger.warn(`Tx ${monitor.txHash} inclusion timeout after ${elapsed}ms`);
+                this.logger.warn(
+                    `Tx ${monitor.txHash} inclusion timeout after ${Date.now() - monitor.startTime}ms`,
+                );
                 await this.notifySubscribers(monitor, false, 0n);
                 await this.store.removeMonitor(monitor.txHash);
                 return;
             }
+
             if (
                 monitor.type === 'finality' &&
                 this.config.maxFinalityWait &&
-                elapsed >= this.config.maxFinalityWait
+                Date.now() >= monitor.startTime + this.config.maxFinalityWait
             ) {
-                this.logger.warn(`Tx ${monitor.txHash} finality timeout after ${elapsed}ms`);
+                this.logger.warn(
+                    `Tx ${monitor.txHash} finality timeout after ${Date.now() - monitor.startTime}ms`,
+                );
                 await this.notifySubscribers(monitor, false);
                 await this.store.removeMonitor(monitor.txHash);
                 return;
@@ -224,6 +231,7 @@ export class TxMonitor implements ITxMonitor {
             blockNumber,
         });
     }
+
     private subscribeToNetwork(networkName: string): void {
         if (this.networkSubscriptions.has(networkName)) return;
 
