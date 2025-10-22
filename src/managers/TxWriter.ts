@@ -189,7 +189,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
     }
 
     private deriveOperationId(network: ConceroNetwork, params: SimulateContractParameters): string {
-        const raw = `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
+        const raw = `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify(params, (_, v) => typeof v === 'bigint' ? v.toString() : v)}`;
         return sha256(stringToHex(raw));
-      }
+    }
 }

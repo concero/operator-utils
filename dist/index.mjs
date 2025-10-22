@@ -45260,6 +45260,7 @@ init_contract();
 init_node();
 init_rpc();
 init_transaction();
+init_toHex();
 
 // src/utils/localhostViemChain.ts
 var localhostViemChain = defineChain({
@@ -45746,10 +45747,8 @@ function merge() {
       result[targetKey] = merge({}, val);
     } else if (isArray(val)) {
       result[targetKey] = val.slice();
-    } else {
-      if (!skipUndefined || !isUndefined(val)) {
-        result[targetKey] = val;
-      }
+    } else if (!skipUndefined || !isUndefined(val)) {
+      result[targetKey] = val;
     }
   };
   for (let i = 0, l = arguments.length; i < l; i++) {
@@ -46928,7 +46927,7 @@ import util2 from "util";
 import zlib from "zlib";
 
 // node_modules/axios/lib/env/data.js
-var VERSION = "1.12.0";
+var VERSION = "1.12.2";
 
 // node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
@@ -48295,8 +48294,7 @@ var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
 // node_modules/axios/lib/adapters/fetch.js
 var DEFAULT_CHUNK_SIZE = 64 * 1024;
 var { isFunction: isFunction2 } = utils_default;
-var globalFetchAPI = (({ fetch: fetch2, Request: Request2, Response }) => ({
-  fetch: fetch2,
+var globalFetchAPI = (({ Request: Request2, Response }) => ({
   Request: Request2,
   Response
 }))(utils_default.global);
@@ -48312,8 +48310,11 @@ var test = (fn, ...args) => {
   }
 };
 var factory = (env) => {
-  const { fetch: fetch2, Request: Request2, Response } = Object.assign({}, globalFetchAPI, env);
-  const isFetchSupported = isFunction2(fetch2);
+  env = utils_default.merge.call({
+    skipUndefined: true
+  }, globalFetchAPI, env);
+  const { fetch: envFetch, Request: Request2, Response } = env;
+  const isFetchSupported = envFetch ? isFunction2(envFetch) : typeof fetch === "function";
   const isRequestSupported = isFunction2(Request2);
   const isResponseSupported = isFunction2(Response);
   if (!isFetchSupported) {
@@ -48391,6 +48392,7 @@ var factory = (env) => {
       withCredentials = "same-origin",
       fetchOptions
     } = resolveConfig_default(config);
+    let _fetch = envFetch || fetch;
     responseType = responseType ? (responseType + "").toLowerCase() : "text";
     let composedSignal = composeSignals_default([signal, cancelToken && cancelToken.toAbortSignal()], timeout);
     let request = null;
@@ -48431,7 +48433,7 @@ var factory = (env) => {
         credentials: isCredentialsSupported ? withCredentials : void 0
       };
       request = isRequestSupported && new Request2(url2, resolvedOptions);
-      let response = await (isRequestSupported ? fetch2(request, fetchOptions) : fetch2(url2, resolvedOptions));
+      let response = await (isRequestSupported ? _fetch(request, fetchOptions) : _fetch(url2, resolvedOptions));
       const isStreamResponse = supportsResponseStream && (responseType === "stream" || responseType === "response");
       if (supportsResponseStream && (onDownloadProgress || isStreamResponse && unsubscribe)) {
         const options = {};
@@ -48480,9 +48482,7 @@ var factory = (env) => {
 };
 var seedCache = /* @__PURE__ */ new Map();
 var getFetch = (config) => {
-  let env = utils_default.merge.call({
-    skipUndefined: true
-  }, globalFetchAPI, config ? config.env : null);
+  let env = config ? config.env : {};
   const { fetch: fetch2, Request: Request2, Response } = env;
   const seeds = [
     Request2,
@@ -48782,7 +48782,6 @@ var Axios = class {
     }
     len = requestInterceptorChain.length;
     let newConfig = config;
-    i = 0;
     while (i < len) {
       const onFulfilled = requestInterceptorChain[i++];
       const onRejected = requestInterceptorChain[i++];
@@ -52090,7 +52089,8 @@ var TxWriter = class _TxWriter {
     return attempt <= _TxWriter.BACKOFF_SECONDS.length ? _TxWriter.BACKOFF_SECONDS[attempt - 1] : last;
   }
   deriveOperationId(network, params) {
-    return `op:${network.name}:${String(params.address ?? "0x")}:${params.functionName ?? "fn"}:${JSON.stringify(params.args ?? [])}`;
+    const raw = `op:${network.name}:${String(params.address ?? "0x")}:${params.functionName ?? "fn"}:${JSON.stringify(params, (_, v) => typeof v === "bigint" ? v.toString() : v)}`;
+    return sha2563(stringToHex(raw));
   }
 };
 
