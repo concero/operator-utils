@@ -1,4 +1,4 @@
-import { Hash, SimulateContractParameters } from 'viem';
+import { Hash, sha256, SimulateContractParameters, stringToHex } from 'viem';
 
 import { InMemoryRetryStore } from '../stores/InMemoryRetryStore';
 import { TxWriterConfig } from '../types';
@@ -189,6 +189,7 @@ export class TxWriter implements ITxWriter, ITxResultSubscriber {
     }
 
     private deriveOperationId(network: ConceroNetwork, params: SimulateContractParameters): string {
-        return `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
-    }
+        const raw = `op:${network.name}:${String((params as any).address ?? '0x')}:${params.functionName ?? 'fn'}:${JSON.stringify((params as any).args ?? [])}`;
+        return sha256(stringToHex(raw));
+      }
 }
