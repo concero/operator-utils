@@ -35,7 +35,7 @@ export declare class BlockManager implements IBlockManager {
      * Registers a subscriber that will be called when new blocks are processed.
      * Returns an unregister function.
      */
-    watchBlocks(options: WatchBlocksOptions): () => void;
+    watchBlocks(options: WatchBlocksOptions, subscriberId?: string): () => void;
     dispose(): void;
 }
 export {};

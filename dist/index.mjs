@@ -49324,9 +49324,8 @@ var BlockManager = class _BlockManager {
    * Registers a subscriber that will be called when new blocks are processed.
    * Returns an unregister function.
    */
-  watchBlocks(options) {
+  watchBlocks(options, subscriberId = generateUid()) {
     const { onBlockRange } = options;
-    const subscriberId = generateUid();
     this.subscribers.set(subscriberId, {
       id: subscriberId,
       onBlockRange
