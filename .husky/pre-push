@@ -1,5 +1,6 @@
-#!/bin/sh
-# . "$(dirname "$0")/_/husky.sh" does not works with windows
+# does not works with windows
+# !/usr/bin/env sh
+# . "$(dirname "$0")/_/husky.sh"
 
 npm run format
 npm test
