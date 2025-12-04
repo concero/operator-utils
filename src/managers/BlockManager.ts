@@ -159,9 +159,8 @@ export class BlockManager implements IBlockManager {
      * Registers a subscriber that will be called when new blocks are processed.
      * Returns an unregister function.
      */
-    public watchBlocks(options: WatchBlocksOptions) {
+    public watchBlocks(options: WatchBlocksOptions, subscriberId: string = generateUid()) {
         const { onBlockRange } = options;
-        const subscriberId = generateUid();
 
         this.subscribers.set(subscriberId, {
             id: subscriberId,
