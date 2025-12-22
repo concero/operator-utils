@@ -10,16 +10,17 @@ import { generateUid } from '../utils';
 
 /** Options for watching blocks */
 type WatchBlocksOptions = {
-    onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
+    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
 };
 
 type Subscriber = {
     id: string;
-    onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
+    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
 };
 
 export class BlockManager implements IBlockManager {
     private lastReportedBlockNumber: bigint = 0n;
+    private finalizedBlock: bigint | null = null;
     private latestBlock: bigint | null = null;
     public readonly publicClient: PublicClient;
     private network: ConceroNetwork;
@@ -59,6 +60,7 @@ export class BlockManager implements IBlockManager {
         }
 
         this.lastReportedBlockNumber = await this.fetchLastBlockNumber();
+        this.finalizedBlock = await this.fetchFinalizedBlockNumber()
         this.isPolling = true;
 
         // await this.performCatchup();
@@ -84,6 +86,7 @@ export class BlockManager implements IBlockManager {
 
         try {
             this.latestBlock = await this.fetchLastBlockNumber();
+            this.finalizedBlock = await this.fetchFinalizedBlockNumber();
 
             if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
                 await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
@@ -106,14 +109,23 @@ export class BlockManager implements IBlockManager {
         return await this.publicClient.getBlockNumber({ cacheTime: 0 });
     }
 
-    private async notifySubscribers(startBlock: bigint, endBlock: bigint) {
+    private async fetchFinalizedBlockNumber(): Promise<bigint | null> {
+        try {
+            const block = await this.publicClient.getBlock({ blockTag: 'finalized'})
+            return block.number;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    private async notifySubscribers(startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) {
         this.logger.debug(
             `${this.network.name}: Processing ${endBlock - startBlock} new blocks from ${startBlock} to ${endBlock}`,
         );
 
         if (this.subscribers.size > 0) {
             for (const subscriber of this.subscribers.values()) {
-                subscriber.onBlockRange(startBlock, endBlock).catch(error => {
+                subscriber.onBlockRange(startBlock, endBlock, finalizedBlock).catch(error => {
                     this.logger.error(
                         `${this.network.name}: Error in block range subscriber ${subscriber.id}: ${error}`,
                     );
