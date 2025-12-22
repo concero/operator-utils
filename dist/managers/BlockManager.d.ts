@@ -6,10 +6,11 @@ import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../t
  */
 /** Options for watching blocks */
 type WatchBlocksOptions = {
-    onBlockRange: (startBlock: bigint, endBlock: bigint) => Promise<void>;
+    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
 };
 export declare class BlockManager implements IBlockManager {
     private lastReportedBlockNumber;
+    private finalizedBlock;
     private latestBlock;
     readonly publicClient: PublicClient;
     private network;
@@ -26,6 +27,7 @@ export declare class BlockManager implements IBlockManager {
     private poll;
     getLatestBlock(): Promise<bigint | null>;
     private fetchLastBlockNumber;
+    private fetchFinalizedBlockNumber;
     private notifySubscribers;
     /**
      * Initiates a catchup process from the current processed block to the latest block.
