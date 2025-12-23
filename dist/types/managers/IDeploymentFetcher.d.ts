@@ -1,5 +1,5 @@
-import { NetworkType } from '@/types/ConceroNetwork';
 import { DeploymentPattern, ParsedDeployment } from '../../managers/DeploymentFetcher';
+import { NetworkType } from '../ConceroNetwork';
 export interface IDeploymentFetcher {
     getDeployments(url: string, patterns: DeploymentPattern[]): Promise<ParsedDeployment[]>;
 }

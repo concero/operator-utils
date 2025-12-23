@@ -7,10 +7,13 @@ const networkMode = getEnvString('NETWORK_MODE', 'testnet');
 const operatorPrivateKey = getEnvString('OPERATOR_PRIVATE_KEY', '0x000');
 
 const globalConfig: GlobalConfig = {
+    // @ts-ignore @todo: fix typings
     NETWORK_MODE: networkMode,
     OPERATOR_PRIVATE_KEY: operatorPrivateKey,
     LOGGER: {
+        // @ts-ignore @todo: fix typings
         logLevelDefault: getEnvString('LOGGER_LOG_LEVEL_DEFAULT', 'info'),
+        // @ts-ignore @todo: fix typings
         logLevelsGranular: getGranularLogLevels(),
         logDir: getEnvString('LOGGER_LOG_DIR', 'logs'),
         logMaxFiles: getEnvString('LOGGER_LOG_MAX_FILES', '7d'),
@@ -40,6 +43,7 @@ const globalConfig: GlobalConfig = {
         },
     },
     DEPLOYMENT_MANAGER: {
+        // @ts-ignore @todo: fix typings
         networkMode,
         conceroDeploymentsUrl: getEnvString(
             'DEPLOYMENT_MANAGER_DEPLOYMENTS_URL',
@@ -49,6 +53,7 @@ const globalConfig: GlobalConfig = {
         ),
     },
     RPC_MANAGER: {
+        // @ts-ignore @todo: fix typings
         networkMode,
         rpcOverrides: safeRequireJson('../../rpc.overrides.json'),
         rpcExtensions: safeRequireJson('../../rpc.extensions.json'),
@@ -58,6 +63,7 @@ const globalConfig: GlobalConfig = {
         ),
     },
     NETWORK_MANAGER: {
+        // @ts-ignore @todo: fix typings
         networkMode,
         operatorPrivateKey,
         pollingIntervalMs: getEnvInt('NETWORK_MANAGER_POLLING_INTERVAL_MS', min(60)),

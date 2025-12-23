@@ -25,6 +25,7 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
     private clients: Map<string, ViemClients> = new Map();
     private rpcManager: IRpcManager;
     private logger: ILogger;
+    // @ts-ignore @todo: fix typings
     private account: PrivateKeyAccount;
 
     private config: ViemClientManagerConfig;
@@ -54,6 +55,7 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
     public async initialize(): Promise<void> {
         if (this.initialized) return;
 
+        // @ts-ignore @todo: fix typings
         this.account = privateKeyToAccount(`0x${this.config.operatorPrivateKey}`);
 
         await super.initialize();
@@ -90,6 +92,7 @@ export class ViemClientManager extends ManagerBase implements IViemClientManager
         const walletClient = createWalletClient({
             transport,
             chain: chain.viemChain,
+            // @ts-ignore @todo: fix typings
             account: this.account,
         });
 

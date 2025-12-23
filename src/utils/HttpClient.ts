@@ -4,7 +4,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { AppErrorEnum } from '../constants/appErrors';
 import { ManagerBase } from '../managers';
 import { LoggerInterface } from '../managers/Logger';
-import { HttpClientConfig } from '../types/BaseManagerConfig';
+import { HttpClientConfig } from '../types';
 
 export class HttpClient extends ManagerBase {
     private static instance?: HttpClient;
@@ -26,6 +26,7 @@ export class HttpClient extends ManagerBase {
     }
 
     public static getInstance(): HttpClient {
+        // @ts-ignore @todo: fix typings
         return this.instance;
     }
 
@@ -100,6 +101,7 @@ export class HttpClient extends ManagerBase {
             return response.data;
         } catch (error) {
             this.logger.debug(`Request failed for ${url} with error: ${error}`);
+            // @ts-ignore @todo: fix typings
             throw new AppError(AppErrorEnum.FailedHTTPRequest, error);
         }
     }

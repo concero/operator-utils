@@ -1,8 +1,8 @@
 import { ChainDefinition, createViemChain } from './createViemChain';
 import { HttpClient } from './HttpClient';
-import { NetworkType } from '@/types';
 
 import { Logger, LoggerInterface } from '../managers/Logger';
+import { NetworkType } from '../types';
 
 export interface V2Network {
     name: string;

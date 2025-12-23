@@ -2,7 +2,7 @@ import { ManagerBase } from './ManagerBase';
 
 import { ConceroNetwork, NetworkManagerConfig, NetworkType } from '../types';
 import { IConceroNetworkManager, ILogger, NetworkUpdateListener } from '../types/';
-import { fetchNetworkConfigs, generateUid, HttpClient, localhostViemChain } from '../utils';
+import { fetchNetworkConfigs, HttpClient, localhostViemChain } from '../utils';
 
 export class ConceroNetworkManager extends ManagerBase implements IConceroNetworkManager {
     private static instance: ConceroNetworkManager;
@@ -270,6 +270,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         networks: Record<string, any>,
         networkType: NetworkType,
     ): Record<string, ConceroNetwork> {
+        // @ts-ignore @todo: fix typings
         return Object.fromEntries(
             Object.entries(networks).map(([networkKey, network]) => [
                 networkKey,

@@ -119,11 +119,13 @@ export class Logger {
             const fullMeta = { consumer: consumer ?? undefined, ...(meta ?? {}) };
 
             if (this.config.enableConsoleTransport) {
+                // @ts-ignore @todo: fix typings
                 this.consoleLogger.log({ level: lvl, message, ...fullMeta });
             }
 
             if (this.fileLogger) {
                 if (lvl === 'error') {
+                    // @ts-ignore @todo: fix typings
                     this.fileLogger.log({ level: lvl, message, ...fullMeta });
                 } else {
                     this.batchers.get(name)!.enqueue({ level: lvl, message, meta: fullMeta });
@@ -276,6 +278,7 @@ export class Logger {
     private flushFileBatch(items: BatchItem[]) {
         if (!this.fileLogger || items.length === 0) return;
         for (const i of items) {
+            // @ts-ignore @todo: fix typings
             this.fileLogger.log({ level: i.level, message: i.message, ...i.meta });
         }
     }

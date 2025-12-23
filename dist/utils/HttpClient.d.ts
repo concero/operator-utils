@@ -1,7 +1,7 @@
 import { AxiosRequestConfig } from 'axios';
 import { ManagerBase } from '../managers';
 import { LoggerInterface } from '../managers/Logger';
-import { HttpClientConfig } from '../types/BaseManagerConfig';
+import { HttpClientConfig } from '../types';
 export declare class HttpClient extends ManagerBase {
     private static instance?;
     private axiosInstance?;

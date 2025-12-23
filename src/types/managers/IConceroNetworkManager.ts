@@ -1,7 +1,6 @@
 import { NetworkUpdateListener } from './NetworkUpdateListener';
-import { NetworkType } from '@/types/ConceroNetwork';
 
-import { ConceroNetwork } from '../ConceroNetwork';
+import { ConceroNetwork, NetworkType } from '../ConceroNetwork';
 
 export interface IConceroNetworkManager {
     initialize(): Promise<void>;

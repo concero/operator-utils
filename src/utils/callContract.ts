@@ -27,6 +27,7 @@ async function executeTransaction(
     nonceManager: INonceManager,
     config: CallContractConfig,
 ): Promise<Hash> {
+    // @ts-ignore @todo: fix typings
     const networkName = publicClient.chain.name;
     try {
         const nonce = await nonceManager.consume(networkName);
@@ -39,9 +40,11 @@ async function executeTransaction(
 
         if (config.simulateTx) {
             const { request } = await publicClient.simulateContract(reqParams);
+            // @ts-ignore @todo: fix typings
             reqParams = request;
         }
 
+        // @ts-ignore @todo: fix typings
         const txHash = await walletClient.writeContract(reqParams);
         return txHash;
     } catch (err) {

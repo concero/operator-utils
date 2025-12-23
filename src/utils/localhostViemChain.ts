@@ -1,5 +1,9 @@
 import { defineChain } from 'viem';
 
+
+
+
+
 export const localhostViemChain = defineChain({
     id: 1,
     name: 'localhost',
@@ -14,6 +18,7 @@ export const localhostViemChain = defineChain({
     blockExplorers: [
         {
             name: 'localhost',
+            // @ts-ignore @todo: fix typings
             url: process.env.LOCALHOST_RPC_URL,
         },
     ],

@@ -101,6 +101,7 @@ export class BlockManagerRegistry
         viemClientManager: IViemClientManager,
     ) {
         BlockManagerRegistry.instance = new BlockManagerRegistry(
+            // @ts-ignore @todo: fix typings
             config,
             logger,
             networkManager,

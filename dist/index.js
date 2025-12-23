@@ -45313,6 +45313,7 @@ var localhostViemChain = defineChain({
   blockExplorers: [
     {
       name: "localhost",
+      // @ts-ignore @todo: fix typings
       url: process.env.LOCALHOST_RPC_URL
     }
   ],
@@ -49166,6 +49167,7 @@ var BalanceManager = class extends ManagerBase {
       address: tokenAddress,
       abi: erc20Abi,
       functionName: "allowance",
+      // @ts-ignore @todo: fix typings
       args: [walletClient.account.address, spenderAddress]
     });
     const target = requiredAmount > min2 ? requiredAmount : min2;
@@ -49190,6 +49192,7 @@ var BalanceManager = class extends ManagerBase {
       address: tokenAddress,
       abi: erc20Abi,
       functionName: "allowance",
+      // @ts-ignore @todo: fix typings
       args: [walletClient.account.address, spenderAddress]
     });
   }
@@ -49455,6 +49458,7 @@ var BlockManagerRegistry = class _BlockManagerRegistry extends ManagerBase {
   }
   static createInstance(config, logger, networkManager, viemClientManager) {
     _BlockManagerRegistry.instance = new _BlockManagerRegistry(
+      // @ts-ignore @todo: fix typings
       config,
       logger,
       networkManager,
@@ -50452,6 +50456,7 @@ var ViemClientManager = class _ViemClientManager extends ManagerBase {
     const walletClient = createWalletClient({
       transport,
       chain: chain.viemChain,
+      // @ts-ignore @todo: fix typings
       account: this.account
     });
     return {
@@ -52280,10 +52285,13 @@ function generateUid() {
 var networkMode = getEnvString("NETWORK_MODE", "testnet");
 var operatorPrivateKey = getEnvString("OPERATOR_PRIVATE_KEY", "0x000");
 var globalConfig = {
+  // @ts-ignore @todo: fix typings
   NETWORK_MODE: networkMode,
   OPERATOR_PRIVATE_KEY: operatorPrivateKey,
   LOGGER: {
+    // @ts-ignore @todo: fix typings
     logLevelDefault: getEnvString("LOGGER_LOG_LEVEL_DEFAULT", "info"),
+    // @ts-ignore @todo: fix typings
     logLevelsGranular: getGranularLogLevels(),
     logDir: getEnvString("LOGGER_LOG_DIR", "logs"),
     logMaxFiles: getEnvString("LOGGER_LOG_MAX_FILES", "7d"),
@@ -52314,6 +52322,7 @@ var globalConfig = {
     }
   },
   DEPLOYMENT_MANAGER: {
+    // @ts-ignore @todo: fix typings
     networkMode,
     conceroDeploymentsUrl: getEnvString(
       "DEPLOYMENT_MANAGER_DEPLOYMENTS_URL",
@@ -52321,6 +52330,7 @@ var globalConfig = {
     )
   },
   RPC_MANAGER: {
+    // @ts-ignore @todo: fix typings
     networkMode,
     rpcOverrides: safeRequireJson("../../rpc.overrides.json"),
     rpcExtensions: safeRequireJson("../../rpc.extensions.json"),
@@ -52330,6 +52340,7 @@ var globalConfig = {
     )
   },
   NETWORK_MANAGER: {
+    // @ts-ignore @todo: fix typings
     networkMode,
     operatorPrivateKey,
     pollingIntervalMs: getEnvInt("NETWORK_MANAGER_POLLING_INTERVAL_MS", min(60)),

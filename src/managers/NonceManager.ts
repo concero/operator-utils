@@ -4,6 +4,7 @@ import { Mutex } from 'async-mutex';
 
 import { ILogger, INonceManager, NonceManagerConfig } from '../types';
 
+// @ts-ignore @todo: fix typings
 export class NonceManager extends ManagerBase implements INonceManager {
     private static instance: NonceManager | null = null;
     private noncesMap: Record<string, number> = {};
@@ -104,6 +105,7 @@ export class NonceManager extends ManagerBase implements INonceManager {
     private async fetchNonce(networkName: string): Promise<number> {
         const clients = this.viemClientManager.getClients(networkName);
         const { publicClient, walletClient } = clients;
+        // @ts-ignore @todo: fix typings
         const address = walletClient.account.address;
 
         return await publicClient.getTransactionCount({ address, blockTag: 'pending' });

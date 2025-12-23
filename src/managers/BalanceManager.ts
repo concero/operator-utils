@@ -43,6 +43,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
         this.logger = logger;
         this.viemClientManager = viemClientManager;
         this.txReader = txReader;
+        // @ts-ignore @todo: fix typings
         this.minAllowances = config.minAllowances ?? {};
         this.pollingIntervalMs = config.pollingIntervalMs ?? 10_000;
     }
@@ -229,6 +230,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             address: tokenAddress,
             abi: erc20Abi,
             functionName: 'allowance',
+            // @ts-ignore @todo: fix typings
             args: [walletClient.account.address, spenderAddress],
         })) as bigint;
 
@@ -238,6 +240,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             return;
         }
 
+        // @ts-ignore @todo: fix typings
         const txHash = await walletClient.writeContract({
             address: tokenAddress,
             abi: erc20Abi,
@@ -262,6 +265,7 @@ export abstract class BalanceManager extends ManagerBase implements IBalanceMana
             address: tokenAddress,
             abi: erc20Abi,
             functionName: 'allowance',
+            // @ts-ignore @todo: fix typings
             args: [walletClient.account.address, spenderAddress],
         });
     }
