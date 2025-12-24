@@ -49938,7 +49938,8 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
           accounts: [this.config.operatorPrivateKey],
           chainSelector: network.chainSelector || network.chainId.toString(),
           viemChain: network.viemChain,
-          finalityConfirmations: network.finalityConfirmations || this.config.defaultFinalityConfirmations
+          finalityConfirmations: network.finalityConfirmations,
+          finalityTagEnabled: network.finalityTagEnabled
         }
       ])
     );
