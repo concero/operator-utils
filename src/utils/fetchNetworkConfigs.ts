@@ -93,6 +93,7 @@ function processNetworkData(
 
             processedNetworks[networkName] = {
                 ...details,
+                chainSelector: details.chainSelector.toString(),
                 viemChain: createViemChain(chainDefinition),
             };
         } catch (error: unknown) {
