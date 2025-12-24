@@ -23,7 +23,7 @@ export class BlockManager implements IBlockManager {
     private finalizedBlock: bigint | null = null;
     private latestBlock: bigint | null = null;
     public readonly publicClient: PublicClient;
-    private network: ConceroNetwork;
+    private readonly network: ConceroNetwork;
     private subscribers: Map<string, Subscriber> = new Map();
     protected logger: ILogger;
     private readonly config: BlockManagerConfig;
@@ -85,8 +85,10 @@ export class BlockManager implements IBlockManager {
         if (!this.isPolling || this.isDisposed) return;
 
         try {
-            this.latestBlock = await this.fetchLastBlockNumber();
-            this.finalizedBlock = await this.fetchFinalizedBlockNumber();
+            [this.latestBlock, this.finalizedBlock] = await Promise.all([
+                await this.fetchLastBlockNumber(),
+                await this.fetchFinalizedBlockNumber(),
+            ]);
 
             if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
                 await this.notifySubscribers(
@@ -113,11 +115,17 @@ export class BlockManager implements IBlockManager {
         return await this.publicClient.getBlockNumber({ cacheTime: 0 });
     }
 
-    private async fetchFinalizedBlockNumber(): Promise<bigint | null> {
-        try {
+    private async fetchFinalizedBlockNumber() {
+        if (this.network.finalityTagEnabled) {
             const block = await this.publicClient.getBlock({ blockTag: 'finalized' });
             return block.number;
-        } catch (error) {
+        }
+
+        const latestBlock = await this.getLatestBlock();
+
+        if (latestBlock) {
+            return latestBlock - BigInt(this.network.finalityConfirmations!);
+        } else {
             return null;
         }
     }

@@ -49381,8 +49381,10 @@ var BlockManager = class _BlockManager {
   async poll() {
     if (!this.isPolling || this.isDisposed) return;
     try {
-      this.latestBlock = await this.fetchLastBlockNumber();
-      this.finalizedBlock = await this.fetchFinalizedBlockNumber();
+      [this.latestBlock, this.finalizedBlock] = await Promise.all([
+        await this.fetchLastBlockNumber(),
+        await this.fetchFinalizedBlockNumber()
+      ]);
       if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
         await this.notifySubscribers(
           this.lastReportedBlockNumber + 1n,
@@ -49406,10 +49408,14 @@ var BlockManager = class _BlockManager {
     return await this.publicClient.getBlockNumber({ cacheTime: 0 });
   }
   async fetchFinalizedBlockNumber() {
-    try {
+    if (this.network.finalityTagEnabled) {
       const block = await this.publicClient.getBlock({ blockTag: "finalized" });
       return block.number;
-    } catch (error) {
+    }
+    const latestBlock = await this.getLatestBlock();
+    if (latestBlock) {
+      return latestBlock - BigInt(this.network.finalityConfirmations);
+    } else {
       return null;
     }
   }

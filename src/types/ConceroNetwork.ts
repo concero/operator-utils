@@ -11,6 +11,7 @@ export type ConceroNetwork = {
     viemChain: Chain;
     confirmations: number;
     finalityConfirmations?: number;
+    finalityTagEnabled?: boolean;
     addresses?: {
         conceroVerifier?: Address;
         conceroRouter: Address;

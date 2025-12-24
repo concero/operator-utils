@@ -13,7 +13,7 @@ export declare class BlockManager implements IBlockManager {
     private finalizedBlock;
     private latestBlock;
     readonly publicClient: PublicClient;
-    private network;
+    private readonly network;
     private subscribers;
     protected logger: ILogger;
     private readonly config;
