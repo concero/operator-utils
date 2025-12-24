@@ -1,11 +1,6 @@
-import { Hash, SimulateContractParameters } from 'viem';
-import { TxWriterConfig } from '../types';
-import { ConceroNetwork } from '../types/ConceroNetwork';
-import { INonceManager, IRetryStore, ITxMonitor, IViemClientManager } from '../types/managers';
-import { ILogger } from '../types/managers/ILogger';
-import { ITxResultSubscriber } from '../types/managers/ITxResultSubscriber';
-import { ITxWriter } from '../types/managers/ITxWriter';
-export declare class TxWriter implements ITxWriter, ITxResultSubscriber {
+import { SimulateContractParameters, WaitForTransactionReceiptReturnType } from 'viem';
+import { ConceroNetwork, ILogger, INonceManager, IRetryStore, ITxMonitor, ITxWriter, IViemClientManager, TxWriterConfig } from '../types';
+export declare class TxWriter implements ITxWriter {
     private static instance;
     private viemClientManager;
     private txMonitor;
@@ -20,16 +15,6 @@ export declare class TxWriter implements ITxWriter, ITxResultSubscriber {
     static getInstance(): TxWriter;
     get name(): string;
     initialize(): Promise<void>;
-    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<Hash>;
-    notifyTxResult({ txHash, chainName, type, success, }: {
-        txHash: Hash;
-        chainName: string;
-        type: 'inclusion' | 'finality';
-        success: boolean;
-        blockNumber?: bigint;
-    }): Promise<void>;
-    private send;
-    private nextDelaySeconds;
-    private deriveOperationId;
+    callContract(network: ConceroNetwork, params: SimulateContractParameters, ensureTxFinality?: boolean): Promise<WaitForTransactionReceiptReturnType>;
 }
 //# sourceMappingURL=TxWriter.d.ts.map

@@ -1,10 +1,8 @@
-import {
-    BaseError,
-    ContractFunctionExecutionError,
-    NonceTooHighError,
-    NonceTooLowError,
-    TransactionExecutionError,
-} from 'viem';
+import { ContractFunctionExecutionError, NonceTooHighError, NonceTooLowError, TimeoutError, TransactionExecutionError, TransactionNotFoundError, TransactionReceiptNotFoundError, WaitForTransactionReceiptTimeoutError } from 'viem';
+
+
+
+
 
 /**
 
@@ -57,7 +55,11 @@ function isViemNonceError(error: any): boolean {
         (error instanceof ContractFunctionExecutionError &&
             error.cause instanceof TransactionExecutionError &&
             (error.cause.cause instanceof NonceTooHighError ||
-                error.cause.cause instanceof NonceTooLowError))
+                error.cause.cause instanceof NonceTooLowError)) ||
+        error instanceof TransactionNotFoundError ||
+        error instanceof TransactionReceiptNotFoundError ||
+        error instanceof TimeoutError ||
+        error instanceof WaitForTransactionReceiptTimeoutError
     );
 }
 

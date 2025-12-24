@@ -1,11 +1,10 @@
 import {
-    Hash,
     InsufficientFundsError,
     IntrinsicGasTooHighError,
     IntrinsicGasTooLowError,
     TipAboveFeeCapError,
     TransactionTypeNotSupportedError,
-    UserRejectedRequestError,
+    WaitForTransactionReceiptReturnType,
     type PublicClient,
     type SimulateContractParameters,
     type WalletClient,
@@ -13,12 +12,16 @@ import {
 import { asyncRetry } from './asyncRetry';
 import { isNonceError } from './viemErrorParser';
 
-import { INonceManager } from '../types/managers';
+import { INonceManager } from '../types';
 
 export interface CallContractConfig {
     simulateTx: boolean;
     defaultGasLimit?: bigint;
 }
+
+const isRetryableError = (error: any) => {
+    return isNonceError(error);
+};
 
 async function executeTransaction(
     publicClient: PublicClient,
@@ -26,7 +29,7 @@ async function executeTransaction(
     params: SimulateContractParameters,
     nonceManager: INonceManager,
     config: CallContractConfig,
-): Promise<Hash> {
+): Promise<WaitForTransactionReceiptReturnType> {
     // @ts-ignore @todo: fix typings
     const networkName = publicClient.chain.name;
     try {
@@ -46,11 +49,11 @@ async function executeTransaction(
 
         // @ts-ignore @todo: fix typings
         const txHash = await walletClient.writeContract(reqParams);
-        return txHash;
+
+        return await publicClient.waitForTransactionReceipt({ hash: txHash });
     } catch (err) {
         //@dev: When we're absolutely sure that the TX didn't get mined, we decrement the nonce
         if (
-            err instanceof UserRejectedRequestError ||
             err instanceof InsufficientFundsError ||
             err instanceof IntrinsicGasTooLowError ||
             err instanceof IntrinsicGasTooHighError ||
@@ -68,19 +71,14 @@ async function executeTransaction(
     }
 }
 
-const isRetryableError = (error: any) => {
-    if (isNonceError(error)) return true;
-    return false;
-};
-
 export async function callContract(
     publicClient: PublicClient,
     walletClient: WalletClient,
     params: SimulateContractParameters,
     nonceManager: INonceManager,
     config: CallContractConfig,
-): Promise<Hash> {
-    const txHash = await asyncRetry<Hash>(
+): Promise<WaitForTransactionReceiptReturnType> {
+    return await asyncRetry<WaitForTransactionReceiptReturnType>(
         async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
         {
             maxRetries: 10,
@@ -88,10 +86,4 @@ export async function callContract(
             isRetryableError,
         },
     );
-
-    if (!txHash) {
-        throw new Error('All attempts exhausted');
-    }
-
-    return txHash;
 }
