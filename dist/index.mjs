@@ -45582,9 +45582,7 @@ function processNetworkData(networkData, isTestnet, logger) {
         isTestnet
       };
       processedNetworks[networkName] = {
-        name: details.name,
-        chainId: details.chainId,
-        chainSelector: details.chainSelector.toString(),
+        ...details,
         viemChain: createViemChain(chainDefinition)
       };
     } catch (error) {
