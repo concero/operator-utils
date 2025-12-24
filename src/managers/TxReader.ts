@@ -611,19 +611,13 @@ export class TxReader implements ITxReader {
 
     public async getLogs(q: LogQuery, n: ConceroNetwork) {
         const { publicClient } = this.viemClientManager.getClients(n.name);
-        try {
-            return await publicClient.getLogs({
-                address: q.address,
-                fromBlock: q.fromBlock,
-                toBlock: q.toBlock,
-                event: q.event,
-                ...(q.args && { args: q.args }),
-            });
-        } catch (e) {
-            this.logger.error(
-                `getLogs failed on ${n.name}: ${e instanceof Error ? e.message : String(e)}`,
-            );
-            return [];
-        }
+
+        return await publicClient.getLogs({
+            address: q.address,
+            fromBlock: q.fromBlock,
+            toBlock: q.toBlock,
+            event: q.event,
+            ...(q.args && { args: q.args }),
+        });
     }
 }
