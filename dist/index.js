@@ -49420,7 +49420,11 @@ var BlockManager = class _BlockManager {
       this.latestBlock = await this.fetchLastBlockNumber();
       this.finalizedBlock = await this.fetchFinalizedBlockNumber();
       if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
-        await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
+        await this.notifySubscribers(
+          this.lastReportedBlockNumber + 1n,
+          this.latestBlock,
+          this.finalizedBlock
+        );
         this.lastReportedBlockNumber = this.latestBlock;
       }
     } catch (error) {

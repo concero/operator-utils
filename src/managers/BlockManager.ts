@@ -60,7 +60,7 @@ export class BlockManager implements IBlockManager {
         }
 
         this.lastReportedBlockNumber = await this.fetchLastBlockNumber();
-        this.finalizedBlock = await this.fetchFinalizedBlockNumber()
+        this.finalizedBlock = await this.fetchFinalizedBlockNumber();
         this.isPolling = true;
 
         // await this.performCatchup();
@@ -89,7 +89,11 @@ export class BlockManager implements IBlockManager {
             this.finalizedBlock = await this.fetchFinalizedBlockNumber();
 
             if (this.latestBlock > this.lastReportedBlockNumber + 1n) {
-                await this.notifySubscribers(this.lastReportedBlockNumber + 1n, this.latestBlock);
+                await this.notifySubscribers(
+                    this.lastReportedBlockNumber + 1n,
+                    this.latestBlock,
+                    this.finalizedBlock!,
+                );
                 this.lastReportedBlockNumber = this.latestBlock;
             }
         } catch (error) {
@@ -111,7 +115,7 @@ export class BlockManager implements IBlockManager {
 
     private async fetchFinalizedBlockNumber(): Promise<bigint | null> {
         try {
-            const block = await this.publicClient.getBlock({ blockTag: 'finalized'})
+            const block = await this.publicClient.getBlock({ blockTag: 'finalized' });
             return block.number;
         } catch (error) {
             return null;
