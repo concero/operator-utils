@@ -49432,7 +49432,9 @@ var BlockManager = class _BlockManager {
       this.logger.error(`${this.network.name}: Error in poll cycle: ${error}`);
     } finally {
       if (this.isPolling && !this.isDisposed) {
-        this.pollingTimeout = setTimeout(() => this.poll(), this.config.pollingIntervalMs);
+        this.pollingTimeout = setTimeout(() => {
+          this.poll();
+        }, this.config.pollingIntervalMs);
       }
     }
   }
