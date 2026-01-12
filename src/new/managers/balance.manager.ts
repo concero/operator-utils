@@ -20,7 +20,7 @@ type Options = {
     sender: IBalanceManagerSender;
 };
 
-export class BalanceManager {
+export class NewBalanceManager {
     private readonly _gasLimit: number;
     private readonly _actionsCount: number;
     private readonly _pollingInterval: number;
