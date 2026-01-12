@@ -8,7 +8,7 @@
  *
  * @example
  * ```typescript
- * import { generateUid } from '../utils/generateUid';
+ * import { generateUid } from '../helpers/generateUid';
  *
  * const watcherId = generateUid();
  * const subscriberId = generateUid();
