@@ -8149,7 +8149,7 @@ var init_BlockOverrides = __esm({
 });
 
 // node_modules/viem/_esm/constants/abis.js
-var multicall3Abi, batchGatewayAbi, universalResolverErrors, universalResolverResolveAbi, universalResolverReverseAbi, textResolverAbi, addressResolverAbi, erc1271Abi, erc6492SignatureValidatorAbi;
+var multicall3Abi, batchGatewayAbi, universalResolverErrors, universalResolverResolveAbi, universalResolverReverseAbi, textResolverAbi, addressResolverAbi, erc1271Abi, erc6492SignatureValidatorAbi, erc20Abi;
 var init_abis = __esm({
   "node_modules/viem/_esm/constants/abis.js"() {
     multicall3Abi = [
@@ -8484,6 +8484,194 @@ var init_abis = __esm({
         stateMutability: "nonpayable",
         type: "function",
         name: "isValidSig"
+      }
+    ];
+    erc20Abi = [
+      {
+        type: "event",
+        name: "Approval",
+        inputs: [
+          {
+            indexed: true,
+            name: "owner",
+            type: "address"
+          },
+          {
+            indexed: true,
+            name: "spender",
+            type: "address"
+          },
+          {
+            indexed: false,
+            name: "value",
+            type: "uint256"
+          }
+        ]
+      },
+      {
+        type: "event",
+        name: "Transfer",
+        inputs: [
+          {
+            indexed: true,
+            name: "from",
+            type: "address"
+          },
+          {
+            indexed: true,
+            name: "to",
+            type: "address"
+          },
+          {
+            indexed: false,
+            name: "value",
+            type: "uint256"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "allowance",
+        stateMutability: "view",
+        inputs: [
+          {
+            name: "owner",
+            type: "address"
+          },
+          {
+            name: "spender",
+            type: "address"
+          }
+        ],
+        outputs: [
+          {
+            type: "uint256"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "approve",
+        stateMutability: "nonpayable",
+        inputs: [
+          {
+            name: "spender",
+            type: "address"
+          },
+          {
+            name: "amount",
+            type: "uint256"
+          }
+        ],
+        outputs: [
+          {
+            type: "bool"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "balanceOf",
+        stateMutability: "view",
+        inputs: [
+          {
+            name: "account",
+            type: "address"
+          }
+        ],
+        outputs: [
+          {
+            type: "uint256"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "decimals",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [
+          {
+            type: "uint8"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "name",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [
+          {
+            type: "string"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "symbol",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [
+          {
+            type: "string"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "totalSupply",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [
+          {
+            type: "uint256"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "transfer",
+        stateMutability: "nonpayable",
+        inputs: [
+          {
+            name: "recipient",
+            type: "address"
+          },
+          {
+            name: "amount",
+            type: "uint256"
+          }
+        ],
+        outputs: [
+          {
+            type: "bool"
+          }
+        ]
+      },
+      {
+        type: "function",
+        name: "transferFrom",
+        stateMutability: "nonpayable",
+        inputs: [
+          {
+            name: "sender",
+            type: "address"
+          },
+          {
+            name: "recipient",
+            type: "address"
+          },
+          {
+            name: "amount",
+            type: "uint256"
+          }
+        ],
+        outputs: [
+          {
+            type: "bool"
+          }
+        ]
       }
     ];
   }
@@ -45067,6 +45255,7 @@ function http(url2, config = {}) {
 }
 
 // node_modules/viem/_esm/index.js
+init_abis();
 init_contract();
 init_node();
 init_request();
@@ -48900,6 +49089,254 @@ var ManagerBase = class {
   }
 };
 
+// src/managers/BalanceManager.ts
+var BalanceManager = class extends ManagerBase {
+  constructor(logger, viemClientManager, txReader, config) {
+    super();
+    this.tokenConfigs = {};
+    this.nativeBalances = /* @__PURE__ */ new Map();
+    this.tokenBalances = /* @__PURE__ */ new Map();
+    this.registeredTokens = /* @__PURE__ */ new Map();
+    this.registeredNativeBalances = /* @__PURE__ */ new Set();
+    this.activeNetworks = [];
+    this.watcherIds = [];
+    this.tokenWatchers = /* @__PURE__ */ new Map();
+    this.nativeWatchers = /* @__PURE__ */ new Map();
+    this.logger = logger;
+    this.viemClientManager = viemClientManager;
+    this.txReader = txReader;
+    this.minAllowances = config.minAllowances ?? {};
+    this.pollingIntervalMs = config.pollingIntervalMs ?? 1e4;
+  }
+  async initialize() {
+    if (this.initialized) return;
+    this.logger.info("BalanceManager initialized");
+  }
+  getActiveNetworks() {
+    return this.activeNetworks;
+  }
+  registerToken(network, tokenSymbol, tokenAddress) {
+    if (tokenAddress === zeroAddress) {
+      this.registeredNativeBalances.add(network.name);
+    } else {
+      if (!this.registeredTokens.has(network.name)) {
+        this.registeredTokens.set(network.name, /* @__PURE__ */ new Map());
+      }
+      this.registeredTokens.get(network.name).set(tokenSymbol, tokenAddress);
+    }
+  }
+  deregisterToken(networkName, tokenSymbol, tokenAddress) {
+    const isNative = tokenAddress === zeroAddress;
+    if (isNative) {
+      const watcherId = this.nativeWatchers.get(networkName);
+      if (watcherId) {
+        this.txReader.methodWatcher.remove(watcherId);
+        this.watcherIds = this.watcherIds.filter((id) => id !== watcherId);
+        this.nativeWatchers.delete(networkName);
+        this.logger.debug(`Stopped native balance watcher for ${networkName}`);
+      }
+      this.registeredNativeBalances.delete(networkName);
+      this.nativeBalances.delete(networkName);
+    } else {
+      const networkWatchers = this.tokenWatchers.get(networkName);
+      if (networkWatchers) {
+        const watcherId = networkWatchers.get(tokenSymbol);
+        if (watcherId) {
+          this.txReader.readContractWatcher.remove(watcherId);
+          this.watcherIds = this.watcherIds.filter((id) => id !== watcherId);
+          networkWatchers.delete(tokenSymbol);
+          this.logger.debug(`Stopped watcher for ${tokenSymbol} on ${networkName}`);
+        }
+        if (networkWatchers.size === 0) {
+          this.tokenWatchers.delete(networkName);
+        }
+      }
+      this.registeredTokens.get(networkName)?.delete(tokenSymbol);
+      if (this.registeredTokens.get(networkName)?.size === 0) {
+        this.registeredTokens.delete(networkName);
+      }
+      const networkBalances = this.tokenBalances.get(networkName);
+      if (networkBalances) {
+        networkBalances.delete(tokenSymbol);
+        if (networkBalances.size === 0) {
+          this.tokenBalances.delete(networkName);
+        }
+      }
+    }
+  }
+  beginWatching() {
+    this.clearTokenWatchers();
+    for (const network of this.activeNetworks) {
+      if (this.registeredNativeBalances.has(network.name)) {
+        this.watchNativeBalance(network);
+      }
+      const networkTokens = this.registeredTokens.get(network.name);
+      if (networkTokens) {
+        for (const [symbol, address] of networkTokens) {
+          this.watchTokenBalance(network, symbol, address);
+        }
+      }
+    }
+  }
+  watchNativeBalance(network) {
+    const { account } = this.viemClientManager.getClients(network.name);
+    const watcherId = this.txReader.methodWatcher.create(
+      "getBalance",
+      network,
+      async (b) => this.onNativeBalanceUpdate(network.name, b),
+      this.pollingIntervalMs,
+      [account.address]
+    );
+    this.watcherIds.push(watcherId);
+    this.nativeWatchers.set(network.name, watcherId);
+    return watcherId;
+  }
+  watchTokenBalance(network, tokenSymbol, tokenAddress) {
+    const { account } = this.viemClientManager.getClients(network.name);
+    const watcherId = this.txReader.readContractWatcher.create(
+      tokenAddress,
+      network,
+      "balanceOf",
+      erc20Abi,
+      async (b) => this.onTokenBalanceUpdate(network.name, tokenSymbol, b),
+      this.pollingIntervalMs,
+      [account.address]
+    );
+    this.watcherIds.push(watcherId);
+    if (!this.tokenWatchers.has(network.name)) {
+      this.tokenWatchers.set(network.name, /* @__PURE__ */ new Map());
+    }
+    this.tokenWatchers.get(network.name).set(tokenSymbol, watcherId);
+    return watcherId;
+  }
+  //todo: When networks are removed via setActiveNetworks without an immediate beginWatching, watchers created for those networks continue polling, holding references to callbacks and clients, which can grow over time.
+  setActiveNetworks(networks) {
+    this.activeNetworks.splice(0, this.activeNetworks.length, ...networks);
+    const names = new Set(networks.map((n) => n.name));
+    for (const n of [...this.nativeBalances.keys()])
+      if (!names.has(n)) {
+        this.nativeBalances.delete(n);
+        this.tokenBalances.delete(n);
+      }
+  }
+  async forceUpdate() {
+    await this.updateTokenBalances(this.activeNetworks);
+    await this.updateNativeBalances(this.activeNetworks);
+    this.logger.debug("Balances force-updated");
+  }
+  getNativeBalances() {
+    return new Map(this.nativeBalances);
+  }
+  getTokenBalance(networkName, symbol) {
+    return this.tokenBalances.get(networkName)?.get(symbol) ?? 0n;
+  }
+  getTotalTokenBalance(symbol) {
+    let total = 0n;
+    for (const m of this.tokenBalances.values()) total += m.get(symbol) ?? 0n;
+    return total;
+  }
+  getTokenConfigs(networkName) {
+    return this.tokenConfigs[networkName] ?? [];
+  }
+  getTokenConfig(networkName, symbol) {
+    return this.getTokenConfigs(networkName).find((c) => c.symbol === symbol);
+  }
+  async ensureAllowance(networkName, tokenAddress, spenderAddress, requiredAmount) {
+    const net = this.findActiveNetwork(networkName);
+    const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
+    if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
+    const min2 = this.getMinAllowance(networkName, tokenAddress);
+    const current = await publicClient.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: "allowance",
+      // @ts-ignore @todo: fix typings
+      args: [walletClient.account.address, spenderAddress]
+    });
+    const target = requiredAmount > min2 ? requiredAmount : min2;
+    if (current >= target) {
+      this.logger.debug(`Allowance sufficient (${current} \u2265 ${target})`);
+      return;
+    }
+    const txHash = await walletClient.writeContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [spenderAddress, target]
+    });
+    await publicClient.waitForTransactionReceipt({ hash: txHash });
+    this.logger.info(`Allowance updated to ${target} on ${networkName}`);
+  }
+  async getAllowance(networkName, tokenAddress, spenderAddress) {
+    const net = this.findActiveNetwork(networkName);
+    const { publicClient, walletClient } = this.viemClientManager.getClients(net.name);
+    if (!walletClient) throw new Error(`Wallet client not available for ${networkName}`);
+    return await publicClient.readContract({
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: "allowance",
+      // @ts-ignore @todo: fix typings
+      args: [walletClient.account.address, spenderAddress]
+    });
+  }
+  onTokenBalanceUpdate(net, sym, bal) {
+    const map = this.tokenBalances.get(net) ?? /* @__PURE__ */ new Map();
+    map.set(sym, bal);
+    this.tokenBalances.set(net, map);
+  }
+  onNativeBalanceUpdate(net, bal) {
+    this.nativeBalances.set(net, bal);
+    this.logger.debug(`Updated native balance for ${net}: ${bal.toString()}`);
+  }
+  // todo: this needs to be handled by TxManager with a method-centric subscription (eth_balance)
+  async updateNativeBalances(networks) {
+    await Promise.all(
+      networks.map(async (n) => {
+        const { publicClient, account } = this.viemClientManager.getClients(n.name);
+        const bal = await publicClient.getBalance({ address: account.address });
+        this.nativeBalances.set(n.name, bal);
+      })
+    );
+  }
+  async updateTokenBalances(networks) {
+    for (const n of networks) {
+      const { publicClient, account } = this.viemClientManager.getClients(n.name);
+      const map = /* @__PURE__ */ new Map();
+      for (const cfg of this.getTokenConfigs(n.name)) {
+        try {
+          const bal = await publicClient.readContract({
+            address: cfg.address,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [account.address]
+          });
+          map.set(cfg.symbol, bal);
+        } catch {
+          map.set(cfg.symbol, 0n);
+        }
+      }
+      this.tokenBalances.set(n.name, map);
+    }
+  }
+  getMinAllowance(net, token) {
+    return this.minAllowances[net]?.[token.toLowerCase()] ?? 0n;
+  }
+  clearTokenWatchers() {
+    this.watcherIds.forEach((id) => {
+      this.txReader.readContractWatcher.remove(id);
+      this.txReader.methodWatcher.remove(id);
+    });
+    this.watcherIds.length = 0;
+    this.tokenWatchers.clear();
+    this.nativeWatchers.clear();
+  }
+  findActiveNetwork(name) {
+    const net = this.activeNetworks.find((n) => n.name === name);
+    if (!net) throw new Error(`Network ${name} is not active`);
+    return net;
+  }
+};
+
 // src/managers/BlockManager.ts
 var BlockManager = class _BlockManager {
   constructor(config, network, publicClient, logger) {
@@ -52042,6 +52479,53 @@ var globalConfig = {
   }
 };
 
+// src/new/managers/balance.manager.ts
+var NewBalanceManager = class {
+  constructor(options) {
+    this._networks = [];
+    this._chains = {};
+    this._gasLimit = options.gasLimit ?? 3e5;
+    this._actionsCount = options.actionsCount ?? 100;
+    this._pollingInterval = options.pollingInterval ?? 30 * 6e4;
+    this._viemClientManager = options.viemClientManager;
+    this._sender = options.sender;
+  }
+  async setNetworks(networks) {
+    this._networks = networks;
+  }
+  async setChains(chains) {
+    this._chains = chains;
+  }
+  async startPolling() {
+    setTimeout(async () => {
+      await Promise.all(this._networks.map(this.processNetwork));
+    }, this._pollingInterval);
+  }
+  async processNetwork(network) {
+    try {
+      const chain = this._chains[network.name];
+      const viemClients = this._viemClientManager.getClients(network.name);
+      const [baseFee, actualBalance] = await Promise.all([
+        viemClients.publicClient.getBlobBaseFee(),
+        viemClients.publicClient.getBalance({
+          address: zeroAddress
+        })
+      ]);
+      const expectedBalance = baseFee / BigInt(Math.pow(10, chain.nativeCurrency.decimals)) * BigInt(this._gasLimit) * BigInt(this._actionsCount);
+      if (expectedBalance < actualBalance) {
+        await this._sender.send({
+          chain,
+          actualBalance,
+          expectedBalance,
+          network
+        });
+      }
+    } catch (e) {
+    } finally {
+    }
+  }
+};
+
 // src/new/helpers/profiler.ts
 import fs from "fs";
 import inspector from "inspector";
@@ -52115,6 +52599,7 @@ var ConceroChainDeploymentType = /* @__PURE__ */ ((ConceroChainDeploymentType2) 
 export {
   AppError,
   AppErrorEnum,
+  BalanceManager,
   BlockManager,
   BlockManagerRegistry,
   ConceroChainDeploymentType,
@@ -52124,6 +52609,7 @@ export {
   InMemoryRetryStore,
   Logger,
   ManagerBase,
+  NewBalanceManager,
   NonceManager,
   Profiler,
   RpcManager,

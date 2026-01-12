@@ -16,7 +16,7 @@ type Options = {
     viemClientManager: ViemClientManager;
     sender: IBalanceManagerSender;
 };
-export declare class BalanceManager {
+export declare class NewBalanceManager {
     private readonly _gasLimit;
     private readonly _actionsCount;
     private readonly _pollingInterval;
