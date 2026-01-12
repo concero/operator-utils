@@ -2,11 +2,11 @@ import { zeroAddress } from 'viem';
 
 import { ViemClientManager } from '../../managers';
 import { ConceroNetwork } from '../../types';
-import { Chain } from '../types';
+import { ConceroChain } from '../types';
 
 export interface IBalanceManagerSender {
     send: (options: {
-        chain: Chain;
+        chain: ConceroChain;
         network: ConceroNetwork;
         expectedBalance: bigint;
         actualBalance: bigint;
@@ -28,7 +28,7 @@ export class BalanceManager {
     private readonly _sender: IBalanceManagerSender;
 
     private _networks: ConceroNetwork[] = [];
-    private _chains: Record<Chain['name'], Chain> = {};
+    private _chains: Record<ConceroChain['name'], ConceroChain> = {};
 
     constructor(options: Options) {
         this._gasLimit = options.gasLimit ?? 300_000;
@@ -42,7 +42,7 @@ export class BalanceManager {
         this._networks = networks;
     }
 
-    async setChains(chains: Record<Chain['name'], Chain>) {
+    async setChains(chains: Record<ConceroChain['name'], ConceroChain>) {
         this._chains = chains;
     }
 

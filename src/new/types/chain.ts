@@ -1,10 +1,10 @@
-export enum DeploymentType {
+export enum ConceroChainDeploymentType {
     Router = 'router',
     ValidatorLib = 'validatorLib',
     RelayerLib = 'relayerLib',
 }
 
-export type Chain = {
+export type ConceroChain = {
     id: string;
     chainSelector: number;
     name: string;
@@ -23,5 +23,5 @@ export type Chain = {
         symbol: string;
         decimals: number;
     };
-    deployments: Partial<Record<DeploymentType, `0x${string}`>>;
+    deployments: Partial<Record<ConceroChainDeploymentType, `0x${string}`>>;
 };
