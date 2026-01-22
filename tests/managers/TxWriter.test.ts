@@ -1,7 +1,7 @@
 import { SimulateContractParameters } from 'viem';
+import * as callContractUtil from '@/helpers/callContract';
 import { NonceManager } from '@/managers/NonceManager';
 import { TxWriter } from '@/managers/TxWriter';
-import * as callContractUtil from '@/utils/callContract';
 import { v4 as uuidv4 } from 'uuid';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
@@ -9,7 +9,7 @@ import { MockLogger } from '../mocks/Logger';
 import { MockTxMonitor } from '../mocks/TxMonitor';
 import { MockViemClientManager } from '../mocks/ViemClientManager';
 
-jest.mock('@/utils/callContract');
+jest.mock('@/helpers/callContract');
 jest.mock('uuid');
 
 describe('TxWriter', () => {

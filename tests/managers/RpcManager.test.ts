@@ -1,10 +1,10 @@
+import { HttpClient } from '@/helpers/HttpClient';
 import { RpcManager } from '@/managers/RpcManager';
-import { HttpClient } from '@/utils/HttpClient';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 
-jest.mock('@/utils/HttpClient');
+jest.mock('@/helpers/HttpClient');
 
 class MockConceroNetworkManager {
     excludeNetwork = jest.fn();

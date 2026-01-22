@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 
+
+
+
+
 /**
  * Generates a unique identifier using UUID v4.
  *
@@ -10,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
  *
  * @example
  * ```typescript
- * import { generateUid } from '../utils/generateUid';
+ * import { generateUid } from '../helpers/generateUid';
  *
  * const watcherId = generateUid();
  * const subscriberId = generateUid();

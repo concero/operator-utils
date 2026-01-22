@@ -1,15 +1,15 @@
 import * as viem from 'viem';
 import * as viemAccounts from 'viem/accounts';
+import * as utils from '@/helpers';
 import { ViemClientManager } from '@/managers/ViemClientManager';
 import { IRpcManager } from '@/types/managers';
-import * as utils from '@/utils';
 
 import { mockConceroNetwork } from '../mocks/ConceroNetwork';
 import { MockLogger } from '../mocks/Logger';
 
 jest.mock('viem');
 jest.mock('viem/accounts');
-jest.mock('@/utils', () => ({
+jest.mock('@/helpers', () => ({
     createCustomHttpTransport: jest.fn(),
     isNonceError: jest.fn().mockReturnValue(false),
 }));

@@ -12,3 +12,6 @@ export * from './utils';
 
 //Export all stores
 export * from './stores';
+
+
+export * from './new';

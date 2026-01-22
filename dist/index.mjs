@@ -16911,15 +16911,15 @@ var require_index_cjs = __commonJS({
       };
     }
     function wrapConversion(toModel, graph) {
-      const path = [graph[toModel].parent, toModel];
+      const path2 = [graph[toModel].parent, toModel];
       let fn = convert$1[graph[toModel].parent][toModel];
       let cur = graph[toModel].parent;
       while (graph[cur].parent) {
-        path.unshift(graph[cur].parent);
+        path2.unshift(graph[cur].parent);
         fn = link(convert$1[graph[cur].parent][cur], fn);
         cur = graph[cur].parent;
       }
-      fn.conversion = path;
+      fn.conversion = path2;
       return fn;
     }
     function route(fromModel) {
@@ -17549,7 +17549,7 @@ var require_node2 = __commonJS({
 var require_tail_file = __commonJS({
   "node_modules/winston/lib/winston/tail-file.js"(exports, module) {
     "use strict";
-    var fs = __require("fs");
+    var fs2 = __require("fs");
     var { StringDecoder } = __require("string_decoder");
     var { Stream } = require_readable();
     function noop2() {
@@ -17570,7 +17570,7 @@ var require_tail_file = __commonJS({
         stream4.emit("end");
         stream4.emit("close");
       };
-      fs.open(options.file, "a+", "0644", (err, fd) => {
+      fs2.open(options.file, "a+", "0644", (err, fd) => {
         if (err) {
           if (!iter) {
             stream4.emit("error", err);
@@ -17582,10 +17582,10 @@ var require_tail_file = __commonJS({
         }
         (function read() {
           if (stream4.destroyed) {
-            fs.close(fd, noop2);
+            fs2.close(fd, noop2);
             return;
           }
-          return fs.read(fd, buffer2, 0, buffer2.length, pos, (error, bytes) => {
+          return fs2.read(fd, buffer2, 0, buffer2.length, pos, (error, bytes) => {
             if (error) {
               if (!iter) {
                 stream4.emit("error", error);
@@ -17644,8 +17644,8 @@ var require_tail_file = __commonJS({
 var require_file = __commonJS({
   "node_modules/winston/lib/winston/transports/file.js"(exports, module) {
     "use strict";
-    var fs = __require("fs");
-    var path = __require("path");
+    var fs2 = __require("fs");
+    var path2 = __require("path");
     var asyncSeries = require_series();
     var zlib2 = __require("zlib");
     var { MESSAGE } = require_triple_beam();
@@ -17675,14 +17675,14 @@ var require_file = __commonJS({
         this._onError = this._onError.bind(this);
         if (options.filename || options.dirname) {
           throwIf("filename or dirname", "stream");
-          this._basename = this.filename = options.filename ? path.basename(options.filename) : "winston.log";
-          this.dirname = options.dirname || path.dirname(options.filename);
+          this._basename = this.filename = options.filename ? path2.basename(options.filename) : "winston.log";
+          this.dirname = options.dirname || path2.dirname(options.filename);
           this.options = options.options || { flags: "a" };
         } else if (options.stream) {
           console.warn("options.stream will be removed in winston@4. Use winston.transports.Stream");
           throwIf("stream", "filename", "maxsize");
           this._dest = this._stream.pipe(this._setupStream(options.stream));
-          this.dirname = path.dirname(this._dest.path);
+          this.dirname = path2.dirname(this._dest.path);
         } else {
           throw new Error("Cannot log to file without filename or stream.");
         }
@@ -17823,11 +17823,11 @@ var require_file = __commonJS({
           options = {};
         }
         options = normalizeQuery(options);
-        const file = path.join(this.dirname, this.filename);
+        const file = path2.join(this.dirname, this.filename);
         let buff = "";
         let results = [];
         let row = 0;
-        const stream4 = fs.createReadStream(file, {
+        const stream4 = fs2.createReadStream(file, {
           encoding: "utf8"
         });
         stream4.on("error", (err) => {
@@ -17928,7 +17928,7 @@ var require_file = __commonJS({
        * TODO: Refactor me.
        */
       stream(options = {}) {
-        const file = path.join(this.dirname, this.filename);
+        const file = path2.join(this.dirname, this.filename);
         const stream4 = new Stream();
         const tail = {
           file,
@@ -17978,8 +17978,8 @@ var require_file = __commonJS({
        */
       stat(callback) {
         const target = this._getFile();
-        const fullpath = path.join(this.dirname, target);
-        fs.stat(fullpath, (err, stat) => {
+        const fullpath = path2.join(this.dirname, target);
+        fs2.stat(fullpath, (err, stat) => {
           if (err && err.code === "ENOENT") {
             debug("ENOENT\xA0ok", fullpath);
             this.filename = target;
@@ -18082,9 +18082,9 @@ var require_file = __commonJS({
        * @returns {WritableStream} Stream that writes to disk for the active file.
        */
       _createStream(source) {
-        const fullpath = path.join(this.dirname, this.filename);
+        const fullpath = path2.join(this.dirname, this.filename);
         debug("create stream start", fullpath, this.options);
-        const dest = fs.createWriteStream(fullpath, this.options).on("error", (err) => debug(err)).on("close", () => debug("close", dest.path, dest.bytesWritten)).on("open", () => {
+        const dest = fs2.createWriteStream(fullpath, this.options).on("error", (err) => debug(err)).on("close", () => debug("close", dest.path, dest.bytesWritten)).on("open", () => {
           debug("file open ok", fullpath);
           this.emit("open", fullpath);
           source.pipe(dest);
@@ -18107,16 +18107,16 @@ var require_file = __commonJS({
        */
       _incFile(callback) {
         debug("_incFile", this.filename);
-        const ext = path.extname(this._basename);
-        const basename = path.basename(this._basename, ext);
+        const ext = path2.extname(this._basename);
+        const basename = path2.basename(this._basename, ext);
         const tasks = [];
         if (this.zippedArchive) {
           tasks.push(
             function(cb) {
               const num2 = this._created > 0 && !this.tailable ? this._created : "";
               this._compressFile(
-                path.join(this.dirname, `${basename}${num2}${ext}`),
-                path.join(this.dirname, `${basename}${num2}${ext}.gz`),
+                path2.join(this.dirname, `${basename}${num2}${ext}`),
+                path2.join(this.dirname, `${basename}${num2}${ext}.gz`),
                 cb
               );
             }.bind(this)
@@ -18141,8 +18141,8 @@ var require_file = __commonJS({
        * @private
        */
       _getFile() {
-        const ext = path.extname(this._basename);
-        const basename = path.basename(this._basename, ext);
+        const ext = path2.extname(this._basename);
+        const basename = path2.basename(this._basename, ext);
         const isRotation = this.rotationFormat ? this.rotationFormat() : this._created;
         return !this.tailable && this._created ? `${basename}${isRotation}${ext}` : `${basename}${ext}`;
       }
@@ -18162,8 +18162,8 @@ var require_file = __commonJS({
         const isOldest = oldest !== 0 ? oldest : "";
         const isZipped = this.zippedArchive ? ".gz" : "";
         const filePath = `${basename}${isOldest}${ext}${isZipped}`;
-        const target = path.join(this.dirname, filePath);
-        fs.unlink(target, callback);
+        const target = path2.join(this.dirname, filePath);
+        fs2.unlink(target, callback);
       }
       /**
        * Roll files forward based on integer, up to maxFiles. e.g. if base if
@@ -18185,20 +18185,20 @@ var require_file = __commonJS({
         for (let x = this.maxFiles - 1; x > 1; x--) {
           tasks.push(function(i, cb) {
             let fileName = `${basename}${i - 1}${ext}${isZipped}`;
-            const tmppath = path.join(this.dirname, fileName);
-            fs.exists(tmppath, (exists) => {
+            const tmppath = path2.join(this.dirname, fileName);
+            fs2.exists(tmppath, (exists) => {
               if (!exists) {
                 return cb(null);
               }
               fileName = `${basename}${i}${ext}${isZipped}`;
-              fs.rename(tmppath, path.join(this.dirname, fileName), cb);
+              fs2.rename(tmppath, path2.join(this.dirname, fileName), cb);
             });
           }.bind(this, x));
         }
         asyncSeries(tasks, () => {
-          fs.rename(
-            path.join(this.dirname, `${basename}${ext}${isZipped}`),
-            path.join(this.dirname, `${basename}1${ext}${isZipped}`),
+          fs2.rename(
+            path2.join(this.dirname, `${basename}${ext}${isZipped}`),
+            path2.join(this.dirname, `${basename}1${ext}${isZipped}`),
             callback
           );
         });
@@ -18212,22 +18212,22 @@ var require_file = __commonJS({
        * @private
        */
       _compressFile(src, dest, callback) {
-        fs.access(src, fs.F_OK, (err) => {
+        fs2.access(src, fs2.F_OK, (err) => {
           if (err) {
             return callback();
           }
           var gzip = zlib2.createGzip();
-          var inp = fs.createReadStream(src);
-          var out = fs.createWriteStream(dest);
+          var inp = fs2.createReadStream(src);
+          var out = fs2.createWriteStream(dest);
           out.on("finish", () => {
-            fs.unlink(src, callback);
+            fs2.unlink(src, callback);
           });
           inp.pipe(gzip).pipe(out);
         });
       }
       _createLogDirIfNotExist(dirPath) {
-        if (!fs.existsSync(dirPath)) {
-          fs.mkdirSync(dirPath, { recursive: true });
+        if (!fs2.existsSync(dirPath)) {
+          fs2.mkdirSync(dirPath, { recursive: true });
         }
       }
     };
@@ -18311,9 +18311,9 @@ var require_http = __commonJS({
         };
         const auth = options.params.auth || null;
         delete options.params.auth;
-        const path = options.params.path || null;
+        const path2 = options.params.path || null;
         delete options.params.path;
-        this._request(options, auth, path, (err, res, body) => {
+        this._request(options, auth, path2, (err, res, body) => {
           if (res && res.statusCode !== 200) {
             err = new Error(`Invalid HTTP Status Code: ${res.statusCode}`);
           }
@@ -18341,12 +18341,12 @@ var require_http = __commonJS({
           method: "stream",
           params: options
         };
-        const path = options.params.path || null;
+        const path2 = options.params.path || null;
         delete options.params.path;
         const auth = options.params.auth || null;
         delete options.params.auth;
         let buff = "";
-        const req = this._request(options, auth, path);
+        const req = this._request(options, auth, path2);
         stream4.destroy = () => req.destroy();
         req.on("data", (data) => {
           data = (buff + data).split(/\n+/);
@@ -18372,14 +18372,14 @@ var require_http = __commonJS({
        * @param {string} path - request path
        * @param {function} callback - Continuation to respond to when complete.
        */
-      _request(options, auth, path, callback) {
+      _request(options, auth, path2, callback) {
         options = options || {};
         auth = auth || this.auth;
-        path = path || this.path || "";
+        path2 = path2 || this.path || "";
         if (this.batch) {
-          this._doBatch(options, callback, auth, path);
+          this._doBatch(options, callback, auth, path2);
         } else {
-          this._doRequest(options, callback, auth, path);
+          this._doRequest(options, callback, auth, path2);
         }
       }
       /**
@@ -18389,18 +18389,18 @@ var require_http = __commonJS({
        * @param {Object?} auth - authentication options
        * @param {string} path - request path
        */
-      _doBatch(options, callback, auth, path) {
+      _doBatch(options, callback, auth, path2) {
         this.batchOptions.push(options);
         if (this.batchOptions.length === 1) {
           const me = this;
           this.batchCallback = callback;
           this.batchTimeoutID = setTimeout(function() {
             me.batchTimeoutID = -1;
-            me._doBatchRequest(me.batchCallback, auth, path);
+            me._doBatchRequest(me.batchCallback, auth, path2);
           }, this.batchInterval);
         }
         if (this.batchOptions.length === this.batchCount) {
-          this._doBatchRequest(this.batchCallback, auth, path);
+          this._doBatchRequest(this.batchCallback, auth, path2);
         }
       }
       /**
@@ -18409,14 +18409,14 @@ var require_http = __commonJS({
        * @param {Object?} auth - authentication options
        * @param {string} path - request path
        */
-      _doBatchRequest(callback, auth, path) {
+      _doBatchRequest(callback, auth, path2) {
         if (this.batchTimeoutID > 0) {
           clearTimeout(this.batchTimeoutID);
           this.batchTimeoutID = -1;
         }
         const batchOptionsCopy = this.batchOptions.slice();
         this.batchOptions = [];
-        this._doRequest(batchOptionsCopy, callback, auth, path);
+        this._doRequest(batchOptionsCopy, callback, auth, path2);
       }
       /**
        * Make a request to a winstond server or any http server which can
@@ -18426,7 +18426,7 @@ var require_http = __commonJS({
        * @param {Object?} auth - authentication options
        * @param {string} path - request path
        */
-      _doRequest(options, callback, auth, path) {
+      _doRequest(options, callback, auth, path2) {
         const headers = Object.assign({}, this.headers);
         if (auth && auth.bearer) {
           headers.Authorization = `Bearer ${auth.bearer}`;
@@ -18436,7 +18436,7 @@ var require_http = __commonJS({
           method: "POST",
           host: this.host,
           port: this.port,
-          path: `/${path.replace(/^\//, "")}`,
+          path: `/${path2.replace(/^\//, "")}`,
           headers,
           auth: auth && auth.username && auth.password ? `${auth.username}:${auth.password}` : "",
           agent: this.agent
@@ -19312,7 +19312,7 @@ var require_rejection_handler = __commonJS({
 var require_profiler = __commonJS({
   "node_modules/winston/lib/winston/profiler.js"(exports, module) {
     "use strict";
-    var Profiler = class {
+    var Profiler2 = class {
       /**
        * Constructor function for the Profiler instance used by
        * `Logger.prototype.startTimer`. When done is called the timer will finish
@@ -19346,7 +19346,7 @@ var require_profiler = __commonJS({
         return this.logger.write(info);
       }
     };
-    module.exports = Profiler;
+    module.exports = Profiler2;
   }
 });
 
@@ -19361,7 +19361,7 @@ var require_logger = __commonJS({
     var ExceptionHandler = require_exception_handler();
     var RejectionHandler = require_rejection_handler();
     var LegacyTransportStream = require_legacy();
-    var Profiler = require_profiler();
+    var Profiler2 = require_profiler();
     var { warn } = require_common();
     var config = require_config2();
     var formatRegExp = /%[scdjifoO%]/g;
@@ -19762,7 +19762,7 @@ var require_logger = __commonJS({
        *    }, 1000);
        */
       startTimer() {
-        return new Profiler(this);
+        return new Profiler2(this);
       }
       /**
        * Tracks the time inbetween subsequent calls to this method with the same
@@ -24491,8 +24491,8 @@ var require_moment = __commonJS({
 var require_FileStreamRotator = __commonJS({
   "node_modules/file-stream-rotator/FileStreamRotator.js"(exports, module) {
     "use strict";
-    var fs = __require("fs");
-    var path = __require("path");
+    var fs2 = __require("fs");
+    var path2 = __require("path");
     var moment = require_moment();
     var crypto4 = __require("crypto");
     var EventEmitter3 = __require("events");
@@ -24582,14 +24582,14 @@ var require_FileStreamRotator = __commonJS({
         var use_days = max_logs.toString().substr(-1);
         var _num = max_logs.toString().match(/^(\d+)/);
         if (Number(_num[1]) > 0) {
-          var baseLog = path.dirname(log_file.replace(/%DATE%.+/, "_filename"));
+          var baseLog = path2.dirname(log_file.replace(/%DATE%.+/, "_filename"));
           try {
             if (audit_file) {
-              var full_path = path.resolve(audit_file);
-              _rtn = JSON.parse(fs.readFileSync(full_path, { encoding: "utf-8" }));
+              var full_path = path2.resolve(audit_file);
+              _rtn = JSON.parse(fs2.readFileSync(full_path, { encoding: "utf-8" }));
             } else {
-              var full_path = path.resolve(baseLog + "/.audit.json");
-              _rtn = JSON.parse(fs.readFileSync(full_path, { encoding: "utf-8" }));
+              var full_path = path2.resolve(baseLog + "/.audit.json");
+              _rtn = JSON.parse(fs2.readFileSync(full_path, { encoding: "utf-8" }));
             }
           } catch (e) {
             if (e.code !== "ENOENT") {
@@ -24615,7 +24615,7 @@ var require_FileStreamRotator = __commonJS({
     FileStreamRotator.writeAuditLog = function(audit, verbose) {
       try {
         mkDirForFile(audit.auditLog);
-        fs.writeFileSync(audit.auditLog, JSON.stringify(audit, null, 4));
+        fs2.writeFileSync(audit.auditLog, JSON.stringify(audit, null, 4));
       } catch (e) {
         if (verbose) {
           console.error(/* @__PURE__ */ new Date(), "[FileStreamRotator] Failed to store log audit at:", audit.auditLog, "Error:", e);
@@ -24625,8 +24625,8 @@ var require_FileStreamRotator = __commonJS({
     function removeFile(file, verbose) {
       if (file.hash === crypto4.createHash(file.hashType).update(file.name + "LOG_FILE" + file.date).digest("hex")) {
         try {
-          if (fs.existsSync(file.name)) {
-            fs.unlinkSync(file.name);
+          if (fs2.existsSync(file.name)) {
+            fs2.unlinkSync(file.name);
           }
         } catch (e) {
           if (verbose) {
@@ -24637,19 +24637,19 @@ var require_FileStreamRotator = __commonJS({
     }
     function createCurrentSymLink(logfile, name, verbose) {
       let symLinkName = name || "current.log";
-      let logPath = path.dirname(logfile);
-      let logfileName = path.basename(logfile);
+      let logPath = path2.dirname(logfile);
+      let logfileName = path2.basename(logfile);
       let current = logPath + "/" + symLinkName;
       try {
-        let stats = fs.lstatSync(current);
+        let stats = fs2.lstatSync(current);
         if (stats.isSymbolicLink()) {
-          fs.unlinkSync(current);
-          fs.symlinkSync(logfileName, current);
+          fs2.unlinkSync(current);
+          fs2.symlinkSync(logfileName, current);
         }
       } catch (err) {
         if (err && err.code == "ENOENT") {
           try {
-            fs.symlinkSync(logfileName, current);
+            fs2.symlinkSync(logfileName, current);
           } catch (e) {
             if (verbose) {
               console.error(/* @__PURE__ */ new Date(), "[FileStreamRotator] Could not create symlink file: ", current, " -> ", logfileName);
@@ -24661,11 +24661,11 @@ var require_FileStreamRotator = __commonJS({
     function createLogWatcher(logfile, verbose, cb) {
       if (!logfile) return null;
       try {
-        let stats = fs.lstatSync(logfile);
-        return fs.watch(logfile, function(event, filename) {
+        let stats = fs2.lstatSync(logfile);
+        return fs2.watch(logfile, function(event, filename) {
           if (event == "rename") {
             try {
-              let stats2 = fs.lstatSync(logfile);
+              let stats2 = fs2.lstatSync(logfile);
             } catch (err) {
               cb(err, logfile);
             }
@@ -24781,13 +24781,13 @@ var require_FileStreamRotator = __commonJS({
         if (fileCount == 0 && t_log == logfile) {
           t_log += options.extension;
         }
-        while (f = fs.existsSync(t_log)) {
+        while (f = fs2.existsSync(t_log)) {
           lastLogFile = t_log;
           fileCount++;
           t_log = logfile + "." + fileCount + options.extension;
         }
         if (lastLogFile) {
-          var lastLogFileStats = fs.statSync(lastLogFile);
+          var lastLogFileStats = fs2.statSync(lastLogFile);
           if (lastLogFileStats.size < fileSize) {
             t_log = lastLogFile;
             fileCount--;
@@ -24803,7 +24803,7 @@ var require_FileStreamRotator = __commonJS({
       }
       mkDirForFile(logfile);
       var file_options = options.file_options || { flags: "a" };
-      var rotateStream = fs.createWriteStream(logfile, file_options);
+      var rotateStream = fs2.createWriteStream(logfile, file_options);
       if (curDate && frequencyMetaData && staticFrequency.indexOf(frequencyMetaData.type) > -1 || fileSize > 0) {
         if (self2.verbose) {
           console.log(/* @__PURE__ */ new Date(), "[FileStreamRotator] Rotating file: ", frequencyMetaData ? frequencyMetaData.type : "", fileSize ? "size: " + fileSize : "");
@@ -24842,12 +24842,12 @@ var require_FileStreamRotator = __commonJS({
         });
         stream4.on("createLog", function(file) {
           try {
-            let stats = fs.lstatSync(file);
+            let stats = fs2.lstatSync(file);
           } catch (err) {
             if (rotateStream && rotateStream.end == "function") {
               rotateStream.end();
             }
-            rotateStream = fs.createWriteStream(file, file_options);
+            rotateStream = fs2.createWriteStream(file, file_options);
             stream4.emit("new", file);
             BubbleEvents(rotateStream, stream4);
           }
@@ -24879,7 +24879,7 @@ var require_FileStreamRotator = __commonJS({
               rotateStream.destroy();
             }
             mkDirForFile(logfile);
-            rotateStream = fs.createWriteStream(newLogfile, file_options);
+            rotateStream = fs2.createWriteStream(newLogfile, file_options);
             stream4.emit("new", newLogfile);
             stream4.emit("rotate", oldFile, newLogfile);
             BubbleEvents(rotateStream, stream4);
@@ -24903,13 +24903,13 @@ var require_FileStreamRotator = __commonJS({
       }
     };
     var mkDirForFile = function(pathWithFile) {
-      var _path = path.dirname(pathWithFile);
-      _path.split(path.sep).reduce(
+      var _path = path2.dirname(pathWithFile);
+      _path.split(path2.sep).reduce(
         function(fullPath, folder) {
-          fullPath += folder + path.sep;
-          if (!fs.existsSync(fullPath)) {
+          fullPath += folder + path2.sep;
+          if (!fs2.existsSync(fullPath)) {
             try {
-              fs.mkdirSync(fullPath);
+              fs2.mkdirSync(fullPath);
             } catch (e) {
               if (e.code !== "EEXIST") {
                 throw e;
@@ -24941,9 +24941,9 @@ var require_FileStreamRotator = __commonJS({
 // node_modules/winston-daily-rotate-file/daily-rotate-file.js
 var require_daily_rotate_file = __commonJS({
   "node_modules/winston-daily-rotate-file/daily-rotate-file.js"(exports, module) {
-    var fs = __require("fs");
+    var fs2 = __require("fs");
     var os = __require("os");
-    var path = __require("path");
+    var path2 = __require("path");
     var util3 = __require("util");
     var zlib2 = __require("zlib");
     var hash3 = require_object_hash();
@@ -25001,20 +25001,20 @@ var require_daily_rotate_file = __commonJS({
         this.logStream = new PassThrough();
         this.logStream.pipe(options.stream);
       } else {
-        this.filename = options.filename ? path.basename(options.filename) : "winston.log";
-        this.dirname = options.dirname || path.dirname(options.filename);
+        this.filename = options.filename ? path2.basename(options.filename) : "winston.log";
+        this.dirname = options.dirname || path2.dirname(options.filename);
         if (!isValidFileName(this.filename) || !isValidDirName(this.dirname)) {
           throw new Error("Your path or filename contain an invalid character.");
         }
         this.logStream = require_FileStreamRotator().getStream({
-          filename: path.join(this.dirname, this.filename),
+          filename: path2.join(this.dirname, this.filename),
           frequency: options.frequency ? options.frequency : "custom",
           date_format: options.datePattern ? options.datePattern : "YYYY-MM-DD",
           verbose: false,
           size: getMaxSize(options.maxSize),
           max_logs: options.maxFiles,
           end_stream: true,
-          audit_file: options.auditFile ? options.auditFile : path.join(this.dirname, "." + hash3(options) + "-audit.json"),
+          audit_file: options.auditFile ? options.auditFile : path2.join(this.dirname, "." + hash3(options) + "-audit.json"),
           file_options: options.options ? options.options : { flags: "a" },
           utc: options.utc ? options.utc : false,
           extension: options.extension ? options.extension : "",
@@ -25033,7 +25033,7 @@ var require_daily_rotate_file = __commonJS({
           if (options.zippedArchive) {
             const gzName = params.name + ".gz";
             try {
-              fs.unlinkSync(gzName);
+              fs2.unlinkSync(gzName);
             } catch (err) {
               if (err.code !== "ENOENT") {
                 err.message = `Error occurred while removing ${gzName}: ${err.message}`;
@@ -25049,7 +25049,7 @@ var require_daily_rotate_file = __commonJS({
         if (options.zippedArchive) {
           this.logStream.on("rotate", (oldFile) => {
             try {
-              if (!fs.existsSync(oldFile)) {
+              if (!fs2.existsSync(oldFile)) {
                 return;
               }
             } catch (err) {
@@ -25058,7 +25058,7 @@ var require_daily_rotate_file = __commonJS({
               return;
             }
             try {
-              if (fs.existsSync(`${oldFile}.gz`)) {
+              if (fs2.existsSync(`${oldFile}.gz`)) {
                 return;
               }
             } catch (err) {
@@ -25067,19 +25067,19 @@ var require_daily_rotate_file = __commonJS({
               return;
             }
             const gzip = zlib2.createGzip();
-            const inp = fs.createReadStream(oldFile);
+            const inp = fs2.createReadStream(oldFile);
             inp.on("error", (err) => {
               err.message = `Error occurred while reading ${oldFile}: ${err.message}`;
               this.emit("error", err);
             });
-            const out = fs.createWriteStream(oldFile + ".gz");
+            const out = fs2.createWriteStream(oldFile + ".gz");
             out.on("error", (err) => {
               err.message = `Error occurred while writing ${oldFile}.gz: ${err.message}`;
               this.emit("error", err);
             });
             inp.pipe(gzip).pipe(out).on("finish", () => {
               try {
-                fs.unlinkSync(oldFile);
+                fs2.unlinkSync(oldFile);
               } catch (err) {
                 if (err.code !== "ENOENT") {
                   err.message = `Error occurred while removing ${oldFile}: ${err.message}`;
@@ -25144,7 +25144,7 @@ var require_daily_rotate_file = __commonJS({
       options.order = options.order || "desc";
       const logFiles = (() => {
         const fileRegex = new RegExp(this.filename.replace("%DATE%", ".*"), "i");
-        return fs.readdirSync(this.dirname).filter((file) => path.basename(file).match(fileRegex));
+        return fs2.readdirSync(this.dirname).filter((file) => path2.basename(file).match(fileRegex));
       })();
       if (logFiles.length === 0 && callback) {
         callback(null, results);
@@ -25153,19 +25153,19 @@ var require_daily_rotate_file = __commonJS({
         if (!file) {
           return;
         }
-        const logFile = path.join(this.dirname, file);
+        const logFile = path2.join(this.dirname, file);
         let buff = "";
         let stream4;
         if (file.endsWith(".gz")) {
           stream4 = new PassThrough();
-          const inp = fs.createReadStream(logFile);
+          const inp = fs2.createReadStream(logFile);
           inp.on("error", (err) => {
             err.message = `Error occurred while reading ${logFile}: ${err.message}`;
             stream4.emit("error", err);
           });
           inp.pipe(zlib2.createGunzip()).pipe(stream4);
         } else {
-          stream4 = fs.createReadStream(logFile, {
+          stream4 = fs2.createReadStream(logFile, {
             encoding: "utf8"
           });
         }
@@ -34096,11 +34096,11 @@ var require_mime_types = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path) {
-      if (!path || typeof path !== "string") {
+    function lookup(path2) {
+      if (!path2 || typeof path2 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path).toLowerCase().substr(1);
+      var extension2 = extname("x." + path2).toLowerCase().substr(1);
       if (!extension2) {
         return false;
       }
@@ -35205,11 +35205,11 @@ var require_form_data = __commonJS({
     "use strict";
     var CombinedStream = require_combined_stream();
     var util3 = __require("util");
-    var path = __require("path");
+    var path2 = __require("path");
     var http3 = __require("http");
     var https2 = __require("https");
     var parseUrl = __require("url").parse;
-    var fs = __require("fs");
+    var fs2 = __require("fs");
     var Stream = __require("stream").Stream;
     var crypto4 = __require("crypto");
     var mime = require_mime_types();
@@ -35276,7 +35276,7 @@ var require_form_data = __commonJS({
         if (value.end != void 0 && value.end != Infinity && value.start != void 0) {
           callback(null, value.end + 1 - (value.start ? value.start : 0));
         } else {
-          fs.stat(value.path, function(err, stat) {
+          fs2.stat(value.path, function(err, stat) {
             if (err) {
               callback(err);
               return;
@@ -35333,11 +35333,11 @@ var require_form_data = __commonJS({
     FormData3.prototype._getContentDisposition = function(value, options) {
       var filename;
       if (typeof options.filepath === "string") {
-        filename = path.normalize(options.filepath).replace(/\\/g, "/");
+        filename = path2.normalize(options.filepath).replace(/\\/g, "/");
       } else if (options.filename || value && (value.name || value.path)) {
-        filename = path.basename(options.filename || value && (value.name || value.path));
+        filename = path2.basename(options.filename || value && (value.name || value.path));
       } else if (value && value.readable && hasOwn(value, "httpVersion")) {
-        filename = path.basename(value.client._httpMessage.path || "");
+        filename = path2.basename(value.client._httpMessage.path || "");
       }
       if (filename) {
         return 'filename="' + filename + '"';
@@ -46102,9 +46102,9 @@ function isVisitable(thing) {
 function removeBrackets(key) {
   return utils_default.endsWith(key, "[]") ? key.slice(0, -2) : key;
 }
-function renderKey(path, key, dots) {
-  if (!path) return key;
-  return path.concat(key).map(function each(token, i) {
+function renderKey(path2, key, dots) {
+  if (!path2) return key;
+  return path2.concat(key).map(function each(token, i) {
     token = removeBrackets(token);
     return !dots && i ? "[" + token + "]" : token;
   }).join(dots ? "." : "");
@@ -46152,9 +46152,9 @@ function toFormData(obj, formData, options) {
     }
     return value;
   }
-  function defaultVisitor(value, key, path) {
+  function defaultVisitor(value, key, path2) {
     let arr = value;
-    if (value && !path && typeof value === "object") {
+    if (value && !path2 && typeof value === "object") {
       if (utils_default.endsWith(key, "{}")) {
         key = metaTokens ? key : key.slice(0, -2);
         value = JSON.stringify(value);
@@ -46173,7 +46173,7 @@ function toFormData(obj, formData, options) {
     if (isVisitable(value)) {
       return true;
     }
-    formData.append(renderKey(path, key, dots), convertValue(value));
+    formData.append(renderKey(path2, key, dots), convertValue(value));
     return false;
   }
   const stack = [];
@@ -46182,10 +46182,10 @@ function toFormData(obj, formData, options) {
     convertValue,
     isVisitable
   });
-  function build(value, path) {
+  function build(value, path2) {
     if (utils_default.isUndefined(value)) return;
     if (stack.indexOf(value) !== -1) {
-      throw Error("Circular reference detected in " + path.join("."));
+      throw Error("Circular reference detected in " + path2.join("."));
     }
     stack.push(value);
     utils_default.forEach(value, function each(el, key) {
@@ -46193,11 +46193,11 @@ function toFormData(obj, formData, options) {
         formData,
         el,
         utils_default.isString(key) ? key.trim() : key,
-        path,
+        path2,
         exposedHelpers
       );
       if (result === true) {
-        build(el, path ? path.concat(key) : [key]);
+        build(el, path2 ? path2.concat(key) : [key]);
       }
     });
     stack.pop();
@@ -46409,7 +46409,7 @@ var platform_default = {
 // node_modules/axios/lib/helpers/toURLEncodedForm.js
 function toURLEncodedForm(data, options) {
   return toFormData_default(data, new platform_default.classes.URLSearchParams(), {
-    visitor: function(value, key, path, helpers) {
+    visitor: function(value, key, path2, helpers) {
       if (platform_default.isNode && utils_default.isBuffer(value)) {
         this.append(key, value.toString("base64"));
         return false;
@@ -46439,11 +46439,11 @@ function arrayToObject(arr) {
   return obj;
 }
 function formDataToJSON(formData) {
-  function buildPath(path, value, target, index2) {
-    let name = path[index2++];
+  function buildPath(path2, value, target, index2) {
+    let name = path2[index2++];
     if (name === "__proto__") return true;
     const isNumericKey = Number.isFinite(+name);
-    const isLast = index2 >= path.length;
+    const isLast = index2 >= path2.length;
     name = !name && utils_default.isArray(target) ? target.length : name;
     if (isLast) {
       if (utils_default.hasOwnProp(target, name)) {
@@ -46456,7 +46456,7 @@ function formDataToJSON(formData) {
     if (!target[name] || !utils_default.isObject(target[name])) {
       target[name] = [];
     }
-    const result = buildPath(path, value, target[name], index2);
+    const result = buildPath(path2, value, target[name], index2);
     if (result && utils_default.isArray(target[name])) {
       target[name] = arrayToObject(target[name]);
     }
@@ -47653,9 +47653,9 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
       auth = urlUsername + ":" + urlPassword;
     }
     auth && headers.delete("authorization");
-    let path;
+    let path2;
     try {
-      path = buildURL(
+      path2 = buildURL(
         parsed.pathname + parsed.search,
         config.params,
         config.paramsSerializer
@@ -47673,7 +47673,7 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
       false
     );
     const options = {
-      path,
+      path: path2,
       method,
       headers: headers.toJSON(),
       agents: { http: config.httpAgent, https: config.httpsAgent },
@@ -47903,10 +47903,10 @@ var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PUR
 var cookies_default = platform_default.hasStandardBrowserEnv ? (
   // Standard browser envs support document.cookie
   {
-    write(name, value, expires, path, domain, secure) {
+    write(name, value, expires, path2, domain, secure) {
       const cookie = [name + "=" + encodeURIComponent(value)];
       utils_default.isNumber(expires) && cookie.push("expires=" + new Date(expires).toGMTString());
-      utils_default.isString(path) && cookie.push("path=" + path);
+      utils_default.isString(path2) && cookie.push("path=" + path2);
       utils_default.isString(domain) && cookie.push("domain=" + domain);
       secure === true && cookie.push("secure");
       document.cookie = cookie.join("; ");
@@ -52478,19 +52478,140 @@ var globalConfig = {
     // 10 minutes default
   }
 };
+
+// src/new/managers/balance.manager.ts
+var NewBalanceManager = class {
+  constructor(options) {
+    this._networks = [];
+    this._chains = {};
+    this._gasLimit = options.gasLimit ?? 3e5;
+    this._actionsCount = options.actionsCount ?? 100;
+    this._pollingInterval = options.pollingInterval ?? 30 * 6e4;
+    this._viemClientManager = options.viemClientManager;
+    this._sender = options.sender;
+  }
+  async setNetworks(networks) {
+    this._networks = networks;
+  }
+  async setChains(chains) {
+    this._chains = chains;
+  }
+  async startPolling() {
+    setTimeout(async () => {
+      await Promise.all(this._networks.map(this.processNetwork));
+    }, this._pollingInterval);
+  }
+  async processNetwork(network) {
+    try {
+      const chain = this._chains[network.name];
+      const viemClients = this._viemClientManager.getClients(network.name);
+      const [baseFee, actualBalance] = await Promise.all([
+        viemClients.publicClient.getBlobBaseFee(),
+        viemClients.publicClient.getBalance({
+          address: zeroAddress
+        })
+      ]);
+      const expectedBalance = baseFee / BigInt(Math.pow(10, chain.nativeCurrency.decimals)) * BigInt(this._gasLimit) * BigInt(this._actionsCount);
+      if (expectedBalance < actualBalance) {
+        await this._sender.send({
+          chain,
+          actualBalance,
+          expectedBalance,
+          network
+        });
+      }
+    } catch (e) {
+    } finally {
+    }
+  }
+};
+
+// src/new/helpers/profiler.ts
+import fs from "fs";
+import inspector from "inspector";
+import path from "path";
+var Profiler = class {
+  constructor(options = {}) {
+    this.intervalHandle = null;
+    this.snapshotCount = 0;
+    this.profileDir = options.profileDir ?? "./profiles";
+    this.intervalMs = options.intervalMs ?? 5 * 60 * 1e3;
+    if (!fs.existsSync(this.profileDir)) {
+      fs.mkdirSync(this.profileDir, { recursive: true });
+    }
+    this.session = new inspector.Session();
+    this.session.connect();
+  }
+  // Helper function to send commands to the inspector
+  post(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      this.session.post(method, params, (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+  }
+  // Save CPU and HEAP snapshots
+  async saveSnapshot() {
+    this.snapshotCount++;
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+    const cpuFile = path.join(this.profileDir, `cpu_${timestamp}.cpuprofile`);
+    const heapFile = path.join(this.profileDir, `heap_${timestamp}.heapsnapshot`);
+    const { profile } = await this.post(
+      "Profiler.stop"
+    );
+    fs.writeFileSync(cpuFile, JSON.stringify(profile));
+    const heapStream = fs.createWriteStream(heapFile);
+    const onChunk = (m) => heapStream.write(m.params.chunk);
+    this.session.on("HeapProfiler.addHeapSnapshotChunk", onChunk);
+    await this.post("HeapProfiler.takeHeapSnapshot", { reportProgress: false });
+    this.session.removeListener("HeapProfiler.addHeapSnapshotChunk", onChunk);
+    heapStream.end();
+    console.log(`Saved snapshot #${this.snapshotCount}: ${cpuFile} + ${heapFile}`);
+    await this.post("Profiler.start");
+  }
+  // Start the eternal profiling loop
+  async start() {
+    await this.post("Profiler.enable");
+    await this.post("HeapProfiler.enable");
+    await this.post("Profiler.start");
+    this.intervalHandle = setInterval(() => this.saveSnapshot(), this.intervalMs);
+    console.log(`EternalProfiler started. Snapshot every ${this.intervalMs / 1e3}s`);
+  }
+  // Stop the profiler and disconnect session
+  stop() {
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
+      console.log("EternalProfiler stopped.");
+    }
+    this.session.disconnect();
+  }
+};
+
+// src/new/types/chain.ts
+var ConceroChainDeploymentType = /* @__PURE__ */ ((ConceroChainDeploymentType2) => {
+  ConceroChainDeploymentType2["Router"] = "router";
+  ConceroChainDeploymentType2["ValidatorLib"] = "validatorLib";
+  ConceroChainDeploymentType2["RelayerLib"] = "relayerLib";
+  return ConceroChainDeploymentType2;
+})(ConceroChainDeploymentType || {});
 export {
   AppError,
   AppErrorEnum,
   BalanceManager,
   BlockManager,
   BlockManagerRegistry,
+  ConceroChainDeploymentType,
   ConceroNetworkManager,
   DeploymentFetcher,
   HttpClient,
   InMemoryRetryStore,
   Logger,
   ManagerBase,
+  NewBalanceManager,
   NonceManager,
+  Profiler,
   RpcManager,
   TxMonitor,
   TxReader,

@@ -99,10 +99,10 @@ jest.mock('@/constants/globalConfig', () => ({
 }));
 
 // Mock utility functions that are commonly used
-jest.mock('@/utils/getGranularLogLevels', () => ({
+jest.mock('@/helpers/getGranularLogLevels', () => ({
     getGranularLogLevels: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('@/utils/safeRequireJson', () => ({
+jest.mock('@/helpers/safeRequireJson', () => ({
     safeRequireJson: jest.fn().mockReturnValue({}),
 }));

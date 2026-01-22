@@ -1,15 +1,15 @@
-import * as envUtils from '@/utils/getEnvVars';
+import * as envUtils from '@/helpers/getEnvVars';
 
+import * as networkUtils from '@/helpers/fetchNetworkConfigs';
+import { HttpClient } from '@/helpers/HttpClient';
 import { ConceroNetworkManager } from '@/managers/ConceroNetworkManager';
 import { NetworkUpdateListener } from '@/types/managers';
-import * as networkUtils from '@/utils/fetchNetworkConfigs';
-import { HttpClient } from '@/utils/HttpClient';
 
 import { MockLogger } from '../mocks/Logger';
 
-jest.mock('@/utils/HttpClient');
-jest.mock('@/utils/fetchNetworkConfigs');
-jest.mock('@/utils/getEnvVars');
+jest.mock('@/helpers/HttpClient');
+jest.mock('@/helpers/fetchNetworkConfigs');
+jest.mock('@/helpers/getEnvVars');
 
 describe('ConceroNetworkManager', () => {
     let logger: MockLogger;

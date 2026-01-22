@@ -1,9 +1,9 @@
+import { HttpClient } from '@/helpers/HttpClient';
 import { DeploymentFetcher } from '@/managers/DeploymentFetcher';
-import { HttpClient } from '@/utils/HttpClient';
 
 import { MockLogger } from '../mocks/Logger';
 
-jest.mock('@/utils/HttpClient');
+jest.mock('@/helpers/HttpClient');
 
 describe('DeploymentFetcher', () => {
     let logger: MockLogger;
