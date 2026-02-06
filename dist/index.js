@@ -45611,7 +45611,7 @@ function processNetworkData(networkData, isTestnet, logger) {
         id: details.chainId,
         name: details.name,
         rpcUrls: details.rpcUrls,
-        blockExplorer: details.blockExplorers[0] ? {
+        blockExplorer: details.blockExplorers?.[0] ? {
           name: details.blockExplorers[0].name,
           url: details.blockExplorers[0].url
         } : void 0,
