@@ -52405,7 +52405,7 @@ var globalConfig = {
     },
     fallbackTransportOptions: {
       retryCount: getEnvInt("VIEM_CLIENT_MANAGER_FALLBACK_TRANSPORT_RETRY_COUNT", 3),
-      retryDelay: getEnvInt("VIEM_CLIENT_MANAGER_FALLBACK_TRANSPORT_RETRY_DELAY", sec(2))
+      retryDelay: getEnvInt("VIEM_CLIENT_MANAGER_FALLBACK_TRANSPORT_RETRY_DELAY", 100)
     }
   },
   DEPLOYMENT_MANAGER: {
