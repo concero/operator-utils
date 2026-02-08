@@ -81,7 +81,7 @@ export async function callContract(
     return await asyncRetry<WaitForTransactionReceiptReturnType>(
         async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
         {
-            maxRetries: 10,
+            maxRetries: 3,
             delayMs: 150,
             isRetryableError,
         },

@@ -52268,7 +52268,7 @@ async function callContract(publicClient, walletClient, params, nonceManager, co
   return await asyncRetry(
     async () => executeTransaction(publicClient, walletClient, params, nonceManager, config),
     {
-      maxRetries: 10,
+      maxRetries: 3,
       delayMs: 150,
       isRetryableError
     }
