@@ -10,6 +10,7 @@ export type ConceroNetwork = {
     confirmations: number;
     finalityConfirmations?: number;
     finalityTagEnabled?: boolean;
+    isFinalitySupported?: boolean;
     addresses?: {
         conceroVerifier?: Address;
         conceroRouter: Address;

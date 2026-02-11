@@ -49408,7 +49408,12 @@ var BlockManager = class _BlockManager {
   async fetchLastBlockNumber() {
     return await this.publicClient.getBlockNumber({ cacheTime: 0 });
   }
+  // @dev If finality is not supported by us for the chain, we simply return
+  // the current last block. This logic will probably need to be changed in the future.
   async fetchFinalizedBlockNumber() {
+    if (!this.network.isFinalitySupported) {
+      return await this.getLatestBlock();
+    }
     if (this.network.finalityTagEnabled) {
       const block = await this.publicClient.getBlock({ blockTag: "finalized" });
       return block.number;
