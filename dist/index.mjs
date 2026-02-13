@@ -52484,53 +52484,6 @@ var globalConfig = {
   }
 };
 
-// src/new/managers/balance.manager.ts
-var NewBalanceManager = class {
-  constructor(options) {
-    this._networks = [];
-    this._chains = {};
-    this._gasLimit = options.gasLimit ?? 3e5;
-    this._actionsCount = options.actionsCount ?? 100;
-    this._pollingInterval = options.pollingInterval ?? 30 * 6e4;
-    this._viemClientManager = options.viemClientManager;
-    this._sender = options.sender;
-  }
-  async setNetworks(networks) {
-    this._networks = networks;
-  }
-  async setChains(chains) {
-    this._chains = chains;
-  }
-  async startPolling() {
-    setTimeout(async () => {
-      await Promise.all(this._networks.map(this.processNetwork));
-    }, this._pollingInterval);
-  }
-  async processNetwork(network) {
-    try {
-      const chain = this._chains[network.name];
-      const viemClients = this._viemClientManager.getClients(network.name);
-      const [baseFee, actualBalance] = await Promise.all([
-        viemClients.publicClient.getBlobBaseFee(),
-        viemClients.publicClient.getBalance({
-          address: zeroAddress
-        })
-      ]);
-      const expectedBalance = baseFee / BigInt(Math.pow(10, chain.nativeCurrency.decimals)) * BigInt(this._gasLimit) * BigInt(this._actionsCount);
-      if (expectedBalance < actualBalance) {
-        await this._sender.send({
-          chain,
-          actualBalance,
-          expectedBalance,
-          network
-        });
-      }
-    } catch (e) {
-    } finally {
-    }
-  }
-};
-
 // src/new/helpers/profiler.ts
 import fs from "fs";
 import inspector from "inspector";
@@ -52614,7 +52567,6 @@ export {
   InMemoryRetryStore,
   Logger,
   ManagerBase,
-  NewBalanceManager,
   NonceManager,
   Profiler,
   RpcManager,
