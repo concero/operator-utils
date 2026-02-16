@@ -57885,7 +57885,7 @@ var BalanceManager = class extends ManagerBase {
 var BlockManager = class _BlockManager {
   constructor(config, network, publicClient, logger) {
     this.lastReportedBlockNumber = 0n;
-    this.finalizedBlock = null;
+    this.finalizedBlock = 0n;
     this.latestBlock = null;
     this.subscribers = /* @__PURE__ */ new Map();
     this.isDisposed = false;
@@ -57956,18 +57956,13 @@ var BlockManager = class _BlockManager {
   // the current last block. This logic will probably need to be changed in the future.
   async fetchFinalizedBlockNumber() {
     if (!this.network.isFinalitySupported) {
-      return await this.getLatestBlock();
-    }
-    if (this.network.finalityTagEnabled) {
-      const block = await this.publicClient.getBlock({ blockTag: "finalized" });
-      return block.number;
+      return "not_supported";
     }
     const latestBlock = await this.getLatestBlock();
-    if (latestBlock) {
-      return latestBlock - BigInt(this.network.finalityConfirmations);
-    } else {
-      return null;
+    if (!latestBlock) {
+      return "not_supported";
     }
+    return latestBlock;
   }
   async notifySubscribers(startBlock, endBlock, finalizedBlock) {
     this.logger.debug(

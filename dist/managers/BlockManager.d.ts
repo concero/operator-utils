@@ -4,9 +4,14 @@ import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../t
  * BlockManager encapsulates block processing and canonical block emission for a single network.
  * It handles both the polling for new blocks and notifying registered subscribers about block ranges.
  */
+type FinalizedBlock = bigint | 'not_supported';
+/**
+ * BlockManager encapsulates block processing and canonical block emission for a single network.
+ * It handles both the polling for new blocks and notifying registered subscribers about block ranges.
+ */
 /** Options for watching blocks */
 type WatchBlocksOptions = {
-    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
+    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: FinalizedBlock) => Promise<void>;
 };
 export declare class BlockManager implements IBlockManager {
     private lastReportedBlockNumber;
