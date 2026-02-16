@@ -67,7 +67,7 @@ export class InsufficientBalanceNotifier {
 
             const expectedBalance = fee * BigInt(this.gasLimit) * BigInt(this.txCount);
 
-            if (expectedBalance < actualBalance) {
+            if (actualBalance < expectedBalance) {
                 await this.notifier.notify(
                     this.buildMessage({
                         expectedBalance,
