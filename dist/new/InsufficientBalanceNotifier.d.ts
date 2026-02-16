@@ -30,7 +30,7 @@ export declare class InsufficientBalanceNotifier {
     private readonly buildMessage;
     private readonly networkManager;
     constructor(options: Options);
-    startPolling(): Promise<void>;
+    startPolling(): Promise<NodeJS.Timeout>;
     private processNetwork;
     private fetchBaseFeeAndBalance;
 }

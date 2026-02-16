@@ -47,10 +47,15 @@ export class InsufficientBalanceNotifier {
         this.buildMessage = options.buildMessage;
     }
 
-    async startPolling(): Promise<void> {
-        setTimeout(async () => {
-            await Promise.all(this.networkManager.getActiveNetworks().map(this.processNetwork));
-        }, this.pollingInterval);
+    async startPolling(): Promise<NodeJS.Timeout> {
+        const poll = async () => {
+            await Promise.all(
+                this.networkManager.getActiveNetworks().map(n => this.processNetwork(n)),
+            );
+        };
+
+        await poll();
+        return setInterval(poll, this.pollingInterval);
     }
 
     private async processNetwork(network: ConceroNetwork) {
