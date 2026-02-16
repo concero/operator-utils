@@ -1,6 +1,5 @@
 import { type PublicClient } from 'viem';
 
-
 import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 import { generateUid } from '../utils';
 
