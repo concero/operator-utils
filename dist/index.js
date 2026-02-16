@@ -57958,11 +57958,14 @@ var BlockManager = class _BlockManager {
     if (!this.network.isFinalitySupported) {
       return "not_supported";
     }
-    const latestBlock = await this.getLatestBlock();
-    if (!latestBlock) {
-      return "not_supported";
+    if (this.network.finalityTagEnabled) {
+      const block = await this.publicClient.getBlock({ blockTag: "finalized" });
+      return block.number;
     }
-    return latestBlock;
+    if (!this.network.finalityConfirmations) return "not_supported";
+    const latestBlock = await this.getLatestBlock();
+    if (!latestBlock) return "not_supported";
+    return latestBlock - BigInt(this.network.finalityConfirmations);
   }
   async notifySubscribers(startBlock, endBlock, finalizedBlock) {
     this.logger.debug(
