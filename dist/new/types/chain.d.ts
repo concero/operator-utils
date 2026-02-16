@@ -8,6 +8,7 @@ export type ConceroChain = {
     chainSelector: number;
     name: string;
     isTestnet: boolean;
+    isFinalitySupported: boolean;
     finalityTagEnabled: boolean;
     finalityConfirmations: number;
     minBlockConfirmations: number;
