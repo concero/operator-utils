@@ -25,9 +25,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         logger: ILogger,
         httpClient: HttpClient,
         config: NetworkManagerConfig,
-        // used as a temporary flag to use concero-networks repository instead of separate RPCs, chains and deployments
-        // based on env variable "CONCERO_NETWORKS_URL". Used as url to raw json to concero-networks output file
-        useNetworks: boolean = false,
+        useNetworks: boolean,
     ) {
         super();
         this.config = config;
@@ -50,8 +48,11 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         logger: ILogger,
         httpClient: HttpClient,
         config: NetworkManagerConfig,
+        // used as a temporary flag to use concero-networks repository instead of separate RPCs, chains and deployments
+        // based on env variable "CONCERO_NETWORKS_URL". Used as url to raw json to concero-networks output file
+        useNetworks: boolean = false,
     ): ConceroNetworkManager {
-        this.instance = new ConceroNetworkManager(logger, httpClient, config);
+        this.instance = new ConceroNetworkManager(logger, httpClient, config, useNetworks);
         return this.instance;
     }
 
