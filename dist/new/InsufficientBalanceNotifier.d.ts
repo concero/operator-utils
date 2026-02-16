@@ -11,6 +11,7 @@ export type BuildMessageFunc = (params: IBuildMessageParams) => string;
 interface Options {
     pollingInterval: number;
     gasLimit: number;
+    gasLimitsConfig?: Record<number, bigint>;
     actionsCount: number;
     viemClientManager: ViemClientManager;
     networkManager: ConceroNetworkManager;
@@ -21,6 +22,7 @@ interface Options {
 }
 export declare class InsufficientBalanceNotifier {
     private readonly gasLimit;
+    private readonly gasLimitsConfig;
     private readonly txCount;
     private readonly pollingInterval;
     private readonly viemClientManager;

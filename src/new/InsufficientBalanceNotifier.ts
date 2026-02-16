@@ -15,6 +15,7 @@ export type BuildMessageFunc = (params: IBuildMessageParams) => string;
 interface Options {
     pollingInterval: number;
     gasLimit: number;
+    gasLimitsConfig?: Record<number, bigint>;
     actionsCount: number;
     viemClientManager: ViemClientManager;
     networkManager: ConceroNetworkManager;
@@ -26,6 +27,7 @@ interface Options {
 
 export class InsufficientBalanceNotifier {
     private readonly gasLimit: number;
+    private readonly gasLimitsConfig: Record<number, bigint>;
     private readonly txCount: number;
     private readonly pollingInterval: number;
     private readonly viemClientManager: ViemClientManager;
@@ -37,6 +39,7 @@ export class InsufficientBalanceNotifier {
 
     constructor(options: Options) {
         this.gasLimit = options.gasLimit;
+        this.gasLimitsConfig = options.gasLimitsConfig ?? {};
         this.txCount = options.actionsCount;
         this.pollingInterval = options.pollingInterval;
         this.viemClientManager = options.viemClientManager;
@@ -65,7 +68,8 @@ export class InsufficientBalanceNotifier {
                 this.address,
             );
 
-            const expectedBalance = fee * BigInt(this.gasLimit) * BigInt(this.txCount);
+            const gasLimit = this.gasLimitsConfig[network.id] ?? BigInt(this.gasLimit);
+            const expectedBalance = fee * BigInt(gasLimit) * BigInt(this.txCount);
 
             if (actualBalance < expectedBalance) {
                 await this.notifier.notify(

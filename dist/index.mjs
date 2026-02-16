@@ -61063,6 +61063,7 @@ var ConceroChainDeploymentType = /* @__PURE__ */ ((ConceroChainDeploymentType2) 
 var InsufficientBalanceNotifier = class {
   constructor(options) {
     this.gasLimit = options.gasLimit;
+    this.gasLimitsConfig = options.gasLimitsConfig ?? {};
     this.txCount = options.actionsCount;
     this.pollingInterval = options.pollingInterval;
     this.viemClientManager = options.viemClientManager;
@@ -61087,7 +61088,8 @@ var InsufficientBalanceNotifier = class {
         network.name,
         this.address
       );
-      const expectedBalance = fee * BigInt(this.gasLimit) * BigInt(this.txCount);
+      const gasLimit = this.gasLimitsConfig[network.id] ?? BigInt(this.gasLimit);
+      const expectedBalance = fee * BigInt(gasLimit) * BigInt(this.txCount);
       if (actualBalance < expectedBalance) {
         await this.notifier.notify(
           this.buildMessage({
