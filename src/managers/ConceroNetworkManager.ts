@@ -341,6 +341,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                     viemChain: network.viemChain,
                     finalityConfirmations: network.finalityConfirmations,
                     finalityTagEnabled: network.finalityTagEnabled,
+                    isFinalitySupported: network.isFinalitySupported,
                 },
             ]),
         );
