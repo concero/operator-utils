@@ -58228,7 +58228,7 @@ var DeploymentFetcher = class {
 
 // src/managers/ConceroNetworkManager.ts
 var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
-  constructor(logger, httpClient, config, useNetworks = false) {
+  constructor(logger, httpClient, config, useNetworks) {
     super();
     this.mainnetNetworks = {};
     this.testnetNetworks = {};
@@ -58250,8 +58250,8 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
   static getInstance() {
     return _ConceroNetworkManager.instance;
   }
-  static createInstance(logger, httpClient, config) {
-    this.instance = new _ConceroNetworkManager(logger, httpClient, config);
+  static createInstance(logger, httpClient, config, useNetworks = false) {
+    this.instance = new _ConceroNetworkManager(logger, httpClient, config, useNetworks);
     return this.instance;
   }
   async initialize() {

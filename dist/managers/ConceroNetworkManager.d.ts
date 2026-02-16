@@ -17,7 +17,7 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     private readonly networksUrl;
     private constructor();
     static getInstance(): ConceroNetworkManager;
-    static createInstance(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig): ConceroNetworkManager;
+    static createInstance(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig, useNetworks?: boolean): ConceroNetworkManager;
     initialize(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
