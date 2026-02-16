@@ -33,6 +33,7 @@ export declare class InsufficientBalanceNotifier {
     startPolling(): Promise<NodeJS.Timeout>;
     private processNetwork;
     private fetchBaseFeeAndBalance;
+    private estimateFee;
 }
 export {};
 //# sourceMappingURL=InsufficientBalanceNotifier.d.ts.map

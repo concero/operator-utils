@@ -61145,9 +61145,17 @@ var InsufficientBalanceNotifier = class {
     const { publicClient } = this.viemClientManager.getClients(networkName);
     const [balance, fee] = await Promise.all([
       publicClient.getBalance({ address }),
-      publicClient.estimateFeesPerGas()
+      this.estimateFee(publicClient)
     ]);
-    return { balance, fee: fee.maxFeePerGas ?? fee.gasPrice };
+    return { balance, fee };
+  }
+  async estimateFee(publicClient) {
+    try {
+      const fee = await publicClient.estimateFeesPerGas();
+      return fee.maxFeePerGas;
+    } catch {
+      return await publicClient.getGasPrice();
+    }
   }
 };
 

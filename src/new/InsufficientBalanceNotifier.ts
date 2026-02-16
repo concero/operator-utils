@@ -1,4 +1,4 @@
-import { Address } from 'viem';
+import { Address, PublicClient } from 'viem';
 
 import { ConceroNetworkManager, ViemClientManager } from '../managers';
 import { ConceroNetwork, ILogger } from '../types';
@@ -89,9 +89,18 @@ export class InsufficientBalanceNotifier {
 
         const [balance, fee] = await Promise.all([
             publicClient.getBalance({ address }),
-            publicClient.estimateFeesPerGas(),
+            this.estimateFee(publicClient),
         ]);
 
-        return { balance, fee: fee.maxFeePerGas ?? fee.gasPrice };
+        return { balance, fee };
+    }
+
+    private async estimateFee(publicClient: PublicClient): Promise<bigint> {
+        try {
+            const fee = await publicClient.estimateFeesPerGas();
+            return fee.maxFeePerGas;
+        } catch {
+            return await publicClient.getGasPrice();
+        }
     }
 }
