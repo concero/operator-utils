@@ -1,5 +1,6 @@
 import { type PublicClient } from 'viem';
 
+
 import { BlockManagerConfig, ConceroNetwork, IBlockManager, ILogger } from '../types';
 import { generateUid } from '../utils';
 
@@ -8,19 +9,34 @@ import { generateUid } from '../utils';
  * It handles both the polling for new blocks and notifying registered subscribers about block ranges.
  */
 
+type FinalizedBlock = bigint | 'not_supported';
+
+/**
+ * BlockManager encapsulates block processing and canonical block emission for a single network.
+ * It handles both the polling for new blocks and notifying registered subscribers about block ranges.
+ */
+
 /** Options for watching blocks */
 type WatchBlocksOptions = {
-    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
+    onBlockRange: (
+        startBlock: bigint,
+        endBlock: bigint,
+        finalizedBlock?: FinalizedBlock,
+    ) => Promise<void>;
 };
 
 type Subscriber = {
     id: string;
-    onBlockRange: (startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) => Promise<void>;
+    onBlockRange: (
+        startBlock: bigint,
+        endBlock: bigint,
+        finalizedBlock: FinalizedBlock,
+    ) => Promise<void>;
 };
 
 export class BlockManager implements IBlockManager {
     private lastReportedBlockNumber: bigint = 0n;
-    private finalizedBlock: bigint | null = null;
+    private finalizedBlock: FinalizedBlock = 0n;
     private latestBlock: bigint | null = null;
     public readonly publicClient: PublicClient;
     private readonly network: ConceroNetwork;
@@ -119,26 +135,24 @@ export class BlockManager implements IBlockManager {
 
     // @dev If finality is not supported by us for the chain, we simply return
     // the current last block. This logic will probably need to be changed in the future.
-    private async fetchFinalizedBlockNumber() {
+    private async fetchFinalizedBlockNumber(): Promise<FinalizedBlock> {
         if (!this.network.isFinalitySupported) {
-            return await this.getLatestBlock();
+            return 'not_supported';
         }
-
-        if (this.network.finalityTagEnabled) {
-            const block = await this.publicClient.getBlock({ blockTag: 'finalized' });
-            return block.number;
-        }
-
         const latestBlock = await this.getLatestBlock();
 
-        if (latestBlock) {
-            return latestBlock - BigInt(this.network.finalityConfirmations!);
-        } else {
-            return null;
+        if (!latestBlock) {
+            return 'not_supported';
         }
+
+        return latestBlock;
     }
 
-    private async notifySubscribers(startBlock: bigint, endBlock: bigint, finalizedBlock?: bigint) {
+    private async notifySubscribers(
+        startBlock: bigint,
+        endBlock: bigint,
+        finalizedBlock: FinalizedBlock,
+    ) {
         this.logger.debug(
             `${this.network.name}: Processing ${endBlock - startBlock} new blocks from ${startBlock} to ${endBlock}`,
         );
