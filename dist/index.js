@@ -58228,7 +58228,7 @@ var DeploymentFetcher = class {
 
 // src/managers/ConceroNetworkManager.ts
 var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
-  constructor(logger, httpClient, config) {
+  constructor(logger, httpClient, config, useNetworks) {
     super();
     this.mainnetNetworks = {};
     this.testnetNetworks = {};
@@ -58239,12 +58239,19 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     this.config = config;
     this.logger = logger;
     this.httpClient = httpClient;
+    this.useNetworks = useNetworks;
+    this.networksUrl = process.env.CONCERO_NETWORKS_URL;
+    if (useNetworks) {
+      if (!process.env.CONCERO_NETWORKS_URL) {
+        throw new Error("CONCERO_NETWORKS_URL not specified to use concero-networks");
+      }
+    }
   }
   static getInstance() {
     return _ConceroNetworkManager.instance;
   }
-  static createInstance(logger, httpClient, config) {
-    this.instance = new _ConceroNetworkManager(logger, httpClient, config);
+  static createInstance(logger, httpClient, config, useNetworks = false) {
+    this.instance = new _ConceroNetworkManager(logger, httpClient, config, useNetworks);
     return this.instance;
   }
   async initialize() {
@@ -58313,6 +58320,7 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     this.activeNetworks = this.activeNetworks.filter((network) => network.name !== networkName);
     this.logger.warn(`Network "${networkName}" excluded from active networks. ${reason}`);
   }
+  // @todo: deprecated, not used
   getVerifierNetwork() {
     if (this.config.networkMode === "mainnet") {
       return this.mainnetNetworks["arbitrum"];
@@ -58338,18 +58346,41 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
     return this.config.defaultFinalityConfirmations;
   }
   async updateNetworks() {
-    let networksFetched = false;
+    let isSuccess = false;
     try {
-      if (this.config.networkMode === "localhost") {
-        this.mainnetNetworks = {};
-        const localhostNetworks = this.getTestingNetworks();
-        this.testnetNetworks = localhostNetworks;
-        this.logger.debug(
-          `Using localhost networks only: ${Object.keys(localhostNetworks).join(", ")}`
+      if (this.useNetworks) {
+        if (this.config.networkMode === "localhost") {
+          throw new Error("Localhost network mode not supported with useNetworks flag");
+        }
+        const response = await this.httpClient.get(this.networksUrl, {
+          responseType: "text"
+        });
+        const chains = JSON.parse(response);
+        const networks = Object.values(chains).map((i) => this.pipeConceroChainToConceroNetwork(i)).reduce(
+          (acc, chain) => ({
+            [chain.chainSelector]: chain,
+            ...acc
+          }),
+          {}
         );
-        networksFetched = true;
+        switch (this.config.networkMode) {
+          case "mainnet": {
+            this.mainnetNetworks = this.createNetworkConfig(networks, "mainnet");
+            break;
+          }
+          case "testnet": {
+            this.testnetNetworks = this.createNetworkConfig(networks, "testnet");
+            break;
+          }
+        }
       } else {
-        try {
+        if (this.config.networkMode === "localhost") {
+          this.mainnetNetworks = {};
+          this.testnetNetworks = this.getTestingNetworks();
+          this.logger.debug(
+            `Using localhost networks only: ${Object.keys(this.testnetNetworks).join(",")}`
+          );
+        } else {
           const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } = await fetchNetworkConfigs(
             this.logger,
             this.httpClient,
@@ -58375,32 +58406,46 @@ var ConceroNetworkManager = class _ConceroNetworkManager extends ManagerBase {
               "No testnet networks fetched, keeping existing testnet networks"
             );
           }
-          networksFetched = true;
-        } catch (error) {
-          this.logger.warn(
-            `Failed to fetch network configurations. Will retry on next update cycle: ${error}`
-          );
-          if (Object.keys(this.allNetworks).length === 0) {
-            this.logger.error(
-              "No network configurations available. Unable to initialize services."
-            );
-          }
         }
       }
       this.allNetworks = { ...this.testnetNetworks, ...this.mainnetNetworks };
-      const filteredNetworks = this.filterNetworks(this.config.networkMode);
-      if (networksFetched) {
-        this.activeNetworks = [...filteredNetworks];
-        this.logger.debug(
-          `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map((n) => n.name).join(", ")})`
-        );
-      }
-      if (networksFetched) {
-        await this.notifyListeners();
-      }
+      this.activeNetworks = this.filterNetworks(this.config.networkMode);
+      this.logger.debug(
+        `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map((n) => n.name).join(",")})`
+      );
+      isSuccess = true;
     } catch (error) {
       this.logger.error(`Failed to update networks: ${error}`);
+      isSuccess = false;
+    } finally {
+      if (isSuccess) {
+        await this.notifyListeners();
+      }
     }
+  }
+  pipeConceroChainToConceroNetwork(chain) {
+    return {
+      id: Number(chain.id),
+      chainSelector: String(chain.chainSelector),
+      name: chain.name,
+      finalityTagEnabled: chain.finalityTagEnabled,
+      finalityConfirmations: chain.finalityConfirmations,
+      addresses: chain?.deployments?.router && { conceroRouter: chain.deployments.router },
+      type: this.config.networkMode,
+      isFinalitySupported: chain.finalityTagEnabled,
+      confirmations: chain.finalityConfirmations,
+      accounts: [],
+      viemChain: {
+        id: Number(chain.id),
+        name: chain.name,
+        rpcUrls: { default: { http: chain.rpcUrls } },
+        nativeCurrency: {
+          decimals: chain.nativeCurrency.decimals,
+          name: chain.nativeCurrency.name,
+          symbol: chain.nativeCurrency.symbol
+        }
+      }
+    };
   }
   async notifyListeners() {
     for (const listener of this.updateListeners) {

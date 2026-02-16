@@ -1,5 +1,6 @@
 import { ManagerBase } from './ManagerBase';
 
+import { ConceroChain } from '../new';
 import { ConceroNetwork, NetworkManagerConfig, NetworkType } from '../types';
 import { IConceroNetworkManager, ILogger, NetworkUpdateListener } from '../types/';
 import { fetchNetworkConfigs, HttpClient, localhostViemChain } from '../utils';
@@ -17,12 +18,26 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     private config: NetworkManagerConfig;
     private httpClient: HttpClient;
     private isPolling = false;
+    private readonly useNetworks: boolean;
+    private readonly networksUrl: string;
 
-    private constructor(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig) {
+    private constructor(
+        logger: ILogger,
+        httpClient: HttpClient,
+        config: NetworkManagerConfig,
+        useNetworks: boolean,
+    ) {
         super();
         this.config = config;
         this.logger = logger;
         this.httpClient = httpClient;
+        this.useNetworks = useNetworks;
+        this.networksUrl = process.env.CONCERO_NETWORKS_URL as string;
+        if (useNetworks) {
+            if (!process.env.CONCERO_NETWORKS_URL) {
+                throw new Error('CONCERO_NETWORKS_URL not specified to use concero-networks');
+            }
+        }
     }
 
     public static getInstance(): ConceroNetworkManager {
@@ -33,8 +48,11 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         logger: ILogger,
         httpClient: HttpClient,
         config: NetworkManagerConfig,
+        // used as a temporary flag to use concero-networks repository instead of separate RPCs, chains and deployments
+        // based on env variable "CONCERO_NETWORKS_URL". Used as url to raw json to concero-networks output file
+        useNetworks: boolean = false,
     ): ConceroNetworkManager {
-        this.instance = new ConceroNetworkManager(logger, httpClient, config);
+        this.instance = new ConceroNetworkManager(logger, httpClient, config, useNetworks);
         return this.instance;
     }
 
@@ -117,6 +135,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
         this.logger.warn(`Network "${networkName}" excluded from active networks. ${reason}`);
     }
 
+    // @todo: deprecated, not used
     public getVerifierNetwork(): ConceroNetwork {
         if (this.config.networkMode === 'mainnet') {
             return this.mainnetNetworks['arbitrum'];
@@ -146,19 +165,48 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
     }
 
     public async updateNetworks(): Promise<void> {
-        let networksFetched = false;
+        let isSuccess = false;
         try {
-            if (this.config.networkMode === 'localhost') {
-                // In localhost mode, skip fetching remote network configs
-                this.mainnetNetworks = {};
-                const localhostNetworks = this.getTestingNetworks();
-                this.testnetNetworks = localhostNetworks;
-                this.logger.debug(
-                    `Using localhost networks only: ${Object.keys(localhostNetworks).join(', ')}`,
-                );
-                networksFetched = true;
+            if (this.useNetworks) {
+                if (this.config.networkMode === 'localhost') {
+                    throw new Error('Localhost network mode not supported with useNetworks flag');
+                }
+                const response = await this.httpClient.get<string>(this.networksUrl, {
+                    responseType: 'text',
+                });
+                const chains = JSON.parse(response) as Record<
+                    ConceroChain['chainSelector'],
+                    ConceroChain
+                >;
+                const networks: Record<ConceroNetwork['chainSelector'], ConceroNetwork> =
+                    Object.values(chains)
+                        .map(i => this.pipeConceroChainToConceroNetwork(i))
+                        .reduce(
+                            (acc, chain) => ({
+                                [chain.chainSelector]: chain,
+                                ...acc,
+                            }),
+                            {},
+                        );
+                switch (this.config.networkMode) {
+                    case 'mainnet': {
+                        this.mainnetNetworks = this.createNetworkConfig(networks, 'mainnet');
+                        break;
+                    }
+                    case 'testnet': {
+                        this.testnetNetworks = this.createNetworkConfig(networks, 'testnet');
+                        break;
+                    }
+                }
             } else {
-                try {
+                if (this.config.networkMode === 'localhost') {
+                    // In localhost mode, skip fetching remote network configs
+                    this.mainnetNetworks = {};
+                    this.testnetNetworks = this.getTestingNetworks();
+                    this.logger.debug(
+                        `Using localhost networks only: ${Object.keys(this.testnetNetworks).join(',')}`,
+                    );
+                } else {
                     const { mainnetNetworks: fetchedMainnet, testnetNetworks: fetchedTestnet } =
                         await fetchNetworkConfigs(
                             this.logger,
@@ -188,37 +236,47 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
                             'No testnet networks fetched, keeping existing testnet networks',
                         );
                     }
-
-                    networksFetched = true;
-                } catch (error) {
-                    this.logger.warn(
-                        `Failed to fetch network configurations. Will retry on next update cycle: ${error}`,
-                    );
-                    if (Object.keys(this.allNetworks).length === 0) {
-                        this.logger.error(
-                            'No network configurations available. Unable to initialize services.',
-                        );
-                    }
                 }
             }
-
             this.allNetworks = { ...this.testnetNetworks, ...this.mainnetNetworks };
-
-            const filteredNetworks = this.filterNetworks(this.config.networkMode);
-
-            if (networksFetched) {
-                this.activeNetworks = [...filteredNetworks];
-                this.logger.debug(
-                    `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(', ')})`,
-                );
-            }
-
-            if (networksFetched) {
-                await this.notifyListeners();
-            }
+            this.activeNetworks = this.filterNetworks(this.config.networkMode);
+            this.logger.debug(
+                `Networks loaded - Initial networks: ${this.activeNetworks.length} (${this.activeNetworks.map(n => n.name).join(',')})`,
+            );
+            isSuccess = true;
         } catch (error) {
             this.logger.error(`Failed to update networks: ${error}`);
+            isSuccess = false;
+        } finally {
+            if (isSuccess) {
+                await this.notifyListeners();
+            }
         }
+    }
+
+    private pipeConceroChainToConceroNetwork(chain: ConceroChain): ConceroNetwork {
+        return {
+            id: Number(chain.id),
+            chainSelector: String(chain.chainSelector),
+            name: chain.name,
+            finalityTagEnabled: chain.finalityTagEnabled,
+            finalityConfirmations: chain.finalityConfirmations,
+            addresses: chain?.deployments?.router && { conceroRouter: chain.deployments.router },
+            type: this.config.networkMode,
+            isFinalitySupported: chain.finalityTagEnabled,
+            confirmations: chain.finalityConfirmations,
+            accounts: [],
+            viemChain: {
+                id: Number(chain.id),
+                name: chain.name,
+                rpcUrls: { default: { http: chain.rpcUrls } },
+                nativeCurrency: {
+                    decimals: chain.nativeCurrency.decimals,
+                    name: chain.nativeCurrency.name,
+                    symbol: chain.nativeCurrency.symbol,
+                },
+            },
+        };
     }
 
     private async notifyListeners(): Promise<void> {

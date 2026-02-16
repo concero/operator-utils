@@ -13,9 +13,11 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     private config;
     private httpClient;
     private isPolling;
+    private readonly useNetworks;
+    private readonly networksUrl;
     private constructor();
     static getInstance(): ConceroNetworkManager;
-    static createInstance(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig): ConceroNetworkManager;
+    static createInstance(logger: ILogger, httpClient: HttpClient, config: NetworkManagerConfig, useNetworks?: boolean): ConceroNetworkManager;
     initialize(): Promise<void>;
     registerUpdateListener(listener: NetworkUpdateListener): void;
     unregisterUpdateListener(listener: NetworkUpdateListener): void;
@@ -30,6 +32,7 @@ export declare class ConceroNetworkManager extends ManagerBase implements IConce
     getVerifierNetwork(): ConceroNetwork;
     getDefaultFinalityConfirmations(): number;
     updateNetworks(): Promise<void>;
+    private pipeConceroChainToConceroNetwork;
     private notifyListeners;
     startPolling(): Promise<void>;
     private createNetworkConfig;
