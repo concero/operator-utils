@@ -264,7 +264,7 @@ export class ConceroNetworkManager extends ManagerBase implements IConceroNetwor
             addresses: chain?.deployments?.router && { conceroRouter: chain.deployments.router },
             type: this.config.networkMode,
             isFinalitySupported: chain.isFinalitySupported,
-            confirmations: chain.finalityConfirmations,
+            confirmations: chain.minBlockConfirmations,
             accounts: [],
             viemChain: {
                 id: Number(chain.id),
